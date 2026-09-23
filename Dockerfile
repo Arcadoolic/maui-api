@@ -29,7 +29,8 @@ ARG GID=1000
 RUN groupadd --gid "${GID}" app \
     && useradd --no-log-init --uid "${UID}" --gid "${GID}" --create-home app \
     && setcap CAP_NET_BIND_SERVICE=+eip /usr/local/bin/frankenphp \
-    && chown -R app:app /config/caddy /data/caddy
+    && mkdir -p /config/psysh \
+    && chown -R app:app /config/caddy /config/psysh /data/caddy
 
 COPY docker/php/dev.ini "$PHP_INI_DIR/conf.d/zz-dev.ini"
 
