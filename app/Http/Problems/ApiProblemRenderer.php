@@ -38,6 +38,11 @@ final class ApiProblemRenderer
         }
 
         return match (true) {
+            $exception instanceof ApiProblemException => self::make(
+                $exception->status,
+                $exception->problemCode,
+                extra: $exception->detail === null ? [] : ['detail' => $exception->detail],
+            ),
             $exception instanceof ValidationException => self::make(
                 Response::HTTP_UNPROCESSABLE_ENTITY,
                 extra: ['errors' => $exception->errors()],
