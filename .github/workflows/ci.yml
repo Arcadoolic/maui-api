@@ -1,0 +1,78 @@
+name: CI
+
+on:
+  push:
+    branches: [develop, main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  quality:
+    name: Pint and PHPStan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: bcmath, intl, pdo_pgsql, zip
+          coverage: none
+
+      - name: Install dependencies
+        run: composer install --no-interaction --no-progress --prefer-dist
+
+      - name: Pint
+        run: composer lint:check
+
+      - name: PHPStan
+        run: composer analyse
+
+  tests:
+    name: Pest
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: maui_api_testing
+          POSTGRES_USER: maui_api
+          POSTGRES_PASSWORD: maui_api
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U maui_api -d maui_api_testing"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+    env:
+      DB_HOST: 127.0.0.1
+      DB_PORT: '5432'
+      DB_USERNAME: maui_api
+      DB_PASSWORD: maui_api
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: bcmath, intl, pdo_pgsql, zip
+          coverage: none
+
+      - name: Install dependencies
+        run: composer install --no-interaction --no-progress --prefer-dist
+
+      - name: Prepare application
+        run: |
+          cp .env.example .env
+          php artisan key:generate
+
+      # phpunit.xml forces DB_CONNECTION=pgsql and DB_DATABASE=maui_api_testing.
+      - name: Pest
+        run: composer test
