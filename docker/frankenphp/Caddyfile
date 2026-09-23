@@ -1,0 +1,29 @@
+# FrankenPHP in classic mode (no worker), see docs/DECISIONS.md D9.
+# https://frankenphp.dev/docs/config
+
+{
+	skip_install_trust
+
+	{$CADDY_GLOBAL_OPTIONS}
+
+	frankenphp
+}
+
+# SERVER_NAME=":8080" serves plain HTTP (local dev).
+# A real domain name enables automatic HTTPS (production).
+{$SERVER_NAME:localhost} {
+	root /app/public
+	encode zstd br gzip
+
+	header {
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "DENY"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		-Server
+		-X-Powered-By
+	}
+
+	{$CADDY_SERVER_EXTRA_DIRECTIVES}
+
+	php_server
+}

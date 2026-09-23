@@ -1,0 +1,56 @@
+name: maui-api
+
+# Local development only. Credentials below are dev defaults, never used
+# outside this machine. Override them in the shell environment if needed.
+
+x-db-env: &db-env
+  DB_DATABASE: ${DB_DATABASE:-maui_api}
+  DB_USERNAME: ${DB_USERNAME:-maui_api}
+  DB_PASSWORD: ${DB_PASSWORD:-maui_api}
+
+services:
+  app:
+    build:
+      context: .
+      target: dev
+      args:
+        UID: ${UID:-1000}
+        GID: ${GID:-1000}
+    image: maui-api:dev
+    ports:
+      - "${APP_PORT:-8080}:8080"
+    environment:
+      <<: *db-env
+      SERVER_NAME: ":8080"
+      DB_CONNECTION: pgsql
+      DB_HOST: db
+      DB_PORT: "5432"
+    volumes:
+      - .:/app
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      db:
+        condition: service_healthy
+
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: ${DB_DATABASE:-maui_api}
+      POSTGRES_USER: ${DB_USERNAME:-maui_api}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-maui_api}
+    ports:
+      - "${DB_FORWARD_PORT:-5432}:5432"
+    volumes:
+      - db_data:/var/lib/postgresql/data
+      - ./docker/postgres/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  caddy_data:
+  caddy_config:
+  db_data:

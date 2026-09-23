@@ -1,0 +1,12 @@
+includes:
+    - vendor/larastan/larastan/extension.neon
+
+parameters:
+    level: 8
+    paths:
+        - app
+        - bootstrap/app.php
+        - config
+        - database
+        - routes
+    # tests/ is not analysed: PHPStan cannot type the `$this` bound inside Pest closures.
