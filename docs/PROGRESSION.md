@@ -3,8 +3,8 @@
 Current state of the delivery plan. For the plan itself, see `docs/PLAN.md`.
 For why things are done this way, see `docs/DECISIONS.md`.
 
-**Repository:** local only, no Git remote yet (`Arcadoolic/maui-api` planned).
-**Last updated:** 2026-09-23, after the Lot 0 skeleton.
+**Repository:** `git@github.com:Arcadoolic/maui-api.git` (public), git-flow: `develop` (default) and `main`.
+**Last updated:** 2026-09-23, after the first push (CI green on `main` and `develop`).
 
 ## Status: Lot 0 done (except deployment), Lot 1 ready to start.
 
@@ -27,8 +27,8 @@ For why things are done this way, see `docs/DECISIONS.md`.
   - `/api/v1` prefix, RFC 9457 problem rendering (`ApiProblemRenderer`);
   - Pint, PHPStan level 8 (Larastan), Pest 4 on a PostgreSQL testing
     database;
-  - GitHub Actions workflow (`.github/workflows/ci.yml`), not run yet (no
-    repository).
+  - GitHub Actions workflow (`.github/workflows/ci.yml`), green on the first
+    push.
 
 ## Next
 
@@ -41,9 +41,8 @@ For why things are done this way, see `docs/DECISIONS.md`.
 
 ## Pending outside the code
 
-- `.env.example` still has Laravel defaults (SQLite, `APP_URL` on port 8000):
-  agent permissions block `.env*` files, to update by hand. Compose already
-  overrides the `DB_*` values, so the local stack works as is.
+- `ubuntu-latest` moves to Ubuntu 26 from 2026-10-19 (GitHub annotation):
+  check the first CI run after that date.
 - Production hosting (Docker Compose or native), to decide with the team.
 - Security headers still missing: `Strict-Transport-Security` (production
   HTTPS only) and `Content-Security-Policy` (to define with Filament, Lot 1).

@@ -65,3 +65,10 @@ Admin panel: http://localhost:8080/admin. Health: `/up`.
   and lint it: `docker run --rm -v "$PWD/docs:/spec" redocly/cli lint /spec/openapi.yaml`.
 - Never read or modify `.env` files.
 - Conventional Commits.
+
+## Git workflow
+
+Git-flow, same as MAUI: `develop` is the default and integration branch,
+`main` is production. Every change goes through a feature/fix branch cut
+from `develop` and a PR targeting `develop`. Never commit directly to
+`develop` or `main`; `main` only receives promotion PRs from `develop`.
