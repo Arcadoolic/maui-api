@@ -1,0 +1,563 @@
+openapi: 3.1.0
+
+info:
+  title: MAUI-API
+  version: 1.0.0-draft
+  summary: Backend for MAUI arcade cabinets running in ONLINE mode.
+  description: |
+    Lot 1 contract: MAUI client authentication, machine binding and telemetry.
+    See `docs/PLAN.md` for the design decisions behind this contract.
+
+    ## Authentication
+
+    Every `/api/v1` request from a MAUI cabinet sends three headers:
+
+    | Header | Content |
+    |--------|---------|
+    | `X-Maui-Key` | Public client key (`mk_...`), stable across renewals. |
+    | `Authorization` | `Bearer <token>`, the secret. Only one valid token per client. |
+    | `X-Maui-Machine` | Machine fingerprint, see below. |
+
+    All three are required together. A token that does not belong to the client
+    carrying the key is rejected as if it were unknown.
+
+    ## Machine fingerprint
+
+    MAUI computes the fingerprint locally and never receives it from the API:
+
+    `fingerprint = lowercase hex SHA-256 of (local UUID + ":" + OS machine identifier)`
+
+    - local UUID: generated once, persisted in the MAUI config directory;
+    - OS machine identifier: `/etc/machine-id` (Linux), `IOPlatformUUID` (macOS),
+      `MachineGuid` (Windows). Empty string if unavailable.
+
+    The fingerprint must be computed by the Electron main process or the BO
+    Express server, never by a browser page (the BO is reachable from the LAN).
+
+    The first authenticated request on an unbound client binds the key to the
+    fingerprint. Later requests with another fingerprint get `409 machine_mismatch`.
+    The binding is reset by an admin action or when a new token is claimed.
+
+    ## Configuration string
+
+    Credentials are delivered to the cabinet owner as a single string, pasted
+    into the MAUI BO:
+
+    `MAUI1.` + base64url(JSON), no padding. The JSON follows the
+    `MauiConfiguration` schema. `MAUI1` is the version of this string format,
+    unrelated to the API version.
+
+    ## Errors
+
+    Every error body is an RFC 9457 problem document (`application/problem+json`)
+    with an extra stable `code` field. Clients must branch on `code`, never on
+    `title` or `detail`.
+
+    | Status | `code` | Meaning for MAUI |
+    |--------|--------|------------------|
+    | 400 | `machine_fingerprint_missing` | Client bug: header missing or malformed. |
+    | 401 | `unauthenticated` | Key or token unknown, or token revoked. Fall back to LOCAL. |
+    | 403 | `client_disabled` | Account disabled by an admin. Fall back to LOCAL. |
+    | 403 | `insufficient_ability` | Token not allowed on this endpoint (e.g. service account). |
+    | 409 | `machine_mismatch` | Credentials already bound to another cabinet. Fall back to LOCAL. |
+    | 422 | `validation_failed` | Invalid body, details in `errors`. |
+    | 429 | `rate_limited` | Retry after `Retry-After` seconds. |
+    | 500 | `server_error` | No technical detail is ever exposed. |
+
+    Generic codes, not tied to a business rule: `forbidden` (403),
+    `not_found` (404), `method_not_allowed` (405), `http_error` (any other
+    4xx). Any 5xx uses `server_error`.
+
+    ## Rate limiting
+
+    Per client key: 60 requests per minute (tentative value). A heartbeat every
+    60 s uses a small fraction of it.
+
+servers:
+  - url: http://localhost:8080/api/v1
+    description: Local Docker environment
+
+tags:
+  - name: Session
+    description: Credentials check, machine binding and telemetry (MAUI cabinets).
+  - name: Invitations
+    description: |
+      Public web pages (HTML, not JSON) used by a cabinet owner to retrieve
+      credentials. Not called by MAUI itself, documented here for completeness.
+
+security:
+  - mauiKey: []
+    bearerToken: []
+    mauiMachine: []
+
+paths:
+  /ping:
+    get:
+      tags: [Session]
+      operationId: ping
+      summary: Check credentials and bind the machine
+      description: |
+        Called by the "Test connection" button of the MAUI BO. On an unbound
+        client, this call binds the key to the fingerprint (atomic: if two
+        machines race, only one wins, the other gets `409 machine_mismatch`).
+
+        Requires the `session` ability. MAUI clients only.
+      responses:
+        '200':
+          description: Credentials valid, machine bound to this client.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PingResponse'
+        '400':
+          $ref: '#/components/responses/MachineFingerprintMissing'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/MachineMismatch'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /startups:
+    post:
+      tags: [Session]
+      operationId: reportStartup
+      summary: Report a MAUI startup
+      description: |
+        Sent once when MAUI starts in ONLINE mode. Stores the versions seen on
+        the cabinet and also counts as a heartbeat.
+
+        The returned `id` is kept in memory by MAUI and attached to scores
+        recorded during this run (Lot 2). If this call fails (e.g. offline
+        start), MAUI simply has no startup ID for the run.
+
+        Requires the `session` ability.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StartupRequest'
+      responses:
+        '201':
+          description: Startup recorded.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StartupResponse'
+        '400':
+          $ref: '#/components/responses/MachineFingerprintMissing'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/MachineMismatch'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /heartbeat:
+    post:
+      tags: [Session]
+      operationId: heartbeat
+      summary: Signal that the cabinet is online
+      description: |
+        Sent every ~60 s by a background task. Updates `last_heartbeat_at`.
+        A client is shown as online when its last heartbeat is less than
+        3 minutes old. No request body.
+
+        Requires the `session` ability.
+      responses:
+        '204':
+          description: Heartbeat recorded.
+        '400':
+          $ref: '#/components/responses/MachineFingerprintMissing'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/MachineMismatch'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /invite/{invitationToken}:
+    servers:
+      - url: http://localhost:8080
+        description: Web routes, outside the /api/v1 prefix
+    parameters:
+      - $ref: '#/components/parameters/InvitationToken'
+    get:
+      tags: [Invitations]
+      operationId: showInvitation
+      summary: Invitation page
+      description: |
+        Displays a page with a "Get my credentials" button. Does NOT consume
+        the invitation, so email scanners and link previews are harmless.
+      security: []
+      responses:
+        '200':
+          description: Invitation valid, page with the claim button.
+          content:
+            text/html:
+              schema:
+                type: string
+        '404':
+          description: Unknown invitation.
+          content:
+            text/html:
+              schema:
+                type: string
+        '410':
+          description: Invitation expired or already claimed (explicit message).
+          content:
+            text/html:
+              schema:
+                type: string
+        '429':
+          description: Too many requests from this IP.
+
+  /invite/{invitationToken}/claim:
+    servers:
+      - url: http://localhost:8080
+        description: Web routes, outside the /api/v1 prefix
+    parameters:
+      - $ref: '#/components/parameters/InvitationToken'
+    post:
+      tags: [Invitations]
+      operationId: claimInvitation
+      summary: Claim credentials
+      description: |
+        Consumes the invitation in a single transaction: deletes the client's
+        existing tokens, creates the new one, resets the machine binding,
+        stores `claimed_at` and `claimed_ip`.
+
+        The response page shows the configuration string once, with a "Copy"
+        button and a "keep this, it will not be shown again" message.
+        CSRF protected (Laravel web route), rate limited per IP.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              required: [_token]
+              properties:
+                _token:
+                  type: string
+                  description: Laravel CSRF token from the invitation page.
+      responses:
+        '200':
+          description: Credentials issued, page with the `MAUI1.` string.
+          content:
+            text/html:
+              schema:
+                type: string
+        '404':
+          description: Unknown invitation.
+          content:
+            text/html:
+              schema:
+                type: string
+        '410':
+          description: Invitation expired or already claimed.
+          content:
+            text/html:
+              schema:
+                type: string
+        '419':
+          description: CSRF token missing or expired (page reloaded too late).
+        '429':
+          description: Too many requests from this IP.
+
+components:
+  securitySchemes:
+    mauiKey:
+      type: apiKey
+      in: header
+      name: X-Maui-Key
+      description: Public client key, format `mk_` followed by 24 base62 characters.
+    bearerToken:
+      type: http
+      scheme: bearer
+      description: Sanctum token, opaque string. Never displayed twice.
+    mauiMachine:
+      type: apiKey
+      in: header
+      name: X-Maui-Machine
+      description: Machine fingerprint, 64 lowercase hex characters (SHA-256).
+
+  parameters:
+    InvitationToken:
+      name: invitationToken
+      in: path
+      required: true
+      description: Invitation token from the link. Stored hashed server side.
+      schema:
+        type: string
+        minLength: 32
+        maxLength: 128
+
+  schemas:
+    MauiConfiguration:
+      type: object
+      description: |
+        Decoded content of the `MAUI1.` configuration string. Not returned by
+        any JSON endpoint, defined here as the reference for the MAUI parser.
+
+        Parsers must ignore unknown fields: adding an optional field does not
+        bump the `MAUI1` prefix. Only a breaking change does (new required
+        field, different encoding, signed or encrypted payload).
+      required: [url, key, token]
+      properties:
+        url:
+          type: string
+          format: uri
+          description: API base URL without version prefix. MAUI appends `/api/v1`.
+          examples: ['https://api.example.org']
+        key:
+          $ref: '#/components/schemas/ClientKey'
+        token:
+          type: string
+          description: Sanctum token.
+      examples:
+        - url: https://api.example.org
+          key: mk_7F3aQ9dLx2PzK8wR4mT6vYb1
+          token: 12|Zx8yQ3...
+
+    ClientKey:
+      type: string
+      pattern: '^mk_[A-Za-z0-9]{24}$'
+      examples: ['mk_7F3aQ9dLx2PzK8wR4mT6vYb1']
+
+    PingResponse:
+      type: object
+      required: [client, machine, server_time]
+      additionalProperties: false
+      properties:
+        client:
+          type: object
+          required: [key, name]
+          additionalProperties: false
+          properties:
+            key:
+              $ref: '#/components/schemas/ClientKey'
+            name:
+              type: string
+              description: Human-readable cabinet name.
+              examples: ['marvelous_mario']
+        machine:
+          type: object
+          required: [bound_at, newly_bound]
+          additionalProperties: false
+          properties:
+            bound_at:
+              type: string
+              format: date-time
+            newly_bound:
+              type: boolean
+              description: True when this call created the binding.
+        server_time:
+          type: string
+          format: date-time
+          description: Lets MAUI detect a clock skew with `client_datetime`.
+
+    StartupRequest:
+      type: object
+      required: [mame_version, maui_version, os, os_version, client_datetime]
+      additionalProperties: false
+      properties:
+        mame_version:
+          type: string
+          maxLength: 32
+          description: As reported by `mame -version`.
+          examples: ['0.272']
+        maui_version:
+          type: string
+          maxLength: 32
+          examples: ['2.4.0']
+        os:
+          type: string
+          enum: [linux, darwin, win32]
+          description: Node.js `process.platform`.
+        os_version:
+          type: string
+          maxLength: 64
+          description: Node.js `os.release()`.
+          examples: ['6.8.0-139-generic']
+        client_datetime:
+          type: string
+          format: date-time
+          description: Cabinet local time, with offset.
+          examples: ['2026-09-23T20:15:00+02:00']
+
+    StartupResponse:
+      type: object
+      required: [id, received_at]
+      additionalProperties: false
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Startup ID, attached to scores of this run (Lot 2).
+        received_at:
+          type: string
+          format: date-time
+
+    Problem:
+      type: object
+      description: RFC 9457 problem details, with a stable `code` extension.
+      required: [type, title, status, code]
+      properties:
+        type:
+          type: string
+          format: uri-reference
+          default: about:blank
+        title:
+          type: string
+        status:
+          type: integer
+        detail:
+          type: string
+        code:
+          type: string
+          enum:
+            - machine_fingerprint_missing
+            - unauthenticated
+            - client_disabled
+            - insufficient_ability
+            - machine_mismatch
+            - validation_failed
+            - rate_limited
+            - server_error
+            - forbidden
+            - not_found
+            - method_not_allowed
+            - http_error
+
+    ValidationProblem:
+      allOf:
+        - $ref: '#/components/schemas/Problem'
+        - type: object
+          required: [errors]
+          properties:
+            errors:
+              type: object
+              description: Field name to list of messages.
+              additionalProperties:
+                type: array
+                items:
+                  type: string
+
+  responses:
+    MachineFingerprintMissing:
+      description: '`X-Maui-Machine` header missing or not 64 lowercase hex characters.'
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+          example:
+            type: about:blank
+            title: Bad Request
+            status: 400
+            code: machine_fingerprint_missing
+
+    Unauthenticated:
+      description: Key or token missing, unknown, revoked, or not matching each other.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+          example:
+            type: about:blank
+            title: Unauthorized
+            status: 401
+            code: unauthenticated
+
+    Forbidden:
+      description: Client disabled, or token lacking the required ability.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+          examples:
+            clientDisabled:
+              value:
+                type: about:blank
+                title: Forbidden
+                status: 403
+                code: client_disabled
+            insufficientAbility:
+              value:
+                type: about:blank
+                title: Forbidden
+                status: 403
+                code: insufficient_ability
+
+    MachineMismatch:
+      description: Client already bound to another machine fingerprint.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+          example:
+            type: about:blank
+            title: Conflict
+            status: 409
+            detail: These credentials are already used on another cabinet.
+            code: machine_mismatch
+
+    ValidationFailed:
+      description: Request body invalid.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ValidationProblem'
+          example:
+            type: about:blank
+            title: Unprocessable Content
+            status: 422
+            code: validation_failed
+            errors:
+              os:
+                - The selected os is invalid.
+
+    RateLimited:
+      description: Too many requests for this client key.
+      headers:
+        Retry-After:
+          description: Seconds to wait before retrying.
+          schema:
+            type: integer
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+          example:
+            type: about:blank
+            title: Too Many Requests
+            status: 429
+            code: rate_limited
+
+    ServerError:
+      description: Unexpected error. No technical detail exposed.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+          example:
+            type: about:blank
+            title: Internal Server Error
+            status: 500
+            code: server_error
