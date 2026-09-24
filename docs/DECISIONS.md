@@ -253,3 +253,13 @@ in `beforeRefreshingDatabase()` unless the database name ends with
 `_testing`. The guard failed the suite before the fix (90 tests refused on
 `maui_api`), so it is proven to catch this.
 ||||||| parent of af604f1 (docs: record back office decisions and progress)
+
+**D37: Workaround for the broken MFA setup QR code.** (2026-09-24)
+Filament 5.8.4 base64-encodes the value from `pragmarx/google2fa-qrcode`
+as raw SVG when `bacon/bacon-qr-code` is installed without `imagick`, but
+google2fa-qrcode 4 already returns a full `data:image/svg+xml;base64,...`
+URI: the image was double-encoded and did not render (seen during the manual
+check of the back office). `App\Filament\Auth\AppAuthentication` extends
+Filament's provider and unwraps the URI only when it is double-encoded, so
+it turns into a no-op once upstream fixes it. The test fails with the stock
+Filament class. Remove the subclass when Filament ships a fix.

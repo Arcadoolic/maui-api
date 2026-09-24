@@ -17,7 +17,7 @@ For why things are done this way, see `docs/DECISIONS.md`.
 
 ## Done
 
-- Delivery plan (`docs/PLAN.md`), decisions D1 to D35 (`docs/DECISIONS.md`).
+- Delivery plan (`docs/PLAN.md`), decisions D1 to D37 (`docs/DECISIONS.md`).
 - Lot 1 OpenAPI 3.1 contract (`docs/openapi.yaml`).
 - Lot 0 skeleton:
   - Docker: FrankenPHP + PHP 8.4 image (`Dockerfile`, `docker/`), Compose
@@ -75,7 +75,7 @@ For why things are done this way, see `docs/DECISIONS.md`.
   `Client`.
 - Dashboard widget: cabinets, online now, disabled.
 - `clients.latest_startup_id` (D32).
-- 119 Pest tests.
+- 120 Pest tests; MFA setup QR code workaround (D37).
 
 ## Next
 
@@ -101,7 +101,7 @@ Tracked in `docs/PLAN.md`, section "Open questions".
 | Check | Expected |
 |-------|----------|
 | `just up` then `/up` | 200 |
-| `just ci` | Pint pass, PHPStan no errors, Pest 119 passed |
+| `just ci` | Pint pass, PHPStan no errors, Pest 120 passed |
 | `curl -sD - -o /dev/null http://localhost:8080/invite/<48 chars>` | `Referrer-Policy: no-referrer`, `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff` |
 | `docker run --rm -v "$PWD/docs:/spec" redocly/cli lint /spec/openapi.yaml` | valid, 7 known warnings (no license, localhost servers, unused `MauiConfiguration`, no 2xx on the 303-only `/invite/{t}/name`) |
 | `docker run --rm -v "$PWD":/repo -w /repo rhysd/actionlint:latest .github/workflows/ci.yml` | no output |
