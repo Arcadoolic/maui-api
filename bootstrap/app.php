@@ -1,11 +1,14 @@
 <?php
 
 use App\Http\Middleware\AuthenticateCabinet;
+use App\Http\Middleware\SecureInvitationPages;
 use App\Http\Problems\ApiProblemException;
 use App\Http\Problems\ApiProblemRenderer;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
+use Illuminate\Http\Request;
+use Symfony\Component\HttpFoundation\Response;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -22,4 +25,9 @@ return Application::configure(basePath: dirname(__DIR__))
         // Expected business errors (auth, binding...): logged where they happen, not as errors.
         $exceptions->dontReport(ApiProblemException::class);
         $exceptions->render(new ApiProblemRenderer);
+        // CSRF (419), rate limit (429) and server errors on invitation pages
+        // must not be cached or indexed either: their URL holds the secret.
+        $exceptions->respond(fn (Response $response, Throwable $e, Request $request): Response => SecureInvitationPages::appliesTo($request)
+            ? SecureInvitationPages::withPrivacyHeaders($response)
+            : $response);
     })->create();

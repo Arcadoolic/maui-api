@@ -38,5 +38,9 @@ class AppServiceProvider extends ServiceProvider
                 Limit::perMinute(600)->by('ip-wide:'.$request->ip()),
             ];
         });
+
+        // Public invitation pages: the token space is too large to guess, this
+        // only slows down scanning (docs/PLAN.md 1.2).
+        RateLimiter::for('invitations', fn (Request $request): Limit => Limit::perMinute(10)->by($request->ip()));
     }
 }
