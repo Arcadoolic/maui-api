@@ -1,8 +1,12 @@
 <?php
 
+use App\Enums\InvitationPurpose;
 use App\Models\Client;
 use App\Services\ClientTokenIssuer;
+use App\Services\Invitations\InvitationIssuer;
+use App\Services\Invitations\IssuedInvitation;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Testing\TestResponse;
 use Tests\TestCase;
 
 pest()->extend(TestCase::class)
@@ -42,4 +46,17 @@ function cabinetWithToken(array $attributes = []): array
     $client = Client::factory()->create($attributes);
 
     return [$client, app(ClientTokenIssuer::class)->issue($client)];
+}
+
+function issueInvitation(?Client $client = null, InvitationPurpose $purpose = InvitationPurpose::Initial): IssuedInvitation
+{
+    return app(InvitationIssuer::class)->issue($client ?? Client::factory()->create(), $purpose);
+}
+
+/** Extracts the MAUI1 configuration string displayed on the claimed page. */
+function configurationStringFrom(TestResponse $response): string
+{
+    preg_match('/MAUI1\.[A-Za-z0-9_-]+/', $response->getContent(), $matches);
+
+    return $matches[0] ?? '';
 }

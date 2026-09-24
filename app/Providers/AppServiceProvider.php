@@ -40,7 +40,8 @@ class AppServiceProvider extends ServiceProvider
         });
 
         // Public invitation pages: the token space is too large to guess, this
-        // only slows down scanning (docs/PLAN.md 1.2).
-        RateLimiter::for('invitations', fn (Request $request): Limit => Limit::perMinute(10)->by($request->ip()));
+        // only slows down scanning (docs/PLAN.md 1.2). High enough for an owner
+        // drawing several cabinet names (two requests per draw).
+        RateLimiter::for('invitations', fn (Request $request): Limit => Limit::perMinute(30)->by($request->ip()));
     }
 }

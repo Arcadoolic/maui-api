@@ -2,6 +2,8 @@
 
 @section('content')
     <h1>{{ __('Your MAUI configuration') }}</h1>
+    <p class="name-label muted">{{ __('Cabinet name') }}</p>
+    <p class="name">{{ $cabinetName }}</p>
     <p>{{ __('In the MAUI back office, switch to ONLINE mode and paste this configuration in the "Paste configuration" field, then click "Test connection".') }}</p>
 
     <label for="configuration" class="muted">{{ __('Configuration') }}</label>

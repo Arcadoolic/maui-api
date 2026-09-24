@@ -15,5 +15,6 @@ Route::middleware(['throttle:invitations', SecureInvitationPages::class])
     ->name('invitations.')
     ->group(function () {
         Route::get('/', [InvitationController::class, 'show'])->name('show');
+        Route::post('name', [InvitationController::class, 'rename'])->name('rename');
         Route::post('claim', [InvitationController::class, 'claim'])->name('claim');
     });

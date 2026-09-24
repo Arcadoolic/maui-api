@@ -15,6 +15,10 @@
         .muted { color: var(--muted); }
         .notice { background: var(--panel); border-left: 4px solid var(--accent); padding: .75rem 1rem; margin: 1rem 0; }
         button { background: var(--accent); border: 0; border-radius: .375rem; color: #fff; cursor: pointer; font-size: 1rem; padding: .625rem 1.25rem; }
+        button.secondary { background: transparent; border: 2px solid var(--accent); color: var(--accent); }
+        form { margin: 0 0 1rem; }
+        .name-label { font-size: .875rem; margin: 0; }
+        .name { font-family: ui-monospace, monospace; font-size: 1.5rem; font-weight: 700; margin: 0 0 1rem; }
         textarea { box-sizing: border-box; font-family: ui-monospace, monospace; font-size: .875rem; padding: .5rem; width: 100%; word-break: break-all; }
     </style>
 </head>

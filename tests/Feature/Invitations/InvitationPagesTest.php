@@ -1,25 +1,8 @@
 <?php
 
 use App\Enums\InvitationPurpose;
-use App\Models\Client;
-use App\Services\Invitations\InvitationIssuer;
-use App\Services\Invitations\IssuedInvitation;
 use App\Support\ConfigurationString;
 use Illuminate\Support\Facades\Schema;
-use Illuminate\Testing\TestResponse;
-
-function issueInvitation(?Client $client = null, InvitationPurpose $purpose = InvitationPurpose::Initial): IssuedInvitation
-{
-    return app(InvitationIssuer::class)->issue($client ?? Client::factory()->create(), $purpose);
-}
-
-/** Extracts the MAUI1 configuration string displayed on the claimed page. */
-function configurationStringFrom(TestResponse $response): string
-{
-    preg_match('/MAUI1\.[A-Za-z0-9_-]+/', $response->getContent(), $matches);
-
-    return $matches[0] ?? '';
-}
 
 describe('GET /invite/{token}', function () {
     it('shows a claim button without consuming the invitation', function () {
@@ -155,7 +138,7 @@ it('keeps the strict headers on error responses', function (Closure $trigger) {
         ->and($response->headers->get('X-Robots-Tag'))->toBe('noindex, nofollow');
 })->with([
     'rate limited (429)' => [function ($test) {
-        for ($i = 0; $i < 10; $i++) {
+        for ($i = 0; $i < 30; $i++) {
             $test->get('/invite/'.str_repeat('a', 48));
         }
 
@@ -174,7 +157,7 @@ it('keeps the strict headers on error responses', function (Closure $trigger) {
 it('rate limits invitation pages per IP', function () {
     $token = str_repeat('a', 48);
 
-    for ($i = 0; $i < 10; $i++) {
+    for ($i = 0; $i < 30; $i++) {
         $this->get('/invite/'.$token)->assertNotFound();
     }
 
