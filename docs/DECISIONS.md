@@ -193,3 +193,12 @@ exception response under `invite/*`. Server errors thrown by the controller
 were already covered (checked by removing the hook), the test keeps it that
 way. The nonce CSP is not added to error pages: Laravel's error views use
 inline styles.
+
+**D30: The owner draws the cabinet name on the invitation page.** (2026-09-24)
+The name generated at creation (D28) is only a first proposal. On an
+initial invitation, `POST /invite/{token}/name` draws another free name as
+many times as the owner wants, then redirects back (303) to the invitation
+page; it never consumes the invitation. The name is final once the
+credentials are claimed. Not offered on a renewal (403): an existing cabinet
+keeps its name, which later identifies it in hiscores. Invitation rate limit
+raised from 10 to 30 per minute per IP, since each draw costs two requests.
