@@ -202,3 +202,14 @@ page; it never consumes the invitation. The name is final once the
 credentials are claimed. Not offered on a renewal (403): an existing cabinet
 keeps its name, which later identifies it in hiscores. Invitation rate limit
 raised from 10 to 30 per minute per IP, since each draw costs two requests.
+
+**D36: Test database isolation fixed, plus a guard.** (2026-09-24)
+D16's implementation did not work: `force="true"` on `<env>` only sets
+`$_ENV`, while compose puts `DB_DATABASE=maui_api` in the container
+environment, read by Laravel from `$_SERVER` first. Every local test run
+refreshed the dev database (an admin account was lost). CI was unaffected:
+it does not set `DB_DATABASE`. Fix: `phpunit.xml` overrides both `<env>` and
+`<server>`. Guard: `Tests\TestCase` uses `RefreshDatabase` itself and throws
+in `beforeRefreshingDatabase()` unless the database name ends with
+`_testing`. The guard failed the suite before the fix (90 tests refused on
+`maui_api`), so it is proven to catch this.

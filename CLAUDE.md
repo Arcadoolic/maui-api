@@ -52,8 +52,11 @@ Admin panel: http://localhost:8080/admin. Health: `/up`.
   messages. Use `ApiProblemRenderer::make($status, 'code')` for business errors.
 - Sanctum `HasApiTokens` goes on the machine `Client` model, never on `User`
   (D2). Stateful cookie authentication is disabled (`config/sanctum.php`).
-- Tests always run on PostgreSQL: `phpunit.xml` forces `DB_CONNECTION` and
-  `DB_DATABASE` because compose exports the dev database settings.
+- Tests always run on PostgreSQL, database `maui_api_testing`: `phpunit.xml`
+  forces `DB_CONNECTION` and `DB_DATABASE` in both `<env>` and `<server>`
+  (compose exports the dev settings into `$_SERVER`), and `Tests\TestCase`
+  refuses to refresh any database not ending with `_testing` (D36). Keep
+  `RefreshDatabase` in `TestCase`, not in `Pest.php`.
 
 ## Rules
 
