@@ -4,20 +4,20 @@ Current state of the delivery plan. For the plan itself, see `docs/PLAN.md`.
 For why things are done this way, see `docs/DECISIONS.md`.
 
 **Repository:** `git@github.com:Arcadoolic/maui-api.git` (public), git-flow: `develop` (default) and `main`.
-**Last updated:** 2026-09-23, Lot 1 part 1 (cabinet authentication) on `feat/lot1-cabinet-auth`.
+**Last updated:** 2026-09-24, Lot 1 part 2 (invitations) on `feat/lot1-invitations`.
 
 ## Status: Lot 0 done (except deployment), Lot 1 in progress.
 
 | Lot | What | Status |
 |-----|------|--------|
 | 0 | Foundation: Docker Compose, Laravel 13 skeleton, CI | **Done**, deployment pending (hosting undecided) |
-| 1 | MAUI authentication, machine binding, telemetry, Filament BO | **In progress**: cabinet API done, invitations and Filament next |
+| 1 | MAUI authentication, machine binding, telemetry, Filament BO | **In progress**: cabinet API merged, invitations in review, Filament next |
 | 2 | Hiscores: catalog, players, scores, leaderboards | Design points noted, open questions pending |
 | 3 | Hiscores front end | Not started |
 
 ## Done
 
-- Delivery plan (`docs/PLAN.md`), decisions D1 to D23 (`docs/DECISIONS.md`).
+- Delivery plan (`docs/PLAN.md`), decisions D1 to D29 (`docs/DECISIONS.md`).
 - Lot 1 OpenAPI 3.1 contract (`docs/openapi.yaml`).
 - Lot 0 skeleton:
   - Docker: FrankenPHP + PHP 8.4 image (`Dockerfile`, `docker/`), Compose
@@ -30,7 +30,7 @@ For why things are done this way, see `docs/DECISIONS.md`.
   - GitHub Actions workflow (`.github/workflows/ci.yml`), green on the first
     push.
 
-## Lot 1, part 1: cabinet API (branch `feat/lot1-cabinet-auth`)
+## Lot 1, part 1: cabinet API (merged, PR #1)
 
 - Migrations `clients` and `client_startups`, `Client` model (`HasApiTokens`,
   enums `ClientType` / `ClientStatus`, online status), factory.
@@ -42,14 +42,30 @@ For why things are done this way, see `docs/DECISIONS.md`.
   review (one MEDIUM finding fixed: post-authentication rejections are now
   logged).
 
+## Lot 1, part 2: invitations (branch `feat/lot1-invitations`)
+
+- `invitations` table and model (token stored as SHA-256 only), purposes
+  initial / renewal.
+- `InvitationIssuer`: 48-char link token, 72 h expiry (`config/maui.php`),
+  previous pending link expired (D24), no invitation for service accounts.
+- `InvitationClaimer`: row-locked transaction issuing the token, resetting
+  the binding, recording `claimed_at` / `claimed_ip`.
+- `ConfigurationString`: `MAUI1.` encode / decode.
+- Pages `GET /invite/{token}` (button only) and `POST /invite/{token}/claim`
+  (configuration shown once, copy button), 404 / 410 pages, 10/min per IP,
+  `SecureInvitationPages` headers (no-store, no-referrer, noindex, CSP nonce).
+- `ClientNameGenerator` and automatic naming (D28).
+- Caddyfile: default security headers overridable by Laravel (D27).
+- 85 Pest tests; end-to-end check with curl (real CSRF, 419 without token,
+  claim, ping with the claimed credentials, 410 on reuse, headers through
+  Caddy); security review (one MEDIUM finding fixed: privacy headers missing
+  on 419 / 429 responses, D29).
+
 ## Next
 
-1. Lot 1, part 2: `invitations` table, invitation pages (`GET /invite/{t}`,
-   `POST /invite/{t}/claim`), `MAUI1.` string, claim transaction, client name
-   generator.
-2. Lot 1, part 3: Filament `ClientResource` (create, invite, renew, disable,
+1. Lot 1, part 3: Filament `ClientResource` (create, invite, renew, disable,
    reset binding, startups relation manager), `canAccessPanel`, MFA, audit log.
-3. MAUI side (`../mame-awesome-ui`): configuration screen, fingerprint,
+2. MAUI side (`../mame-awesome-ui`): configuration screen, fingerprint,
    startup and heartbeat calls.
 
 ## Pending outside the code
@@ -69,6 +85,7 @@ Tracked in `docs/PLAN.md`, section "Open questions".
 | Check | Expected |
 |-------|----------|
 | `just up` then `/up` | 200 |
-| `just ci` | Pint pass, PHPStan no errors, Pest 56 passed |
+| `just ci` | Pint pass, PHPStan no errors, Pest 85 passed |
+| `curl -sD - -o /dev/null http://localhost:8080/invite/<48 chars>` | `Referrer-Policy: no-referrer`, `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff` |
 | `docker run --rm -v "$PWD/docs:/spec" redocly/cli lint /spec/openapi.yaml` | valid, 5 known warnings (no license, localhost servers, unused `MauiConfiguration`) |
 | `docker run --rm -v "$PWD":/repo -w /repo rhysd/actionlint:latest .github/workflows/ci.yml` | no output |

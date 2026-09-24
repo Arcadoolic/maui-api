@@ -245,7 +245,14 @@ paths:
 
         The response page shows the configuration string once, with a "Copy"
         button and a "keep this, it will not be shown again" message.
-        CSRF protected (Laravel web route), rate limited per IP.
+        CSRF protected (Laravel web route), rate limited per IP (10 per
+        minute, shared with the invitation page). A disabled client can
+        claim a renewal, but stays disabled until an admin re-enables it.
+        Only the latest invitation of a client is claimable.
+
+        Response headers on both invitation routes: `Cache-Control: no-store`,
+        `Referrer-Policy: no-referrer`, `X-Robots-Tag: noindex, nofollow`,
+        and a nonce-based `Content-Security-Policy`.
       security: []
       requestBody:
         required: true

@@ -154,3 +154,42 @@ limit. Applied before authentication, so failed attempts are limited too.
 Eloquent serializes dates without their offset, so the value is converted to
 UTC before saving. Its purpose is clock-skew detection, which only needs the
 instant. Accepted formats include JavaScript `toISOString()` (`.123Z`).
+
+**D24: Only the latest invitation of a client is usable.** (2026-09-24)
+Creating an invitation expires the client's pending ones. An admin who sends
+a second link (typo in the email, lost message) does not leave the first one
+claimable, so at most one link can issue credentials at any time.
+
+**D25: Claiming never re-enables a disabled client.** (2026-09-24)
+Compromised token flow (D5): disable, renew, the owner claims, then the admin
+re-enables explicitly. The claim issues the new token and resets the binding,
+but the client stays disabled (`403 client_disabled`) until an admin acts.
+
+**D26: Invitation pages in English, strings translatable.** (2026-09-24)
+Same language as the MAUI UI. Every string goes through `__()`, so a French
+translation can be added later without touching the views.
+
+**D27: Caddy security headers are defaults, one directive each.** (2026-09-24)
+The Caddyfile sets `X-Content-Type-Options`, `X-Frame-Options` and
+`Referrer-Policy` with the `?` prefix, so Laravel can set a stricter value
+(`no-referrer` on invitation pages, whose URL holds the secret). Checked on
+the running stack: with the three `?` headers in a single `header` block,
+Laravel setting one of them made Caddy drop all three defaults; one
+directive per header fixes it. Pest does not go through Caddy: check headers
+with curl after changing the Caddyfile.
+
+**D28: Cabinet names are generated at creation.** (2026-09-24)
+`Client` gets a name from `ClientNameGenerator` when none is given:
+random `adjective_hero` draws from `config/maui.php`, then every
+combination, then a numeric suffix as a last resort.
+
+**D29: Invitation privacy headers also on exception responses.** (2026-09-24)
+`SecureInvitationPages` only sees responses produced inside it. A CSRF
+failure (419) or a rate-limit hit (429) is rendered before it runs, so those
+pages went out cacheable and indexable while their URL holds the secret
+(security review finding). An `$exceptions->respond()` hook in
+`bootstrap/app.php` applies `no-store`, `no-referrer` and `noindex` to every
+exception response under `invite/*`. Server errors thrown by the controller
+were already covered (checked by removing the hook), the test keeps it that
+way. The nonce CSP is not added to error pages: Laravel's error views use
+inline styles.
