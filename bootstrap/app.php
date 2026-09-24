@@ -1,5 +1,7 @@
 <?php
 
+use App\Http\Middleware\AuthenticateCabinet;
+use App\Http\Problems\ApiProblemException;
 use App\Http\Problems\ApiProblemRenderer;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
@@ -14,8 +16,10 @@ return Application::configure(basePath: dirname(__DIR__))
         apiPrefix: 'api/v1',
     )
     ->withMiddleware(function (Middleware $middleware): void {
-        //
+        $middleware->alias(['cabinet' => AuthenticateCabinet::class]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
+        // Expected business errors (auth, binding...): logged where they happen, not as errors.
+        $exceptions->dontReport(ApiProblemException::class);
         $exceptions->render(new ApiProblemRenderer);
     })->create();

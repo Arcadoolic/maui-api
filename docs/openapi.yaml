@@ -70,8 +70,9 @@ info:
 
     ## Rate limiting
 
-    Per client key: 60 requests per minute (tentative value). A heartbeat every
-    60 s uses a small fraction of it.
+    60 requests per minute per client key (per IP when `X-Maui-Key` is
+    missing), plus 600 per minute per IP. Tentative values. A heartbeat every
+    60 s uses a small fraction of it. Applied before authentication.
 
 servers:
   - url: http://localhost:8080/api/v1
@@ -375,8 +376,8 @@ components:
 
     StartupRequest:
       type: object
+      description: Unknown fields are ignored, so MAUI can send new ones before the API knows them.
       required: [mame_version, maui_version, os, os_version, client_datetime]
-      additionalProperties: false
       properties:
         mame_version:
           type: string
@@ -399,8 +400,12 @@ components:
         client_datetime:
           type: string
           format: date-time
-          description: Cabinet local time, with offset.
-          examples: ['2026-09-23T20:15:00+02:00']
+          description: |
+            Cabinet local time, RFC 3339 with a mandatory offset (`Z` or
+            `+02:00`), optional milliseconds or microseconds. JavaScript
+            `new Date().toISOString()` is accepted. Stored in UTC: the
+            original offset is not kept.
+          examples: ['2026-09-23T20:15:00+02:00', '2026-09-23T18:15:00.123Z']
 
     StartupResponse:
       type: object

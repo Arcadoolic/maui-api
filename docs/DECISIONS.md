@@ -128,3 +128,29 @@ the logs. Generic codes complete D11: `forbidden`, `not_found`,
 PHPStan cannot type the `$this` bound inside Pest closures, which produced
 only false positives. Application code, config, database and routes are
 analysed.
+
+## Lot 1 implementation
+
+**D20: Cabinet authentication is a dedicated middleware, not `auth:sanctum`.** (2026-09-23)
+`AuthenticateCabinet` resolves the token with Sanctum
+(`PersonalAccessToken::findToken`, hashed lookup) but adds what the Sanctum
+guard does not do: the token must belong to the client carrying `X-Maui-Key`
+(`hash_equals`), then the checks run in the contract order (401, 403
+`client_disabled`, 403 `insufficient_ability`, 400 fingerprint, 409 binding).
+Machine binding happens in the same middleware, so every cabinet endpoint
+binds, not only `/ping`.
+
+**D21: Request bodies ignore unknown fields.** (2026-09-23)
+Only validated fields are used (`$request->safe()`), anything else is
+dropped silently. A newer MAUI can send new fields to an older API without
+being rejected. Responses stay strict in the contract.
+
+**D22: Cabinet rate limit per key and per IP.** (2026-09-23)
+60 requests per minute per `X-Maui-Key` (per IP when the header is missing),
+plus 600 per minute per IP, so that rotating fake keys does not bypass the
+limit. Applied before authentication, so failed attempts are limited too.
+
+**D23: `client_datetime` stored in UTC, offset not kept.** (2026-09-23)
+Eloquent serializes dates without their offset, so the value is converted to
+UTC before saving. Its purpose is clock-skew detection, which only needs the
+instant. Accepted formats include JavaScript `toISOString()` (`.123Z`).
