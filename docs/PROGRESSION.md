@@ -4,14 +4,14 @@ Current state of the delivery plan. For the plan itself, see `docs/PLAN.md`.
 For why things are done this way, see `docs/DECISIONS.md`.
 
 **Repository:** `git@github.com:Arcadoolic/maui-api.git` (public), git-flow: `develop` (default) and `main`.
-**Last updated:** 2026-09-24, Lot 1 part 3 (back office) on `feat/lot1-filament-admin`.
+**Last updated:** 2026-09-24, Lot 1 done on the API side, MAUI integration handed off.
 
-## Status: Lot 0 done (except deployment), Lot 1 in progress.
+## Status: Lot 0 done (except deployment), Lot 1 done on the API side.
 
 | Lot | What | Status |
 |-----|------|--------|
 | 0 | Foundation: Docker Compose, Laravel 13 skeleton, CI | **Done**, deployment pending (hosting undecided) |
-| 1 | MAUI authentication, machine binding, telemetry, Filament BO | **In progress**: cabinet API and invitations merged, back office in review |
+| 1 | MAUI authentication, machine binding, telemetry, Filament BO | **API done** (PR #1, #2, #4); MAUI side not started, see `docs/MAUI-INTEGRATION.md` |
 | 2 | Hiscores: catalog, players, scores, leaderboards | Design points noted, open questions pending |
 | 3 | Hiscores front end | Not started |
 
@@ -62,7 +62,7 @@ For why things are done this way, see `docs/DECISIONS.md`.
   Caddy); security review (one MEDIUM finding fixed: privacy headers missing
   on 419 / 429 responses, D29).
 
-## Lot 1, part 3: back office (branch `feat/lot1-filament-admin`)
+## Lot 1, part 3: back office (merged, PR #4; test database fix PR #3)
 
 - Admins: `User` implements `FilamentUser`, TOTP MFA required with recovery
   codes, no registration (D35).
@@ -80,9 +80,10 @@ For why things are done this way, see `docs/DECISIONS.md`.
 
 ## Next
 
-1. MAUI side (`../mame-awesome-ui`): configuration screen (paste `MAUI1.`,
-   test connection), fingerprint, startup and heartbeat calls, error
-   fallback to LOCAL.
+1. MAUI side (`../mame-awesome-ui`): handoff in `docs/MAUI-INTEGRATION.md`
+   (contract summary, fingerprint, constraints found in the MAUI codebase,
+   proposed modules and PR slices). To be done in a session opened in the
+   MAUI repository.
 2. Lot 2 design questions (see `docs/PLAN.md`), then hiscores.
 
 ## Pending outside the code

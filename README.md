@@ -37,3 +37,4 @@ just ci        # everything CI runs
 - [Decisions](docs/DECISIONS.md)
 - [Progression](docs/PROGRESSION.md)
 - [API contract (OpenAPI)](docs/openapi.yaml)
+- [MAUI integration handoff](docs/MAUI-INTEGRATION.md)
