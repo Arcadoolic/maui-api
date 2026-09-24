@@ -22,7 +22,8 @@ jobs:
       - uses: shivammathur/setup-php@v2
         with:
           php-version: '8.4'
-          extensions: bcmath, intl, pdo_pgsql, zip
+          # Same extensions as the Docker image (no imagick, see D37).
+          extensions: bcmath, intl, pdo_pgsql, zip, :imagick
           coverage: none
 
       - name: Install dependencies
@@ -62,7 +63,8 @@ jobs:
       - uses: shivammathur/setup-php@v2
         with:
           php-version: '8.4'
-          extensions: bcmath, intl, pdo_pgsql, zip
+          # Same extensions as the Docker image (no imagick, see D37).
+          extensions: bcmath, intl, pdo_pgsql, zip, :imagick
           coverage: none
 
       - name: Install dependencies

@@ -27,7 +27,8 @@ Decisions referenced here as D1, D2... are recorded with their rationale in `doc
 users              Filament admins (+ MFA)
 
 clients            id, public_key (e.g. mk_7F3a...), name (e.g. marvelous_mario, unique),
-                   email (unique), notes, type (maui|service), status (active|disabled),
+                   owner_name, email (not unique: one owner, several cabinets, D38),
+                   notes, type (maui|service), status (active|disabled),
                    machine_fingerprint_hash (nullable), bound_at, last_heartbeat_at,
                    timestamps
 
@@ -41,7 +42,7 @@ client_startups    id (uuid), client_id, mame_version, maui_version, os, os_vers
 ```
 
 - **Key vs token**: the key (`public_key`) is a stable public identifier that survives renewals. The token is the secret. Sanctum stores it hashed and it is never displayed twice.
-- **Client name**: generated at creation from two config lists (adjectives + arcade heroes). On collision, draw again, then append a numeric suffix as a last resort. Since 1 key = 1 cabinet, the name is the human-readable identifier of the cabinet.
+- **Client name**: for cabinets, generated at creation from two config lists (adjectives + arcade heroes); service accounts get a descriptive name typed by the admin (D39). On collision, draw again, then append a numeric suffix as a last resort. Since 1 key = 1 cabinet, the name is the human-readable identifier of the cabinet.
 
 ### 1.2 Client authentication
 

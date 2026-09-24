@@ -203,6 +203,45 @@ credentials are claimed. Not offered on a renewal (403): an existing cabinet
 keeps its name, which later identifies it in hiscores. Invitation rate limit
 raised from 10 to 30 per minute per IP, since each draw costs two requests.
 
+## Lot 1 back office
+
+**D31: No client deletion in the back office.** (2026-09-24)
+Disabling (D12) is the way to stop a client. Deleting would drop its audit
+trail and, from Lot 2, orphan its scores. The generated Filament resource
+came with delete actions: removed.
+
+**D32: `clients.latest_startup_id` instead of `latestOfMany()`.** (2026-09-24)
+Eloquent `latestOfMany()` always adds a `MAX(<primary key>)` tie-breaker,
+and PostgreSQL has no `MAX` on UUIDs (`client_startups.id`, referenced by
+scores in Lot 2, D6). Found by the Filament tests on PostgreSQL (D16);
+SQLite would have hidden it. `Client::recordStartup()` stores the startup
+and updates the reference and the heartbeat in one save.
+
+**D33: Back office audit with spatie/laravel-activitylog.** (2026-09-24)
+Battle-tested package instead of a custom table. Two sources in the
+`clients` log: `LogsActivity` on `Client` for profile changes (name, email,
+notes, type; status excluded to avoid duplicates), and explicit events from
+`ClientAdministration` (`client.invited`, `client.renewal_requested`,
+`client.disabled`, `client.enabled`, `client.binding_reset`,
+`client.service_token_issued`) with the admin as causer. Secrets are never
+logged. A name drawn by the owner on the invitation page is logged without
+causer. Shown read-only on the client page.
+
+**D34: One-time secrets shown in a chained modal, not a notification.** (2026-09-24)
+Filament notifications are flashed through the session, which the database
+session driver writes to the `sessions` table. The invitation URL and the
+service token are passed to a `showSecret` modal with
+`replaceMountedAction()`: they only live in the Livewire component state
+while the modal is open. Hence the client actions are page actions on the
+client view, not table actions.
+
+**D35: Every `users` row is an admin, TOTP MFA required.** (2026-09-24)
+No registration; accounts come from `make:filament-user`.
+`canAccessPanel()` only checks the panel id. Filament app authentication
+(TOTP) is required with recovery codes (`bacon/bacon-qr-code` for the setup
+QR code). The version-disclosing `FilamentInfoWidget` is replaced by a fleet
+overview widget (cabinets, online now, disabled).
+
 **D36: Test database isolation fixed, plus a guard.** (2026-09-24)
 D16's implementation did not work: `force="true"` on `<env>` only sets
 `$_ENV`, while compose puts `DB_DATABASE=maui_api` in the container
@@ -213,3 +252,37 @@ it does not set `DB_DATABASE`. Fix: `phpunit.xml` overrides both `<env>` and
 in `beforeRefreshingDatabase()` unless the database name ends with
 `_testing`. The guard failed the suite before the fix (90 tests refused on
 `maui_api`), so it is proven to catch this.
+||||||| parent of af604f1 (docs: record back office decisions and progress)
+
+**D37: Workaround for the broken MFA setup QR code.** (2026-09-24)
+Filament 5.8.4 base64-encodes the value from `pragmarx/google2fa-qrcode`
+as raw SVG when `bacon/bacon-qr-code` is installed without `imagick`, but
+google2fa-qrcode 4 already returns a full `data:image/svg+xml;base64,...`
+URI: the image was double-encoded and did not render (seen during the manual
+check of the back office). `App\Filament\Auth\AppAuthentication` extends
+Filament's provider and unwraps the URI only when it is double-encoded, so
+it turns into a no-op once upstream fixes it. The test fails with the stock
+Filament class. Remove the subclass when Filament ships a fix.
+With `imagick` loaded, Filament produces a valid PNG data URI instead, so
+the test accepts SVG or PNG and only rejects a nested data URI. CI disables
+`imagick` (`:imagick` in `setup-php`) to run with the same extensions as the
+Docker image; the GitHub runner loads it by default, which hid the bug there.
+
+**D38: One owner, several cabinets; owner name for traceability.** (2026-09-24)
+The initial draft made `clients.email` unique with no stated reason, which
+prevented an owner from having, say, a Raspberry Pi cabinet and a Windows
+one. The email is only a contact (where to send invitations), never an
+identifier: authentication relies on the key and token (D3), and each
+cabinet keeps its own key, token, binding and name. The unique index becomes
+a plain index; a required `owner_name` records who is responsible for the
+client. Both are searchable in the back office and audited. No `owners`
+table: nothing works at owner level yet, and this can evolve into one later.
+
+**D39: Service accounts get a descriptive name, not an arcade one.** (2026-09-24)
+Refines D28, which generated a name for every client. A random name like
+`salty_ryu` says nothing about what a service account does, and it used up
+one of the combinations meant for cabinets (names are unique across all
+clients). On creation, the back office asks for a name only when the type
+is service account (required, snake_case, unique, e.g. `catalog_importer`);
+cabinets keep their generated name. `Client` refuses to create a service
+account without a name instead of generating one.

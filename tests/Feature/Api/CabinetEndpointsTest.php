@@ -56,6 +56,18 @@ describe('POST /startups', function () {
         expect($client->fresh()->last_heartbeat_at->equalTo(now()))->toBeTrue();
     });
 
+    it('becomes the latest startup of the cabinet', function () use ($validStartup) {
+        [$client, $token] = cabinetWithToken();
+
+        $this->postJson('/api/v1/startups', $validStartup(), cabinetHeaders($client, $token))->assertCreated();
+        $latestId = $this->postJson('/api/v1/startups', [...$validStartup(), 'maui_version' => '2.5.0'], cabinetHeaders($client, $token))
+            ->assertCreated()
+            ->json('id');
+
+        expect($client->fresh()->latestStartup->id)->toBe($latestId)
+            ->and($client->fresh()->latestStartup->maui_version)->toBe('2.5.0');
+    });
+
     it('accepts UTC and fractional seconds datetimes', function (string $datetime) use ($validStartup) {
         [$client, $token] = cabinetWithToken();
 

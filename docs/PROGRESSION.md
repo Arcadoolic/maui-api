@@ -4,20 +4,20 @@ Current state of the delivery plan. For the plan itself, see `docs/PLAN.md`.
 For why things are done this way, see `docs/DECISIONS.md`.
 
 **Repository:** `git@github.com:Arcadoolic/maui-api.git` (public), git-flow: `develop` (default) and `main`.
-**Last updated:** 2026-09-24, Lot 1 part 2 (invitations) on `feat/lot1-invitations`.
+**Last updated:** 2026-09-24, Lot 1 part 3 (back office) on `feat/lot1-filament-admin`.
 
 ## Status: Lot 0 done (except deployment), Lot 1 in progress.
 
 | Lot | What | Status |
 |-----|------|--------|
 | 0 | Foundation: Docker Compose, Laravel 13 skeleton, CI | **Done**, deployment pending (hosting undecided) |
-| 1 | MAUI authentication, machine binding, telemetry, Filament BO | **In progress**: cabinet API merged, invitations in review, Filament next |
+| 1 | MAUI authentication, machine binding, telemetry, Filament BO | **In progress**: cabinet API and invitations merged, back office in review |
 | 2 | Hiscores: catalog, players, scores, leaderboards | Design points noted, open questions pending |
 | 3 | Hiscores front end | Not started |
 
 ## Done
 
-- Delivery plan (`docs/PLAN.md`), decisions D1 to D30 (`docs/DECISIONS.md`).
+- Delivery plan (`docs/PLAN.md`), decisions D1 to D39 (`docs/DECISIONS.md`).
 - Lot 1 OpenAPI 3.1 contract (`docs/openapi.yaml`).
 - Lot 0 skeleton:
   - Docker: FrankenPHP + PHP 8.4 image (`Dockerfile`, `docker/`), Compose
@@ -42,7 +42,7 @@ For why things are done this way, see `docs/DECISIONS.md`.
   review (one MEDIUM finding fixed: post-authentication rejections are now
   logged).
 
-## Lot 1, part 2: invitations (branch `feat/lot1-invitations`)
+## Lot 1, part 2: invitations (merged, PR #2)
 
 - `invitations` table and model (token stored as SHA-256 only), purposes
   initial / renewal.
@@ -62,12 +62,28 @@ For why things are done this way, see `docs/DECISIONS.md`.
   Caddy); security review (one MEDIUM finding fixed: privacy headers missing
   on 419 / 429 responses, D29).
 
+## Lot 1, part 3: back office (branch `feat/lot1-filament-admin`)
+
+- Admins: `User` implements `FilamentUser`, TOTP MFA required with recovery
+  codes, no registration (D35).
+- `ClientResource`: list (type, status, online, last seen, versions),
+  create (generated name), edit (type locked), view with actions: invite,
+  renew, issue / replace service token, reset machine binding, disable,
+  enable. No delete (D31). Secrets shown once in a chained modal (D34).
+- Relation managers: startup history, audit log (D33).
+- `ClientAdministration` service with audit entries; `LogsActivity` on
+  `Client`.
+- Dashboard widget: cabinets, online now, disabled.
+- `clients.latest_startup_id` (D32).
+- 129 Pest tests; MFA setup QR code workaround (D37); several cabinets per
+  owner, `owner_name` (D38); descriptive names for service accounts (D39).
+
 ## Next
 
-1. Lot 1, part 3: Filament `ClientResource` (create, invite, renew, disable,
-   reset binding, startups relation manager), `canAccessPanel`, MFA, audit log.
-2. MAUI side (`../mame-awesome-ui`): configuration screen, fingerprint,
-   startup and heartbeat calls.
+1. MAUI side (`../mame-awesome-ui`): configuration screen (paste `MAUI1.`,
+   test connection), fingerprint, startup and heartbeat calls, error
+   fallback to LOCAL.
+2. Lot 2 design questions (see `docs/PLAN.md`), then hiscores.
 
 ## Pending outside the code
 
@@ -86,7 +102,7 @@ Tracked in `docs/PLAN.md`, section "Open questions".
 | Check | Expected |
 |-------|----------|
 | `just up` then `/up` | 200 |
-| `just ci` | Pint pass, PHPStan no errors, Pest 94 passed |
+| `just ci` | Pint pass, PHPStan no errors, Pest 129 passed |
 | `curl -sD - -o /dev/null http://localhost:8080/invite/<48 chars>` | `Referrer-Policy: no-referrer`, `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff` |
 | `docker run --rm -v "$PWD/docs:/spec" redocly/cli lint /spec/openapi.yaml` | valid, 7 known warnings (no license, localhost servers, unused `MauiConfiguration`, no 2xx on the 303-only `/invite/{t}/name`) |
 | `docker run --rm -v "$PWD":/repo -w /repo rhysd/actionlint:latest .github/workflows/ci.yml` | no output |

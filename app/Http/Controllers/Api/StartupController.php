@@ -14,18 +14,11 @@ final class StartupController
     {
         $client = AuthenticateCabinet::client($request);
 
-        $startup = DB::transaction(function () use ($client, $request) {
-            $startup = $client->startups()->create([
-                ...$request->safe()->except('client_datetime'),
-                // Eloquent drops the offset when serializing dates: store UTC.
-                'client_datetime' => Carbon::parse($request->string('client_datetime')->toString())->utc(),
-                'received_at' => now(),
-            ]);
-
-            $client->recordHeartbeat();
-
-            return $startup;
-        });
+        $startup = DB::transaction(fn () => $client->recordStartup([
+            ...$request->safe()->except('client_datetime'),
+            // Eloquent drops the offset when serializing dates: store UTC.
+            'client_datetime' => Carbon::parse($request->string('client_datetime')->toString())->utc(),
+        ]));
 
         return new JsonResponse([
             'id' => $startup->id,
