@@ -251,6 +251,13 @@ gets `401`).
 
 ## 9. Open questions for the MAUI side
 
+To decide and record in MAUI's own `docs/DECISIONS.md`: none of them changes
+the API contract. One interaction to keep in mind: MAUI-API shows a cabinet
+as online when its last heartbeat is less than 3 minutes old
+(`Client::ONLINE_THRESHOLD_MINUTES`). A backoff beyond 3 minutes makes the
+cabinet appear offline in the admin panel; if that is not wanted, adjust the
+threshold in MAUI-API rather than working around it in MAUI.
+
 1. CSRF: `Origin` check on the Online routes only, or a CSRF token for the
    whole BO (it is a wider gap than ONLINE)?
 2. Should the cabinet UI (not only the BO) show anything about ONLINE, e.g. an
