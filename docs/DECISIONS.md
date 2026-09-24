@@ -273,3 +273,12 @@ cabinet keeps its own key, token, binding and name. The unique index becomes
 a plain index; a required `owner_name` records who is responsible for the
 client. Both are searchable in the back office and audited. No `owners`
 table: nothing works at owner level yet, and this can evolve into one later.
+
+**D39: Service accounts get a descriptive name, not an arcade one.** (2026-09-24)
+Refines D28, which generated a name for every client. A random name like
+`salty_ryu` says nothing about what a service account does, and it used up
+one of the combinations meant for cabinets (names are unique across all
+clients). On creation, the back office asks for a name only when the type
+is service account (required, snake_case, unique, e.g. `catalog_importer`);
+cabinets keep their generated name. `Client` refuses to create a service
+account without a name instead of generating one.
