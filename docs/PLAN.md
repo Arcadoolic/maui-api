@@ -27,7 +27,8 @@ Decisions referenced here as D1, D2... are recorded with their rationale in `doc
 users              Filament admins (+ MFA)
 
 clients            id, public_key (e.g. mk_7F3a...), name (e.g. marvelous_mario, unique),
-                   email (unique), notes, type (maui|service), status (active|disabled),
+                   owner_name, email (not unique: one owner, several cabinets, D38),
+                   notes, type (maui|service), status (active|disabled),
                    machine_fingerprint_hash (nullable), bound_at, last_heartbeat_at,
                    timestamps
 

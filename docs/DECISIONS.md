@@ -263,3 +263,13 @@ check of the back office). `App\Filament\Auth\AppAuthentication` extends
 Filament's provider and unwraps the URI only when it is double-encoded, so
 it turns into a no-op once upstream fixes it. The test fails with the stock
 Filament class. Remove the subclass when Filament ships a fix.
+
+**D38: One owner, several cabinets; owner name for traceability.** (2026-09-24)
+The initial draft made `clients.email` unique with no stated reason, which
+prevented an owner from having, say, a Raspberry Pi cabinet and a Windows
+one. The email is only a contact (where to send invitations), never an
+identifier: authentication relies on the key and token (D3), and each
+cabinet keeps its own key, token, binding and name. The unique index becomes
+a plain index; a required `owner_name` records who is responsible for the
+client. Both are searchable in the back office and audited. No `owners`
+table: nothing works at owner level yet, and this can evolve into one later.
