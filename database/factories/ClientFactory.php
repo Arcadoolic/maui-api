@@ -25,7 +25,10 @@ class ClientFactory extends Factory
 
     public function service(): static
     {
-        return $this->state(['type' => ClientType::Service]);
+        return $this->state(fn () => [
+            'type' => ClientType::Service,
+            'name' => fake()->unique()->word().'_importer',
+        ]);
     }
 
     public function disabled(): static

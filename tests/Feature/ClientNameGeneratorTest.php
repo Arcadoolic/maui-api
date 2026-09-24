@@ -30,6 +30,10 @@ it('names a client automatically when none is given', function () {
     expect($client->name)->toMatch('/^[a-z]+(_[a-z0-9]+)+$/');
 });
 
+it('never gives a random arcade name to a service account', function () {
+    Client::factory()->service()->create(['name' => null]);
+})->throws(InvalidArgumentException::class);
+
 it('ships name lists in the configuration', function () {
     expect(config('maui.names.adjectives'))->toBeArray()->not->toBeEmpty()
         ->and(config('maui.names.heroes'))->toBeArray()->not->toBeEmpty();

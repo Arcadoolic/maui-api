@@ -12,6 +12,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Str;
+use InvalidArgumentException;
 use Laravel\Sanctum\HasApiTokens;
 use Spatie\Activitylog\Models\Concerns\LogsActivity;
 use Spatie\Activitylog\Support\LogOptions;
@@ -51,6 +52,13 @@ class Client extends Model
     {
         static::creating(function (Client $client) {
             $client->public_key ??= self::PUBLIC_KEY_PREFIX.Str::random(24);
+
+            // Arcade names are for cabinets; a service account needs a descriptive one (D39).
+            // The name is still unset while creating: read the raw attribute.
+            if ($client->getAttribute('name') === null && $client->type === ClientType::Service) {
+                throw new InvalidArgumentException('A service account needs an explicit, descriptive name.');
+            }
+
             $client->name ??= app(ClientNameGenerator::class)->generate();
         });
     }

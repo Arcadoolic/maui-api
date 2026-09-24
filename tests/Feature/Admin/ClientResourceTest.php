@@ -40,6 +40,46 @@ it('creates a cabinet with a generated name', function () {
         ->and($client->notes)->toBe('Garage');
 });
 
+it('creates a service account with the descriptive name given by the admin', function () {
+    livewire(CreateClient::class)
+        ->fillForm([
+            'owner_name' => 'Catalog team',
+            'email' => 'catalog@example.test',
+            'type' => ClientType::Service->value,
+            'name' => 'catalog_importer',
+        ])
+        ->call('create')
+        ->assertHasNoFormErrors();
+
+    expect(Client::query()->where('name', 'catalog_importer')->first()?->type)->toBe(ClientType::Service);
+});
+
+it('requires a valid, free name for a service account', function (mixed $name, string $rule) {
+    Client::factory()->create(['name' => 'catalog_importer']);
+
+    livewire(CreateClient::class)
+        ->fillForm([
+            'owner_name' => 'Catalog team',
+            'email' => 'catalog@example.test',
+            'type' => ClientType::Service->value,
+            'name' => $name,
+        ])
+        ->call('create')
+        ->assertHasFormErrors(['name' => $rule]);
+})->with([
+    'missing' => [null, 'required'],
+    'not snake case' => ['Catalog Importer', 'regex'],
+    'already used' => ['catalog_importer', 'unique'],
+]);
+
+it('only asks for a name when creating a service account', function () {
+    livewire(CreateClient::class)
+        ->fillForm(['type' => ClientType::Maui->value])
+        ->assertFormFieldHidden('name')
+        ->fillForm(['type' => ClientType::Service->value])
+        ->assertFormFieldVisible('name');
+});
+
 it('lets one owner have several cabinets with the same email', function () {
     Client::factory()->create(['owner_name' => 'Jane Doe', 'email' => 'owner@example.test']);
 
