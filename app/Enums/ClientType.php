@@ -2,7 +2,9 @@
 
 namespace App\Enums;
 
-enum ClientType: string
+use Filament\Support\Contracts\HasLabel;
+
+enum ClientType: string implements HasLabel
 {
     /** An arcade cabinet running MAUI. */
     case Maui = 'maui';
@@ -20,6 +22,14 @@ enum ClientType: string
         return match ($this) {
             self::Maui => ['session', 'scores:write', 'scores:read'],
             self::Service => ['catalog:write'],
+        };
+    }
+
+    public function getLabel(): string
+    {
+        return match ($this) {
+            self::Maui => __('Cabinet'),
+            self::Service => __('Service account'),
         };
     }
 }
