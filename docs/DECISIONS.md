@@ -263,6 +263,10 @@ check of the back office). `App\Filament\Auth\AppAuthentication` extends
 Filament's provider and unwraps the URI only when it is double-encoded, so
 it turns into a no-op once upstream fixes it. The test fails with the stock
 Filament class. Remove the subclass when Filament ships a fix.
+With `imagick` loaded, Filament produces a valid PNG data URI instead, so
+the test accepts SVG or PNG and only rejects a nested data URI. CI disables
+`imagick` (`:imagick` in `setup-php`) to run with the same extensions as the
+Docker image; the GitHub runner loads it by default, which hid the bug there.
 
 **D38: One owner, several cabinets; owner name for traceability.** (2026-09-24)
 The initial draft made `clients.email` unique with no stated reason, which
