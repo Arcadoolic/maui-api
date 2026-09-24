@@ -228,6 +228,61 @@ paths:
         '429':
           description: Too many requests from this IP.
 
+  /invite/{invitationToken}/name:
+    servers:
+      - url: http://localhost:8080
+        description: Web routes, outside the /api/v1 prefix
+    parameters:
+      - $ref: '#/components/parameters/InvitationToken'
+    post:
+      tags: [Invitations]
+      operationId: drawCabinetName
+      summary: Draw another cabinet name
+      description: |
+        "Another name" button of the invitation page. Draws a new free
+        `adjective_hero` name for the cabinet and redirects back to the
+        invitation page. Does not consume the invitation. Initial
+        invitations only: a renewed cabinet keeps its name. CSRF protected,
+        rate limited per IP with the other invitation routes.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              required: [_token]
+              properties:
+                _token:
+                  type: string
+                  description: Laravel CSRF token from the invitation page.
+      responses:
+        '303':
+          description: Name changed, back to the invitation page.
+          headers:
+            Location:
+              schema:
+                type: string
+                format: uri
+        '403':
+          description: Renewal invitation, the name cannot change.
+        '404':
+          description: Unknown invitation.
+          content:
+            text/html:
+              schema:
+                type: string
+        '410':
+          description: Invitation expired or already claimed.
+          content:
+            text/html:
+              schema:
+                type: string
+        '419':
+          description: CSRF token missing or expired.
+        '429':
+          description: Too many requests from this IP.
+
   /invite/{invitationToken}/claim:
     servers:
       - url: http://localhost:8080
@@ -245,7 +300,14 @@ paths:
 
         The response page shows the configuration string once, with a "Copy"
         button and a "keep this, it will not be shown again" message.
-        CSRF protected (Laravel web route), rate limited per IP.
+        CSRF protected (Laravel web route), rate limited per IP (30 per
+        minute, shared with the other invitation routes). A disabled client can
+        claim a renewal, but stays disabled until an admin re-enables it.
+        Only the latest invitation of a client is claimable.
+
+        Response headers on both invitation routes: `Cache-Control: no-store`,
+        `Referrer-Policy: no-referrer`, `X-Robots-Tag: noindex, nofollow`,
+        and a nonce-based `Content-Security-Policy`.
       security: []
       requestBody:
         required: true

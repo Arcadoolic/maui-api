@@ -68,6 +68,7 @@ client_startups    id (uuid), client_id, mame_version, maui_version, os, os_vers
   ```
 
   The MAUI BO only needs one "Paste" field.
+- **Cabinet name chosen by the owner**: the invitation page shows the generated name with an "Another name" button that draws a new free combination (initial invitations only). The name is final once the credentials are claimed (D30).
 - **Readable by a non-technical user**: the page states "keep this, it will not be shown again". Once the invitation is claimed or expired, the page returns an explicit message.
 - **Claim transaction** (single transaction):
   1. delete existing tokens of the client;

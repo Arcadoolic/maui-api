@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Enums\ClientStatus;
 use App\Enums\ClientType;
+use App\Services\ClientNameGenerator;
 use Database\Factories\ClientFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -44,6 +45,7 @@ class Client extends Model
     {
         static::creating(function (Client $client) {
             $client->public_key ??= self::PUBLIC_KEY_PREFIX.Str::random(24);
+            $client->name ??= app(ClientNameGenerator::class)->generate();
         });
     }
 
@@ -55,6 +57,12 @@ class Client extends Model
             'bound_at' => 'datetime',
             'last_heartbeat_at' => 'datetime',
         ];
+    }
+
+    /** @return HasMany<Invitation, $this> */
+    public function invitations(): HasMany
+    {
+        return $this->hasMany(Invitation::class);
     }
 
     /** @return HasMany<ClientStartup, $this> */
