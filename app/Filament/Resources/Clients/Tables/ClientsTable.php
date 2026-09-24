@@ -21,6 +21,7 @@ class ClientsTable
             ->defaultSort('name')
             ->columns([
                 TextColumn::make('name')->searchable()->sortable()->fontFamily('mono'),
+                TextColumn::make('owner_name')->label(__('Owner'))->searchable()->sortable(),
                 TextColumn::make('type')->badge(),
                 TextColumn::make('status')->badge(),
                 IconColumn::make('online')
@@ -30,7 +31,7 @@ class ClientsTable
                 TextColumn::make('latestStartup.maui_version')->label(__('MAUI')),
                 TextColumn::make('latestStartup.mame_version')->label(__('MAME')),
                 TextColumn::make('latestStartup.os')->label(__('OS')),
-                TextColumn::make('email')->searchable()->toggleable(isToggledHiddenByDefault: true),
+                TextColumn::make('email')->searchable()->toggleable(),
             ])
             ->filters([
                 SelectFilter::make('type')->options(ClientType::class),

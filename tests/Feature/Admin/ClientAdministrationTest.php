@@ -89,14 +89,14 @@ it('refuses service tokens for cabinets: they use invitations', function () {
 
 it('records client creation and profile changes with the admin as causer', function () {
     $client = Client::factory()->create(['email' => 'owner@example.test']);
-    $client->update(['notes' => 'Cabinet in the garage']);
+    $client->update(['notes' => 'Cabinet in the garage', 'owner_name' => 'Jane Doe']);
 
     $created = auditEntry($client, 'created');
     $updated = auditEntry($client, 'updated');
 
     expect($created->causer_id)->toBe($this->admin->id)
         ->and($updated->causer_id)->toBe($this->admin->id)
-        ->and($updated->attribute_changes['attributes'])->toBe(['notes' => 'Cabinet in the garage']);
+        ->and($updated->attribute_changes['attributes'])->toEqualCanonicalizing(['notes' => 'Cabinet in the garage', 'owner_name' => 'Jane Doe']);
 });
 
 it('does not record technical updates such as heartbeats', function () {

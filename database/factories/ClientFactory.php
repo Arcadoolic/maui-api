@@ -16,7 +16,8 @@ class ClientFactory extends Factory
     {
         return [
             'name' => fake()->unique()->userName(),
-            'email' => fake()->unique()->safeEmail(),
+            'owner_name' => fake()->name(),
+            'email' => fake()->safeEmail(),
             'type' => ClientType::Maui,
             'status' => ClientStatus::Active,
         ];

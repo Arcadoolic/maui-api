@@ -22,6 +22,7 @@ use Spatie\Activitylog\Support\LogOptions;
  * @property int $id
  * @property string $public_key
  * @property string $name
+ * @property string $owner_name
  * @property string $email
  * @property string|null $notes
  * @property ClientType $type
@@ -42,7 +43,7 @@ class Client extends Model
     /** A cabinet is online when its last heartbeat is more recent than this. */
     public const ONLINE_THRESHOLD_MINUTES = 3;
 
-    protected $fillable = ['name', 'email', 'notes', 'type', 'status'];
+    protected $fillable = ['name', 'owner_name', 'email', 'notes', 'type', 'status'];
 
     protected $hidden = ['machine_fingerprint_hash'];
 
@@ -55,7 +56,7 @@ class Client extends Model
     }
 
     /**
-     * Audit of profile changes (creation, email, notes...). Status changes,
+     * Audit of profile changes (creation, owner, email, notes...). Status changes,
      * binding and tokens are logged as explicit events by ClientAdministration;
      * technical columns (heartbeat) are never logged.
      */
@@ -63,7 +64,7 @@ class Client extends Model
     {
         return LogOptions::defaults()
             ->useLogName('clients')
-            ->logOnly(['name', 'email', 'notes', 'type'])
+            ->logOnly(['name', 'owner_name', 'email', 'notes', 'type'])
             ->logOnlyDirty()
             ->dontLogEmptyChanges();
     }

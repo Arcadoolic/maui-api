@@ -24,28 +24,62 @@ it('lists clients', function () {
 
 it('creates a cabinet with a generated name', function () {
     livewire(CreateClient::class)
-        ->fillForm(['email' => 'owner@example.test', 'type' => ClientType::Maui->value, 'notes' => 'Garage'])
+        ->fillForm([
+            'owner_name' => 'Jane Doe',
+            'email' => 'owner@example.test',
+            'type' => ClientType::Maui->value,
+            'notes' => 'Garage',
+        ])
         ->call('create')
         ->assertHasNoFormErrors();
 
     $client = Client::query()->where('email', 'owner@example.test')->firstOrFail();
     expect($client->name)->toMatch('/^[a-z]+(_[a-z0-9]+)+$/')
+        ->and($client->owner_name)->toBe('Jane Doe')
         ->and($client->type)->toBe(ClientType::Maui)
         ->and($client->notes)->toBe('Garage');
 });
 
-it('validates the client email', function (mixed $email, string $rule) {
-    Client::factory()->create(['email' => 'taken@example.test']);
+it('lets one owner have several cabinets with the same email', function () {
+    Client::factory()->create(['owner_name' => 'Jane Doe', 'email' => 'owner@example.test']);
 
     livewire(CreateClient::class)
-        ->fillForm(['email' => $email, 'type' => ClientType::Maui->value])
+        ->fillForm(['owner_name' => 'Jane Doe', 'email' => 'owner@example.test', 'type' => ClientType::Maui->value])
         ->call('create')
-        ->assertHasFormErrors(['email' => $rule]);
+        ->assertHasNoFormErrors();
+
+    $cabinets = Client::query()->where('email', 'owner@example.test')->get();
+    expect($cabinets)->toHaveCount(2)
+        ->and($cabinets->pluck('public_key')->unique())->toHaveCount(2)
+        ->and($cabinets->pluck('name')->unique())->toHaveCount(2);
+});
+
+it('validates the client form', function (string $field, mixed $value, string $rule) {
+    livewire(CreateClient::class)
+        ->fillForm(['owner_name' => 'Jane Doe', 'email' => 'owner@example.test', 'type' => ClientType::Maui->value, $field => $value])
+        ->call('create')
+        ->assertHasFormErrors([$field => $rule]);
 })->with([
-    'missing' => [null, 'required'],
-    'not an email' => ['nope', 'email'],
-    'already used' => ['taken@example.test', 'unique'],
+    'missing email' => ['email', null, 'required'],
+    'not an email' => ['email', 'nope', 'email'],
+    'missing owner name' => ['owner_name', null, 'required'],
+    'too long owner name' => ['owner_name', str_repeat('a', 256), 'max'],
 ]);
+
+it('finds the cabinets of an owner by name or email', function () {
+    $janes = Client::factory()->count(2)->create(['owner_name' => 'Jane Doe', 'email' => 'jane@example.test']);
+    $other = Client::factory()->create(['owner_name' => 'John Smith', 'email' => 'john@example.test']);
+
+    livewire(ListClients::class)
+        ->searchTable('Jane')
+        ->assertCanSeeTableRecords($janes)
+        ->assertCanNotSeeTableRecords([$other]);
+
+    livewire(ListClients::class)
+        ->searchTable('jane@example.test')
+        ->assertCanSeeTableRecords($janes)
+        ->assertCanNotSeeTableRecords([$other]);
+});
 
 describe('cabinet actions', function () {
     it('invites a new cabinet and shows the link once', function () {

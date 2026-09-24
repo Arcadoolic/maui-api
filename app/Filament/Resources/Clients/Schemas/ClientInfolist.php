@@ -23,6 +23,7 @@ class ClientInfolist
                         TextEntry::make('public_key')->label(__('Key'))->fontFamily(FontFamily::Mono)->copyable(),
                         TextEntry::make('type')->badge(),
                         TextEntry::make('status')->badge(),
+                        TextEntry::make('owner_name')->label(__('Owner')),
                         TextEntry::make('email')->copyable(),
                         TextEntry::make('notes')->placeholder('-')->columnSpanFull(),
                     ]),
