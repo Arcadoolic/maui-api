@@ -5,12 +5,11 @@ use App\Models\Client;
 use App\Services\ClientTokenIssuer;
 use App\Services\Invitations\InvitationIssuer;
 use App\Services\Invitations\IssuedInvitation;
-use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Testing\TestResponse;
 use Tests\TestCase;
 
+// TestCase uses RefreshDatabase and guards against non-testing databases.
 pest()->extend(TestCase::class)
-    ->use(RefreshDatabase::class)
     ->in('Feature');
 
 /**
