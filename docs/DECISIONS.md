@@ -203,6 +203,45 @@ credentials are claimed. Not offered on a renewal (403): an existing cabinet
 keeps its name, which later identifies it in hiscores. Invitation rate limit
 raised from 10 to 30 per minute per IP, since each draw costs two requests.
 
+## Lot 1 back office
+
+**D31: No client deletion in the back office.** (2026-09-24)
+Disabling (D12) is the way to stop a client. Deleting would drop its audit
+trail and, from Lot 2, orphan its scores. The generated Filament resource
+came with delete actions: removed.
+
+**D32: `clients.latest_startup_id` instead of `latestOfMany()`.** (2026-09-24)
+Eloquent `latestOfMany()` always adds a `MAX(<primary key>)` tie-breaker,
+and PostgreSQL has no `MAX` on UUIDs (`client_startups.id`, referenced by
+scores in Lot 2, D6). Found by the Filament tests on PostgreSQL (D16);
+SQLite would have hidden it. `Client::recordStartup()` stores the startup
+and updates the reference and the heartbeat in one save.
+
+**D33: Back office audit with spatie/laravel-activitylog.** (2026-09-24)
+Battle-tested package instead of a custom table. Two sources in the
+`clients` log: `LogsActivity` on `Client` for profile changes (name, email,
+notes, type; status excluded to avoid duplicates), and explicit events from
+`ClientAdministration` (`client.invited`, `client.renewal_requested`,
+`client.disabled`, `client.enabled`, `client.binding_reset`,
+`client.service_token_issued`) with the admin as causer. Secrets are never
+logged. A name drawn by the owner on the invitation page is logged without
+causer. Shown read-only on the client page.
+
+**D34: One-time secrets shown in a chained modal, not a notification.** (2026-09-24)
+Filament notifications are flashed through the session, which the database
+session driver writes to the `sessions` table. The invitation URL and the
+service token are passed to a `showSecret` modal with
+`replaceMountedAction()`: they only live in the Livewire component state
+while the modal is open. Hence the client actions are page actions on the
+client view, not table actions.
+
+**D35: Every `users` row is an admin, TOTP MFA required.** (2026-09-24)
+No registration; accounts come from `make:filament-user`.
+`canAccessPanel()` only checks the panel id. Filament app authentication
+(TOTP) is required with recovery codes (`bacon/bacon-qr-code` for the setup
+QR code). The version-disclosing `FilamentInfoWidget` is replaced by a fleet
+overview widget (cabinets, online now, disabled).
+
 **D36: Test database isolation fixed, plus a guard.** (2026-09-24)
 D16's implementation did not work: `force="true"` on `<env>` only sets
 `$_ENV`, while compose puts `DB_DATABASE=maui_api` in the container
@@ -213,3 +252,4 @@ it does not set `DB_DATABASE`. Fix: `phpunit.xml` overrides both `<env>` and
 in `beforeRefreshingDatabase()` unless the database name ends with
 `_testing`. The guard failed the suite before the fix (90 tests refused on
 `maui_api`), so it is proven to catch this.
+||||||| parent of af604f1 (docs: record back office decisions and progress)
