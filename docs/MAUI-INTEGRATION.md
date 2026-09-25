@@ -7,8 +7,9 @@ MAUI repository. MAUI's own `CLAUDE.md` still applies there; this document
 only adds what MAUI-API expects.
 
 **Status (2026-09-25):** MAUI-API Lot 1 is merged on `develop`. The API side
-is done and tested. On the MAUI side, slice 1 (section 7) is in review:
-`Arcadoolic/maui` PR #88, not wired into the BO or `background.ts` yet.
+is done and tested. On the MAUI side, slices 1 and 2 (section 7) are merged
+on `develop` (`Arcadoolic/maui` PRs #88 and #92), not wired into the BO or
+`background.ts` yet. Slice 3 is in progress.
 
 Read alongside:
 - `docs/openapi.yaml`: the contract. It is the reference if this document and
@@ -234,14 +235,18 @@ Advanced configuration switch on (section 5, item 7):
 ## 7. Suggested slices (one PR each, on MAUI `develop`)
 
 1. `ConfigurationString`, `OnlineSettings`, `MachineFingerprint` + tests.
-   In review: MAUI PR #88. The macOS (`ioreg`) and Windows (`reg query`)
+   Merged: MAUI PR #88. The macOS (`ioreg`) and Windows (`reg query`)
    parsing is only tested against sample outputs, not on a real machine yet.
 2. `MauiApiClient` + tests against the contract (fake fetch returning the
-   contract's examples and problem documents).
+   contract's examples and problem documents). Merged: MAUI PR #92. Refuses
+   redirects, so an `http://` URL redirected to `https://` by a proxy fails
+   as a network error: the configuration string must carry the final URL.
 3. BO Online subtab behind the Advanced configuration switch: paste, save,
-   test connection. `boAdvanced` and `Origin` checks on its routes.
+   test connection. `boAdvanced` and `Origin` checks on its routes (CSRF:
+   `Origin` on the Online routes only for now, see section 9).
 4. `MameVersion`, `OnlineSession`, wiring in `background.ts`, status in the
-   BO.
+   BO. Also decides what to do with a `rejected` result whose `code` MAUI
+   does not know (stop, or keep retrying).
 5. End-to-end check against a local MAUI-API (section 8).
 
 ## 8. Testing against a local MAUI-API
