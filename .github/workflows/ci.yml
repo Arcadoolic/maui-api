@@ -19,6 +19,15 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
+      # A conflict resolution once left a marker in the docs (see PR #9).
+      # "=======" alone is also a Markdown heading underline: not checked.
+      - name: No conflict markers
+        run: |
+          if git grep -nE '^(<<<<<<<|>>>>>>>|\|\|\|\|\|\|\|)( |$)'; then
+            echo "::error::Conflict markers are committed (lines above)."
+            exit 1
+          fi
+
       - uses: shivammathur/setup-php@v2
         with:
           php-version: '8.4'
