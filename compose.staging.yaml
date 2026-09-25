@@ -1,0 +1,54 @@
+name: maui-api-staging
+
+# Staging on miyamoto (https://api.maui.afronob.com), see docs/DECISIONS.md D40
+# and docs/DEPLOYMENT.md. nginx on the host terminates TLS and proxies to the
+# app port, published on loopback only.
+#
+# Settings come from the .env file next to this one, on the server only:
+# Compose reads it for the ${...} below, and the app receives it as env_file.
+#
+#   docker compose -f compose.staging.yaml up -d --build --wait
+
+services:
+  app:
+    build:
+      context: .
+      target: prod
+    image: maui-api:prod
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      SERVER_NAME: ":8080"
+      DB_CONNECTION: pgsql
+      DB_HOST: db
+      DB_PORT: "5432"
+    ports:
+      - "127.0.0.1:${APP_PORT:-8090}:8080"
+    volumes:
+      - storage:/app/storage
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      db:
+        condition: service_healthy
+
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${DB_DATABASE:?set DB_DATABASE in .env}
+      POSTGRES_USER: ${DB_USERNAME:?set DB_USERNAME in .env}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?set DB_PASSWORD in .env}
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  storage:
+  caddy_data:
+  caddy_config:
+  db_data:

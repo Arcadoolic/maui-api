@@ -9,3 +9,5 @@ storage/framework/cache/*
 storage/framework/sessions/*
 storage/framework/views/*
 docs
+tests
+compose.override.yml
