@@ -252,7 +252,6 @@ it does not set `DB_DATABASE`. Fix: `phpunit.xml` overrides both `<env>` and
 in `beforeRefreshingDatabase()` unless the database name ends with
 `_testing`. The guard failed the suite before the fix (90 tests refused on
 `maui_api`), so it is proven to catch this.
-||||||| parent of af604f1 (docs: record back office decisions and progress)
 
 **D37: Workaround for the broken MFA setup QR code.** (2026-09-24)
 Filament 5.8.4 base64-encodes the value from `pragmarx/google2fa-qrcode`
