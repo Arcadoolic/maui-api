@@ -372,3 +372,18 @@ release is always 1.0.0); a dry run then computes 0.1.0. semantic-release has
 no special rule for 0.x: a breaking change (`!` or `BREAKING CHANGE`) moves
 straight to 1.0.0, so none should be marked as such before that is wanted.
 
+**D45: Dependency security in CI and Dependabot.** (2026-09-25)
+`composer audit` had only been run by hand. The quality job now runs it
+after `composer install`: a known vulnerability fails the build; abandoned
+packages are only reported (`--abandoned=report`, Composer 2.10 fails on
+them by default), since they are not a vulnerability by themselves and
+would otherwise block every PR at once. Dependabot opens weekly PRs on
+`develop` for Composer (Laravel, Filament and Livewire grouped for minor
+and patch updates), the Docker base images, the Compose images (PostgreSQL
+majors ignored: they need a dump and restore of the data volume) and the
+GitHub Actions. Commit messages use `build(deps)` and `ci`, which release
+nothing (D44). npm is not covered: no lockfile and no front-end build in
+the image. The release tooling pinned in `release.yml` is invisible to
+Dependabot; `conventional-changelog-conventionalcommits` must stay on 9.x
+there (10.x breaks the release notes, as found in MAUI).
+

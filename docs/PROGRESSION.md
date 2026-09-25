@@ -17,7 +17,7 @@ For why things are done this way, see `docs/DECISIONS.md`.
 
 ## Done
 
-- Delivery plan (`docs/PLAN.md`), decisions D1 to D44 (`docs/DECISIONS.md`).
+- Delivery plan (`docs/PLAN.md`), decisions D1 to D45 (`docs/DECISIONS.md`).
 - Lot 1 OpenAPI 3.1 contract (`docs/openapi.yaml`).
 - Lot 0 skeleton:
   - Docker: FrankenPHP + PHP 8.4 image (`Dockerfile`, `docker/`), Compose
@@ -112,10 +112,19 @@ For why things are done this way, see `docs/DECISIONS.md`.
 
 - `ubuntu-latest` moves to Ubuntu 26 from 2026-10-19 (GitHub annotation):
   check the first CI run after that date.
-- Staging server setup, following `docs/DEPLOYMENT.md`.
+- Staging is up (2026-09-25) with a real MAUI cabinet (Bazzite) connected.
+  To check on the server: the client IP recorded behind the PROXY protocol
+  must be the real public one (e.g. the `ip` of `maui.auth_failed` log
+  lines), not a `172.x` or `127.0.0.1` address, since every per-IP limit
+  (invitations, API, admin login) depends on it.
 - Production hosting (Docker Compose or native), to decide with the team.
-- Security headers still missing: `Strict-Transport-Security` (production
-  HTTPS only; set on staging by `compose.staging.yaml`) and `Content-Security-Policy` (to define with Filament, Lot 1).
+- Security headers still missing: `Content-Security-Policy` on the back
+  office (to define with what Filament, Livewire and Alpine accept). HSTS is
+  set on staging by `compose.staging.yaml`.
+- Admin management, postponed while there are two admins: accounts are
+  created with `make:filament-user`; no admin list in the back office, no
+  forced password change at first login, no password reset by email (no
+  mail set up).
 
 ## Open questions
 
