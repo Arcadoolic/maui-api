@@ -39,7 +39,8 @@ ENV COMPOSER_HOME=/tmp/composer
 USER app
 
 # Production-like image (staging, D40): code baked in, no dev dependencies,
-# runs as www-data on :8080 behind the host reverse proxy.
+# runs as www-data. With a domain in SERVER_NAME, FrankenPHP serves HTTPS on
+# :443 and gets its certificate itself (D9), hence the bind capability.
 FROM base AS prod
 
 ENV APP_ENV=production \
@@ -56,6 +57,7 @@ RUN composer install --no-dev --no-scripts --no-autoloader --prefer-dist --no-in
 
 COPY . .
 RUN composer dump-autoload --optimize --no-dev --no-interaction \
+    && setcap CAP_NET_BIND_SERVICE=+eip /usr/local/bin/frankenphp \
     && chown -R www-data:www-data storage bootstrap/cache /config/caddy /data/caddy
 
 USER www-data
