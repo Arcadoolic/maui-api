@@ -78,6 +78,8 @@ For why things are done this way, see `docs/DECISIONS.md`.
 - 129 Pest tests; MFA setup QR code workaround (D37); several cabinets per
   owner, `owner_name` (D38); descriptive names for service accounts (D39).
 - Optional readable OS name on startups, `os_name` (D42).
+- Dates shown in each admin's timezone, Paris by default, chosen on the
+  profile page (D41).
 
 ## Lot 0: staging deployment (prepared)
 
@@ -123,7 +125,7 @@ Tracked in `docs/PLAN.md`, section "Open questions".
 | Check | Expected |
 |-------|----------|
 | `just up` then `/up` | 200 |
-| `just ci` | Pint pass, PHPStan no errors, Pest 136 passed |
+| `just ci` | Pint pass, PHPStan no errors, Pest 143 passed |
 | `curl -sD - -o /dev/null http://localhost:8080/invite/<48 chars>` | `Referrer-Policy: no-referrer`, `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff` |
 | `docker run --rm -v "$PWD/docs:/spec" redocly/cli lint /spec/openapi.yaml` | valid, 7 known warnings (no license, localhost server, unused `MauiConfiguration`, no 2xx on the 303-only `/invite/{t}/name`) |
 | `docker run --rm -v "$PWD":/repo -w /repo rhysd/actionlint:latest .github/workflows/ci.yml` | no output |
