@@ -315,3 +315,17 @@ Rejected: a dedicated port such as 8443 (URL with a port, firewall opening)
 and a failover IP (paid, DNS change). Production hosting (PLAN open
 question 0) stays open: production is still planned on its own Ubuntu
 server, where FrankenPHP can own ports 80 and 443 directly.
+
+## Lot 1 follow-ups
+
+**D42: Optional readable OS name on startups.** (2026-09-25)
+`os_version` is Node's `os.release()`, i.e. the kernel version
+(`6.8.0-139-generic`), which says little in the admin panel. MAUI now also
+sends an optional `os_name` (`Ubuntu 24.04.5 LTS`, `macOS 15.1`,
+`Windows 11 (build 22631)`), 64 characters max, omitted when unknown. Stored
+in a nullable `client_startups.os_name`; `os_version` keeps its meaning.
+Optional so that older MAUI versions keep working (D21 already ignored the
+field before this change). The client page shows `os_name` when present,
+else the platform and kernel as before; the startup history shows both.
+The contract stays `1.0.0-draft`: an optional request field is not a
+breaking change.
