@@ -107,8 +107,13 @@ it('validates the client form', function (string $field, mixed $value, string $r
 ]);
 
 it('finds the cabinets of an owner by name or email', function () {
-    $janes = Client::factory()->count(2)->create(['owner_name' => 'Jane Doe', 'email' => 'jane@example.test']);
-    $other = Client::factory()->create(['owner_name' => 'John Smith', 'email' => 'john@example.test']);
+    // Fixed names: the table also searches the cabinet name, and a random
+    // factory name containing "jane" made this test fail now and then.
+    $janes = collect([
+        Client::factory()->create(['name' => 'glitchy_pac_man', 'owner_name' => 'Jane Doe', 'email' => 'jane@example.test']),
+        Client::factory()->create(['name' => 'laggy_ryu', 'owner_name' => 'Jane Doe', 'email' => 'jane@example.test']),
+    ]);
+    $other = Client::factory()->create(['name' => 'retro_ken', 'owner_name' => 'John Smith', 'email' => 'john@example.test']);
 
     livewire(ListClients::class)
         ->searchTable('Jane')
