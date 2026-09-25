@@ -255,7 +255,13 @@ Advanced configuration switch on (section 5, item 7):
 4. `MameVersion`, `OnlineSession`, wiring in `background.ts`, status in the
    BO. Also decides what to do with a `rejected` result whose `code` MAUI
    does not know (stop, or keep retrying).
-5. End-to-end check against a local MAUI-API (section 8).
+5. End-to-end check against a local MAUI-API (section 8). Partly done on
+   2026-09-25, manually, with a real MAUI and a claimed configuration
+   string: test connection and machine binding, then disable (MAUI shows the
+   client as disabled), reset machine binding (next test newly bound), and
+   renewal (the old string works until the new link is claimed, then is
+   rejected). Left for after slice 4: startup history and online status in
+   the admin panel.
 
 ## 8. Testing against a local MAUI-API
 
