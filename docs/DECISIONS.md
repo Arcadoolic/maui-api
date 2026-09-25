@@ -128,3 +128,247 @@ the logs. Generic codes complete D11: `forbidden`, `not_found`,
 PHPStan cannot type the `$this` bound inside Pest closures, which produced
 only false positives. Application code, config, database and routes are
 analysed.
+
+## Lot 1 implementation
+
+**D20: Cabinet authentication is a dedicated middleware, not `auth:sanctum`.** (2026-09-23)
+`AuthenticateCabinet` resolves the token with Sanctum
+(`PersonalAccessToken::findToken`, hashed lookup) but adds what the Sanctum
+guard does not do: the token must belong to the client carrying `X-Maui-Key`
+(`hash_equals`), then the checks run in the contract order (401, 403
+`client_disabled`, 403 `insufficient_ability`, 400 fingerprint, 409 binding).
+Machine binding happens in the same middleware, so every cabinet endpoint
+binds, not only `/ping`.
+
+**D21: Request bodies ignore unknown fields.** (2026-09-23)
+Only validated fields are used (`$request->safe()`), anything else is
+dropped silently. A newer MAUI can send new fields to an older API without
+being rejected. Responses stay strict in the contract.
+
+**D22: Cabinet rate limit per key and per IP.** (2026-09-23)
+60 requests per minute per `X-Maui-Key` (per IP when the header is missing),
+plus 600 per minute per IP, so that rotating fake keys does not bypass the
+limit. Applied before authentication, so failed attempts are limited too.
+
+**D23: `client_datetime` stored in UTC, offset not kept.** (2026-09-23)
+Eloquent serializes dates without their offset, so the value is converted to
+UTC before saving. Its purpose is clock-skew detection, which only needs the
+instant. Accepted formats include JavaScript `toISOString()` (`.123Z`).
+
+**D24: Only the latest invitation of a client is usable.** (2026-09-24)
+Creating an invitation expires the client's pending ones. An admin who sends
+a second link (typo in the email, lost message) does not leave the first one
+claimable, so at most one link can issue credentials at any time.
+
+**D25: Claiming never re-enables a disabled client.** (2026-09-24)
+Compromised token flow (D5): disable, renew, the owner claims, then the admin
+re-enables explicitly. The claim issues the new token and resets the binding,
+but the client stays disabled (`403 client_disabled`) until an admin acts.
+
+**D26: Invitation pages in English, strings translatable.** (2026-09-24)
+Same language as the MAUI UI. Every string goes through `__()`, so a French
+translation can be added later without touching the views.
+
+**D27: Caddy security headers are defaults, one directive each.** (2026-09-24)
+The Caddyfile sets `X-Content-Type-Options`, `X-Frame-Options` and
+`Referrer-Policy` with the `?` prefix, so Laravel can set a stricter value
+(`no-referrer` on invitation pages, whose URL holds the secret). Checked on
+the running stack: with the three `?` headers in a single `header` block,
+Laravel setting one of them made Caddy drop all three defaults; one
+directive per header fixes it. Pest does not go through Caddy: check headers
+with curl after changing the Caddyfile.
+
+**D28: Cabinet names are generated at creation.** (2026-09-24)
+`Client` gets a name from `ClientNameGenerator` when none is given:
+random `adjective_hero` draws from `config/maui.php`, then every
+combination, then a numeric suffix as a last resort.
+
+**D29: Invitation privacy headers also on exception responses.** (2026-09-24)
+`SecureInvitationPages` only sees responses produced inside it. A CSRF
+failure (419) or a rate-limit hit (429) is rendered before it runs, so those
+pages went out cacheable and indexable while their URL holds the secret
+(security review finding). An `$exceptions->respond()` hook in
+`bootstrap/app.php` applies `no-store`, `no-referrer` and `noindex` to every
+exception response under `invite/*`. Server errors thrown by the controller
+were already covered (checked by removing the hook), the test keeps it that
+way. The nonce CSP is not added to error pages: Laravel's error views use
+inline styles.
+
+**D30: The owner draws the cabinet name on the invitation page.** (2026-09-24)
+The name generated at creation (D28) is only a first proposal. On an
+initial invitation, `POST /invite/{token}/name` draws another free name as
+many times as the owner wants, then redirects back (303) to the invitation
+page; it never consumes the invitation. The name is final once the
+credentials are claimed. Not offered on a renewal (403): an existing cabinet
+keeps its name, which later identifies it in hiscores. Invitation rate limit
+raised from 10 to 30 per minute per IP, since each draw costs two requests.
+
+## Lot 1 back office
+
+**D31: No client deletion in the back office.** (2026-09-24)
+Disabling (D12) is the way to stop a client. Deleting would drop its audit
+trail and, from Lot 2, orphan its scores. The generated Filament resource
+came with delete actions: removed.
+
+**D32: `clients.latest_startup_id` instead of `latestOfMany()`.** (2026-09-24)
+Eloquent `latestOfMany()` always adds a `MAX(<primary key>)` tie-breaker,
+and PostgreSQL has no `MAX` on UUIDs (`client_startups.id`, referenced by
+scores in Lot 2, D6). Found by the Filament tests on PostgreSQL (D16);
+SQLite would have hidden it. `Client::recordStartup()` stores the startup
+and updates the reference and the heartbeat in one save.
+
+**D33: Back office audit with spatie/laravel-activitylog.** (2026-09-24)
+Battle-tested package instead of a custom table. Two sources in the
+`clients` log: `LogsActivity` on `Client` for profile changes (name, email,
+notes, type; status excluded to avoid duplicates), and explicit events from
+`ClientAdministration` (`client.invited`, `client.renewal_requested`,
+`client.disabled`, `client.enabled`, `client.binding_reset`,
+`client.service_token_issued`) with the admin as causer. Secrets are never
+logged. A name drawn by the owner on the invitation page is logged without
+causer. Shown read-only on the client page.
+
+**D34: One-time secrets shown in a chained modal, not a notification.** (2026-09-24)
+Filament notifications are flashed through the session, which the database
+session driver writes to the `sessions` table. The invitation URL and the
+service token are passed to a `showSecret` modal with
+`replaceMountedAction()`: they only live in the Livewire component state
+while the modal is open. Hence the client actions are page actions on the
+client view, not table actions.
+
+**D35: Every `users` row is an admin, TOTP MFA required.** (2026-09-24)
+No registration; accounts come from `make:filament-user`.
+`canAccessPanel()` only checks the panel id. Filament app authentication
+(TOTP) is required with recovery codes (`bacon/bacon-qr-code` for the setup
+QR code). The version-disclosing `FilamentInfoWidget` is replaced by a fleet
+overview widget (cabinets, online now, disabled).
+
+**D36: Test database isolation fixed, plus a guard.** (2026-09-24)
+D16's implementation did not work: `force="true"` on `<env>` only sets
+`$_ENV`, while compose puts `DB_DATABASE=maui_api` in the container
+environment, read by Laravel from `$_SERVER` first. Every local test run
+refreshed the dev database (an admin account was lost). CI was unaffected:
+it does not set `DB_DATABASE`. Fix: `phpunit.xml` overrides both `<env>` and
+`<server>`. Guard: `Tests\TestCase` uses `RefreshDatabase` itself and throws
+in `beforeRefreshingDatabase()` unless the database name ends with
+`_testing`. The guard failed the suite before the fix (90 tests refused on
+`maui_api`), so it is proven to catch this.
+
+**D37: Workaround for the broken MFA setup QR code.** (2026-09-24)
+Filament 5.8.4 base64-encodes the value from `pragmarx/google2fa-qrcode`
+as raw SVG when `bacon/bacon-qr-code` is installed without `imagick`, but
+google2fa-qrcode 4 already returns a full `data:image/svg+xml;base64,...`
+URI: the image was double-encoded and did not render (seen during the manual
+check of the back office). `App\Filament\Auth\AppAuthentication` extends
+Filament's provider and unwraps the URI only when it is double-encoded, so
+it turns into a no-op once upstream fixes it. The test fails with the stock
+Filament class. Remove the subclass when Filament ships a fix.
+With `imagick` loaded, Filament produces a valid PNG data URI instead, so
+the test accepts SVG or PNG and only rejects a nested data URI. CI disables
+`imagick` (`:imagick` in `setup-php`) to run with the same extensions as the
+Docker image; the GitHub runner loads it by default, which hid the bug there.
+
+**D38: One owner, several cabinets; owner name for traceability.** (2026-09-24)
+The initial draft made `clients.email` unique with no stated reason, which
+prevented an owner from having, say, a Raspberry Pi cabinet and a Windows
+one. The email is only a contact (where to send invitations), never an
+identifier: authentication relies on the key and token (D3), and each
+cabinet keeps its own key, token, binding and name. The unique index becomes
+a plain index; a required `owner_name` records who is responsible for the
+client. Both are searchable in the back office and audited. No `owners`
+table: nothing works at owner level yet, and this can evolve into one later.
+
+**D39: Service accounts get a descriptive name, not an arcade one.** (2026-09-24)
+Refines D28, which generated a name for every client. A random name like
+`salty_ryu` says nothing about what a service account does, and it used up
+one of the combinations meant for cabinets (names are unique across all
+clients). On creation, the back office asks for a name only when the type
+is service account (required, snake_case, unique, e.g. `catalog_importer`);
+cabinets keep their generated name. `Client` refuses to create a service
+account without a name instead of generating one.
+
+## Hosting
+
+**D40: Staging on miyamoto, FrankenPHP behind an SNI passthrough.** (2026-09-25)
+Online tests (a real MAUI cabinet against the API) need a public HTTPS
+endpoint before the production server exists. Staging runs on miyamoto
+(Online/Scaleway Dedibox, Debian 13) at
+`https://api.maui.staging.afronob.com`, a CNAME to the machine, with
+Docker Compose (`compose.staging.yaml`): same base image as local
+development and nothing PHP-specific installed on a shared host. Staging
+runs the `release` image target, the one meant for production too (no dev
+dependencies, code baked in, production php.ini and opcache, www-data), so
+it validates what will be deployed; only the settings differ
+(`compose.staging.yaml`, the server `.env`). Named after the build, not an
+environment.
+FrankenPHP terminates TLS and manages its Let's Encrypt certificate, as
+planned for production (D9), so staging exercises the real HTTPS path. The
+server already hosts other sites behind nginx, which owns ports 80 and 443.
+Rather than terminating TLS in nginx, nginx's `stream` module reads the SNI
+of each connection on 443 without decrypting it (`ssl_preread`): this
+domain goes to the app container, every other name to the existing vhosts,
+moved to a loopback port. Both hops use the PROXY protocol, so the app and
+the other sites still see the real client address (`claimed_ip`, rate
+limits) without trusting any `X-Forwarded-*` header. Port 80 proxies this
+domain to the container for ACME HTTP-01 and the HTTPS redirect.
+Rejected: a dedicated port such as 8443 (URL with a port, firewall opening)
+and a failover IP (paid, DNS change). Production hosting (PLAN open
+question 0) stays open: production is still planned on its own Ubuntu
+server, where FrankenPHP can own ports 80 and 443 directly.
+
+## Lot 1 follow-ups
+
+**D41: Back office dates in the admin's timezone, Paris by default.** (2026-09-25)
+Dates stay stored in UTC (the app timezone), which suits cabinets anywhere,
+but the back office showed them in UTC too (13:08 for a 15:08 startup in
+Paris). Each admin has a `users.timezone` (default `Europe/Paris`, the column
+default, since `make:filament-user` does not set it), chosen on the Filament
+profile page among the PHP timezone identifiers. `FilamentTimezone::set()`
+receives a closure reading the logged-in admin, evaluated on every read, so
+no middleware is needed and Livewire requests are covered.
+`MAUI_ADMIN_DEFAULT_TIMEZONE` changes the fallback.
+
+**D42: Optional readable OS name on startups.** (2026-09-25)
+`os_version` is Node's `os.release()`, i.e. the kernel version
+(`6.8.0-139-generic`), which says little in the admin panel. MAUI now also
+sends an optional `os_name` (`Ubuntu 24.04.5 LTS`, `macOS 15.1`,
+`Windows 11 (build 22631)`), 64 characters max, omitted when unknown. Stored
+in a nullable `client_startups.os_name`; `os_version` keeps its meaning.
+Optional so that older MAUI versions keep working (D21 already ignored the
+field before this change). The client page shows `os_name` when present,
+else the platform and kernel as before; the startup history shows both.
+The contract stays `1.0.0-draft`: an optional request field is not a
+breaking change.
+
+**D43: `last_used_at` is not maintained for cabinets, required for service accounts.** (2026-09-25)
+Found during the MAUI end-to-end checks: cabinet tokens keep
+`last_used_at = null`. `AuthenticateCabinet` resolves tokens with
+`PersonalAccessToken::findToken()` and bypasses Sanctum's `Guard`, which is
+where Sanctum updates that column (D20); nothing had recorded it. For
+cabinets this stays as is, on purpose: `clients.last_heartbeat_at` already
+says when a cabinet was last seen, and updating the token too would add a
+write per minute and per cabinet for no new information. Service accounts
+send no heartbeat, so `last_used_at` is their only "last seen": the
+authentication of their endpoints (Lot 2, `catalog:write`) must update it,
+and the back office must show it. Nothing to do in Lot 1: service accounts
+have no endpoint yet (the cabinet endpoints refuse them with
+`403 insufficient_ability`).
+
+**D44: Releases with semantic-release, as in MAUI.** (2026-09-25)
+Versions, tags, GitHub releases and `CHANGELOG.md` are computed from the
+Conventional Commits already used on every branch, instead of being written
+by hand. Same model as `Arcadoolic/maui` (`.releaserc.json`,
+`.github/workflows/release.yml`): releases from `main` only, triggered by
+the promotion PR from `develop`; tags without a `v` prefix; release commit
+`chore(release): <version> [skip ci]` carrying `CHANGELOG.md`; `develop`
+merged back from `main` after each release. Differences: no
+`@semantic-release/npm` (nothing is published and the version does not live
+in `package.json`), the release tooling is installed by the workflow with
+pinned versions (MAUI's) instead of being added to Laravel's front-end
+`package.json`, and there is no build job (the deployment image is built on
+the server, D40). First version 0.1.0 rather than 1.0.0, the contract being
+still `1.0.0-draft`: a `0.0.0` tag on the commit `main` pointed to before the
+first promotion is the starting point (without it, semantic-release's first
+release is always 1.0.0); a dry run then computes 0.1.0. semantic-release has
+no special rule for 0.x: a breaking change (`!` or `BREAKING CHANGE`) moves
+straight to 1.0.0, so none should be marked as such before that is wanted.
+

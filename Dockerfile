@@ -29,10 +29,37 @@ ARG GID=1000
 RUN groupadd --gid "${GID}" app \
     && useradd --no-log-init --uid "${UID}" --gid "${GID}" --create-home app \
     && setcap CAP_NET_BIND_SERVICE=+eip /usr/local/bin/frankenphp \
-    && chown -R app:app /config/caddy /data/caddy
+    && mkdir -p /config/psysh \
+    && chown -R app:app /config/caddy /config/psysh /data/caddy
 
 COPY docker/php/dev.ini "$PHP_INI_DIR/conf.d/zz-dev.ini"
 
 ENV COMPOSER_HOME=/tmp/composer
 
 USER app
+
+# Release image: what is deployed, whatever the environment (staging now,
+# production later, D40); only the settings differ. Code baked in, no dev
+# dependencies, runs as www-data. With a domain in SERVER_NAME, FrankenPHP
+# serves HTTPS on :443 and gets its certificate itself (D9), hence the bind
+# capability.
+FROM base AS release
+
+ENV APP_ENV=production \
+    APP_DEBUG=false \
+    COMPOSER_HOME=/tmp/composer
+
+RUN cp "$PHP_INI_DIR/php.ini-production" "$PHP_INI_DIR/php.ini"
+COPY docker/php/release.ini "$PHP_INI_DIR/conf.d/zz-release.ini"
+
+# Dependencies first for layer caching; scripts run once the code is there
+# (post-autoload-dump publishes the Filament assets, which are not committed).
+COPY composer.json composer.lock ./
+RUN composer install --no-dev --no-scripts --no-autoloader --prefer-dist --no-interaction --no-progress
+
+COPY . .
+RUN composer dump-autoload --optimize --no-dev --no-interaction \
+    && setcap CAP_NET_BIND_SERVICE=+eip /usr/local/bin/frankenphp \
+    && chown -R www-data:www-data storage bootstrap/cache /config/caddy /data/caddy
+
+USER www-data

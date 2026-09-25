@@ -1,0 +1,75 @@
+name: maui-api-staging
+
+# Staging on miyamoto (https://api.maui.staging.afronob.com), see
+# docs/DECISIONS.md D40 and docs/DEPLOYMENT.md. FrankenPHP terminates TLS and manages its Let's
+# Encrypt certificate (D9). nginx on the host keeps ports 80/443 for the other
+# sites: it passes this domain's TLS stream through by SNI, with the PROXY
+# protocol, to the loopback ports published below.
+#
+# Settings come from the .env file next to this one, on the server only:
+# Compose reads it for the ${...} below, and the app receives it as env_file.
+#
+#   docker compose -f compose.staging.yaml up -d --build --wait
+
+services:
+  app:
+    build:
+      context: .
+      target: release
+    image: maui-api:release
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      # A domain name enables automatic HTTPS (docker/frankenphp/Caddyfile).
+      SERVER_NAME: ${APP_DOMAIN:-api.maui.staging.afronob.com}
+      # The PROXY header comes from nginx through the Docker bridge gateway.
+      # No HTTP/3: nginx passes TCP only.
+      CADDY_GLOBAL_OPTIONS: |
+        servers :443 {
+          listener_wrappers {
+            proxy_protocol {
+              allow 127.0.0.1/32 172.16.0.0/12 192.168.0.0/16
+            }
+            tls
+          }
+          protocols h1 h2
+        }
+      CADDY_SERVER_EXTRA_DIRECTIVES: |
+        header Strict-Transport-Security "max-age=31536000"
+      DB_CONNECTION: pgsql
+      DB_HOST: db
+      DB_PORT: "5432"
+    ports:
+      # HTTP: ACME HTTP-01 challenges and redirect to HTTPS, proxied by nginx.
+      - "127.0.0.1:${HTTP_PORT:-8081}:80"
+      # HTTPS: TLS stream passed through by nginx (SNI), with PROXY protocol.
+      - "127.0.0.1:${HTTPS_PORT:-8443}:443"
+    volumes:
+      - storage:/app/storage
+      # Certificates and ACME account: keep this volume.
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      db:
+        condition: service_healthy
+
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${DB_DATABASE:?set DB_DATABASE in .env}
+      POSTGRES_USER: ${DB_USERNAME:?set DB_USERNAME in .env}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?set DB_PASSWORD in .env}
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  storage:
+  caddy_data:
+  caddy_config:
+  db_data:

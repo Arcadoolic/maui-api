@@ -70,12 +70,15 @@ info:
 
     ## Rate limiting
 
-    Per client key: 60 requests per minute (tentative value). A heartbeat every
-    60 s uses a small fraction of it.
+    60 requests per minute per client key (per IP when `X-Maui-Key` is
+    missing), plus 600 per minute per IP. Tentative values. A heartbeat every
+    60 s uses a small fraction of it. Applied before authentication.
 
 servers:
   - url: http://localhost:8080/api/v1
     description: Local Docker environment
+  - url: https://api.maui.staging.afronob.com/api/v1
+    description: Staging (online tests, D40)
 
 tags:
   - name: Session
@@ -227,6 +230,61 @@ paths:
         '429':
           description: Too many requests from this IP.
 
+  /invite/{invitationToken}/name:
+    servers:
+      - url: http://localhost:8080
+        description: Web routes, outside the /api/v1 prefix
+    parameters:
+      - $ref: '#/components/parameters/InvitationToken'
+    post:
+      tags: [Invitations]
+      operationId: drawCabinetName
+      summary: Draw another cabinet name
+      description: |
+        "Another name" button of the invitation page. Draws a new free
+        `adjective_hero` name for the cabinet and redirects back to the
+        invitation page. Does not consume the invitation. Initial
+        invitations only: a renewed cabinet keeps its name. CSRF protected,
+        rate limited per IP with the other invitation routes.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              required: [_token]
+              properties:
+                _token:
+                  type: string
+                  description: Laravel CSRF token from the invitation page.
+      responses:
+        '303':
+          description: Name changed, back to the invitation page.
+          headers:
+            Location:
+              schema:
+                type: string
+                format: uri
+        '403':
+          description: Renewal invitation, the name cannot change.
+        '404':
+          description: Unknown invitation.
+          content:
+            text/html:
+              schema:
+                type: string
+        '410':
+          description: Invitation expired or already claimed.
+          content:
+            text/html:
+              schema:
+                type: string
+        '419':
+          description: CSRF token missing or expired.
+        '429':
+          description: Too many requests from this IP.
+
   /invite/{invitationToken}/claim:
     servers:
       - url: http://localhost:8080
@@ -244,7 +302,14 @@ paths:
 
         The response page shows the configuration string once, with a "Copy"
         button and a "keep this, it will not be shown again" message.
-        CSRF protected (Laravel web route), rate limited per IP.
+        CSRF protected (Laravel web route), rate limited per IP (30 per
+        minute, shared with the other invitation routes). A disabled client can
+        claim a renewal, but stays disabled until an admin re-enables it.
+        Only the latest invitation of a client is claimable.
+
+        Response headers on both invitation routes: `Cache-Control: no-store`,
+        `Referrer-Policy: no-referrer`, `X-Robots-Tag: noindex, nofollow`,
+        and a nonce-based `Content-Security-Policy`.
       security: []
       requestBody:
         required: true
@@ -375,8 +440,8 @@ components:
 
     StartupRequest:
       type: object
+      description: Unknown fields are ignored, so MAUI can send new ones before the API knows them.
       required: [mame_version, maui_version, os, os_version, client_datetime]
-      additionalProperties: false
       properties:
         mame_version:
           type: string
@@ -394,13 +459,27 @@ components:
         os_version:
           type: string
           maxLength: 64
-          description: Node.js `os.release()`.
+          description: Node.js `os.release()`, i.e. the kernel version.
           examples: ['6.8.0-139-generic']
+        os_name:
+          type: string
+          maxLength: 64
+          description: |
+            Optional readable OS name: `PRETTY_NAME` of `/etc/os-release` on
+            Linux, `sw_vers` on macOS, derived from the build number on
+            Windows (the registry `ProductName` still says Windows 10 on
+            Windows 11). Truncated to 64 characters by MAUI, omitted when it
+            cannot be read. Older MAUI versions do not send it.
+          examples: ['Ubuntu 24.04.5 LTS', 'macOS 15.1', 'Windows 11 (build 22631)']
         client_datetime:
           type: string
           format: date-time
-          description: Cabinet local time, with offset.
-          examples: ['2026-09-23T20:15:00+02:00']
+          description: |
+            Cabinet local time, RFC 3339 with a mandatory offset (`Z` or
+            `+02:00`), optional milliseconds or microseconds. JavaScript
+            `new Date().toISOString()` is accepted. Stored in UTC: the
+            original offset is not kept.
+          examples: ['2026-09-23T20:15:00+02:00', '2026-09-23T18:15:00.123Z']
 
     StartupResponse:
       type: object

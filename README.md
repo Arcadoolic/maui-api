@@ -20,6 +20,8 @@ just artisan migrate
 - Admin panel: http://localhost:8080/admin
 - Health check: http://localhost:8080/up
 
+Staging deployment (online tests): `docs/DEPLOYMENT.md`.
+
 Create an admin account with `just artisan make:filament-user`.
 
 ## Development
@@ -37,3 +39,4 @@ just ci        # everything CI runs
 - [Decisions](docs/DECISIONS.md)
 - [Progression](docs/PROGRESSION.md)
 - [API contract (OpenAPI)](docs/openapi.yaml)
+- [MAUI integration handoff](docs/MAUI-INTEGRATION.md)
