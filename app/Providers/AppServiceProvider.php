@@ -3,8 +3,11 @@
 namespace App\Providers;
 
 use App\Http\Middleware\AuthenticateCabinet;
+use App\Models\User;
+use Filament\Support\Facades\FilamentTimezone;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
 
@@ -24,6 +27,14 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         $this->configureRateLimiting();
+
+        // Dates are stored in UTC and shown in the timezone of the logged-in
+        // admin. The closure is evaluated on every read, Livewire requests included.
+        FilamentTimezone::set(function (): string {
+            $user = Auth::user();
+
+            return $user instanceof User ? $user->timezone : (string) config('maui.admin_default_timezone');
+        });
     }
 
     private function configureRateLimiting(): void

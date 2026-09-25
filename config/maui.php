@@ -8,6 +8,12 @@ return [
     'invitation_ttl_hours' => (int) env('MAUI_INVITATION_TTL_HOURS', 72),
 
     /*
+    | Timezone used to display dates in the back office when the admin has not
+    | chosen one (or nobody is logged in). Storage always stays in UTC.
+    */
+    'admin_default_timezone' => env('MAUI_ADMIN_DEFAULT_TIMEZONE', 'Europe/Paris'),
+
+    /*
     | Word lists for generated cabinet names, e.g. "glitchy_pac_man"
     | (docs/PLAN.md 1.1). Lowercase, snake_case words only.
     */
