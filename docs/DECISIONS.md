@@ -352,3 +352,23 @@ authentication of their endpoints (Lot 2, `catalog:write`) must update it,
 and the back office must show it. Nothing to do in Lot 1: service accounts
 have no endpoint yet (the cabinet endpoints refuse them with
 `403 insufficient_ability`).
+
+**D44: Releases with semantic-release, as in MAUI.** (2026-09-25)
+Versions, tags, GitHub releases and `CHANGELOG.md` are computed from the
+Conventional Commits already used on every branch, instead of being written
+by hand. Same model as `Arcadoolic/maui` (`.releaserc.json`,
+`.github/workflows/release.yml`): releases from `main` only, triggered by
+the promotion PR from `develop`; tags without a `v` prefix; release commit
+`chore(release): <version> [skip ci]` carrying `CHANGELOG.md`; `develop`
+merged back from `main` after each release. Differences: no
+`@semantic-release/npm` (nothing is published and the version does not live
+in `package.json`), the release tooling is installed by the workflow with
+pinned versions (MAUI's) instead of being added to Laravel's front-end
+`package.json`, and there is no build job (the deployment image is built on
+the server, D40). First version 0.1.0 rather than 1.0.0, the contract being
+still `1.0.0-draft`: a `0.0.0` tag on the commit `main` pointed to before the
+first promotion is the starting point (without it, semantic-release's first
+release is always 1.0.0); a dry run then computes 0.1.0. semantic-release has
+no special rule for 0.x: a breaking change (`!` or `BREAKING CHANGE`) moves
+straight to 1.0.0, so none should be marked as such before that is wanted.
+

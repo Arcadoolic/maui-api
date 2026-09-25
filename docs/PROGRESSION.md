@@ -17,7 +17,7 @@ For why things are done this way, see `docs/DECISIONS.md`.
 
 ## Done
 
-- Delivery plan (`docs/PLAN.md`), decisions D1 to D43 (`docs/DECISIONS.md`).
+- Delivery plan (`docs/PLAN.md`), decisions D1 to D44 (`docs/DECISIONS.md`).
 - Lot 1 OpenAPI 3.1 contract (`docs/openapi.yaml`).
 - Lot 0 skeleton:
   - Docker: FrankenPHP + PHP 8.4 image (`Dockerfile`, `docker/`), Compose
@@ -101,8 +101,8 @@ For why things are done this way, see `docs/DECISIONS.md`.
 
 ## Next
 
-1. First release: promotion PR from `develop` to `main`, with a version
-   tag (manual, or semantic-release as in MAUI).
+1. First release: semantic-release is set up (D44); the promotion PR from
+   `develop` to `main` publishes it.
 2. Lot 2 design questions (see `docs/PLAN.md`, open questions), to settle
    with the MAUI side before any code: LOCAL to ONLINE player migration,
    `pseudo_2` scope, pseudo namespace. Then hiscores. Service account

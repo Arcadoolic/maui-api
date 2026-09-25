@@ -75,3 +75,16 @@ Git-flow, same as MAUI: `develop` is the default and integration branch,
 `main` is production. Every change goes through a feature/fix branch cut
 from `develop` and a PR targeting `develop`. Never commit directly to
 `develop` or `main`; `main` only receives promotion PRs from `develop`.
+
+### Versioning & releases
+
+Automated by semantic-release (`.releaserc.json`, branch `main` only),
+triggered by `.github/workflows/release.yml` on every push to `main`
+(D44). The next version comes from the Conventional Commits accumulated on
+`develop` since the last release: `feat` gives a minor, `fix`, `perf` and
+reverts a patch, a breaking change a major (commit-analyzer default rules);
+`docs`, `ci`, `test`, `build`, `refactor`, `chore` release nothing. The release commits `CHANGELOG.md` on `main` and a job merges
+`main` back into `develop`. Never write a version or a changelog entry by
+hand. Tags use the bare version (`0.1.0`, no `v` prefix). Versions start
+from the `0.0.0` tag; a breaking change moves 0.x straight to 1.0.0, so do
+not mark one before 1.0.0 is wanted (D44).
