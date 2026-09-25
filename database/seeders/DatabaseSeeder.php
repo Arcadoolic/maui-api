@@ -2,7 +2,13 @@
 
 namespace Database\Seeders;
 
+use App\Models\Client;
+use App\Models\Invitation;
 use App\Models\User;
+use Database\Factories\ClientFactory;
+use Database\Factories\InvitationFactory;
+use Database\Seeders\ClientSeeder;
+use Faker\Factory as FakerFactory;
 use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 
@@ -15,11 +21,12 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
-        // User::factory(10)->create();
+        $this->call(ClientSeeder::class);
 
-        User::factory()->create([
-            'name' => 'Test User',
-            'email' => 'test@example.com',
-        ]);
+        $clients = Client::all();
+        $f = FakerFactory::create();
+        InvitationFactory::new()->count($clients->count())->createMany(
+            $clients->map(fn ($c) => ['client_id' => $c->id, 'purpose' => $f->randomElement(['initial', 'renewal'])])->toArray(),
+        );
     }
 }
