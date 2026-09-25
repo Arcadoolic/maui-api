@@ -1,0 +1,57 @@
+version: 2
+updates:
+  # PHP dependencies (composer.lock). Security updates are opened as soon
+  # as an advisory is published, version updates weekly.
+  - package-ecosystem: "composer"
+    directory: "/"
+    target-branch: "develop"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 10
+    commit-message:
+      prefix: "build"
+      include: "scope"
+    groups:
+      # Laravel, Filament and their ecosystems move together.
+      framework:
+        patterns:
+          - "laravel/*"
+          - "filament/*"
+          - "livewire/*"
+        update-types: ["minor", "patch"]
+
+  # Base images: dunglas/frankenphp, composer (Dockerfile).
+  - package-ecosystem: "docker"
+    directory: "/"
+    target-branch: "develop"
+    schedule:
+      interval: "weekly"
+    commit-message:
+      prefix: "build"
+      include: "scope"
+
+  # postgres image (compose.yaml, compose.staging.yaml).
+  - package-ecosystem: "docker-compose"
+    directory: "/"
+    target-branch: "develop"
+    schedule:
+      interval: "weekly"
+    commit-message:
+      prefix: "build"
+      include: "scope"
+    ignore:
+      # A PostgreSQL major needs a dump and restore of the data volume.
+      - dependency-name: "postgres"
+        update-types: ["version-update:semver-major"]
+
+  # Actions used by the workflows. The release tooling pinned in the
+  # `npx -p` arguments of release.yml is not seen by Dependabot: keep
+  # conventional-changelog-conventionalcommits on 9.x there (10.x breaks
+  # release notes with semantic-release 25, as noted in Arcadoolic/maui).
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    target-branch: "develop"
+    schedule:
+      interval: "weekly"
+    commit-message:
+      prefix: "ci"
