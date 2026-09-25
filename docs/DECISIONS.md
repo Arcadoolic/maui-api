@@ -286,3 +286,32 @@ clients). On creation, the back office asks for a name only when the type
 is service account (required, snake_case, unique, e.g. `catalog_importer`);
 cabinets keep their generated name. `Client` refuses to create a service
 account without a name instead of generating one.
+
+## Hosting
+
+**D40: Staging on miyamoto, FrankenPHP behind an SNI passthrough.** (2026-09-25)
+Online tests (a real MAUI cabinet against the API) need a public HTTPS
+endpoint before the production server exists. Staging runs on miyamoto
+(Online/Scaleway Dedibox, Debian 13) at
+`https://api.maui.staging.afronob.com`, a CNAME to the machine, with
+Docker Compose (`compose.staging.yaml`): same base image as local
+development and nothing PHP-specific installed on a shared host. Staging
+runs the `release` image target, the one meant for production too (no dev
+dependencies, code baked in, production php.ini and opcache, www-data), so
+it validates what will be deployed; only the settings differ
+(`compose.staging.yaml`, the server `.env`). Named after the build, not an
+environment.
+FrankenPHP terminates TLS and manages its Let's Encrypt certificate, as
+planned for production (D9), so staging exercises the real HTTPS path. The
+server already hosts other sites behind nginx, which owns ports 80 and 443.
+Rather than terminating TLS in nginx, nginx's `stream` module reads the SNI
+of each connection on 443 without decrypting it (`ssl_preread`): this
+domain goes to the app container, every other name to the existing vhosts,
+moved to a loopback port. Both hops use the PROXY protocol, so the app and
+the other sites still see the real client address (`claimed_ip`, rate
+limits) without trusting any `X-Forwarded-*` header. Port 80 proxies this
+domain to the container for ACME HTTP-01 and the HTTPS redirect.
+Rejected: a dedicated port such as 8443 (URL with a port, firewall opening)
+and a failover IP (paid, DNS change). Production hosting (PLAN open
+question 0) stays open: production is still planned on its own Ubuntu
+server, where FrankenPHP can own ports 80 and 443 directly.
