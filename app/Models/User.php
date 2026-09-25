@@ -15,11 +15,13 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 
-#[Fillable(['name', 'email', 'password'])]
+#[Fillable(['name', 'email', 'password', 'timezone'])]
 #[Hidden(['password', 'remember_token'])]
 /**
  * A back office administrator. The users table only holds admins: there is no
  * public registration, accounts are created with `make:filament-user`.
+ *
+ * @property string $timezone Display timezone in the back office (D41).
  */
 class User extends Authenticatable implements FilamentUser, HasAppAuthentication, HasAppAuthenticationRecovery
 {

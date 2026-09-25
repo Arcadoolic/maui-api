@@ -317,6 +317,16 @@ server, where FrankenPHP can own ports 80 and 443 directly.
 
 ## Lot 1 follow-ups
 
+**D41: Back office dates in the admin's timezone, Paris by default.** (2026-09-25)
+Dates stay stored in UTC (the app timezone), which suits cabinets anywhere,
+but the back office showed them in UTC too (13:08 for a 15:08 startup in
+Paris). Each admin has a `users.timezone` (default `Europe/Paris`, the column
+default, since `make:filament-user` does not set it), chosen on the Filament
+profile page among the PHP timezone identifiers. `FilamentTimezone::set()`
+receives a closure reading the logged-in admin, evaluated on every read, so
+no middleware is needed and Livewire requests are covered.
+`MAUI_ADMIN_DEFAULT_TIMEZONE` changes the fallback.
+
 **D42: Optional readable OS name on startups.** (2026-09-25)
 `os_version` is Node's `os.release()`, i.e. the kernel version
 (`6.8.0-139-generic`), which says little in the admin panel. MAUI now also

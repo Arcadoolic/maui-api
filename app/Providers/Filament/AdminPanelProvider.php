@@ -3,6 +3,7 @@
 namespace App\Providers\Filament;
 
 use App\Filament\Auth\AppAuthentication;
+use App\Filament\Pages\Auth\EditProfile;
 use App\Filament\Widgets\CabinetsOverview;
 use Filament\Http\Middleware\Authenticate;
 use Filament\Http\Middleware\AuthenticateSession;
@@ -29,6 +30,7 @@ class AdminPanelProvider extends PanelProvider
             ->id('admin')
             ->path('admin')
             ->login()
+            ->profile(EditProfile::class)
             // No registration: admins are created with `php artisan make:filament-user`.
             ->multiFactorAuthentication([
                 AppAuthentication::make()->recoverable(),
