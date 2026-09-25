@@ -6,8 +6,9 @@ Written for whoever picks it up, human or agent, in a session opened in the
 MAUI repository. MAUI's own `CLAUDE.md` still applies there; this document
 only adds what MAUI-API expects.
 
-**Status (2026-09-24):** MAUI-API Lot 1 is merged on `develop`. The API side
-is done and tested. Nothing exists yet in MAUI.
+**Status (2026-09-25):** MAUI-API Lot 1 is merged on `develop`. The API side
+is done and tested. On the MAUI side, slice 1 (section 7) is in review:
+`Arcadoolic/maui` PR #88, not wired into the BO or `background.ts` yet.
 
 Read alongside:
 - `docs/openapi.yaml`: the contract. It is the reference if this document and
@@ -147,28 +148,32 @@ process.
 
 ## 5. Constraints found in the MAUI codebase
 
-From a read-only review of `develop` (version 2.5.0). Line numbers may drift.
+From a read-only review of `develop` (version 2.5.0), updated on 2026-09-25
+after MAUI PR #90 (single BO account, see item 7). Line numbers may drift.
 
 1. **No CSRF protection in the BO** (`boServer.ts`, plain `method="post"`
-   forms, no token or `Origin` check) while the BO is reachable from the LAN.
-   A malicious page opened by a logged-in admin could post a forged "Online"
-   form that points `url` to an attacker's server: the token would leak with
-   the next heartbeat. Minimum mitigation: the URL can only change by pasting
-   a complete `MAUI1.` string, never through a separate URL field. Better:
-   check `Origin` (or a CSRF token) on the Online routes.
+   forms, no token or `Origin` check, session cookie without an explicit
+   `SameSite`) while the BO is reachable from the LAN. A malicious page opened
+   by a logged-in BO user could post a forged "Online" form that points `url`
+   to an attacker's server: the token would leak with the next heartbeat.
+   Minimum mitigation: the URL can only change by pasting a complete `MAUI1.`
+   string, never through a separate URL field. Better: check `Origin` (or a
+   CSRF token) on the Online routes.
 2. **BO backups include the raw config file** (`/maui/export`, around line
-   7033; `/maui/import` around 7081). The existing config already holds
+   7392; `/maui/import` around 7440). The existing config already holds
    passwords in plain text, written with the default umask. Do not put ONLINE
-   credentials in `mame-awesome-ui-config.json`: use a separate file, e.g.
+   credentials in `mame-awesome-ui-config.json`: use a separate file,
    `~/.mame-awesome-ui/online.json`, written with mode `0o600`, excluded from
    export and import. It holds `url`, `key`, `token`, `localUuid`, and the
-   ONLINE on/off switch.
+   ONLINE on/off switch. Done in slice 1 (`src/class/OnlineSettings.ts`);
+   `/maui/export` lists its files one by one, so `online.json` stays out of
+   backups without any change there.
 3. **No MAME version in the main process.** `MameService` is renderer-only
    (`@electron/remote`). Add an Electron-free helper that runs
    `mame -version` with `execFile`, on the model of `getMameInfo()`
-   (`boServer.ts` around 539-549: binary = `join(config.mamePath,
+   (`boServer.ts` around 525: binary = `join(config.mamePath,
    config.mameBinaryName)`, `timeout: 15000`).
-4. **MAUI version**: `getRunningVersion()` (`boServer.ts` around 4053) returns
+4. **MAUI version**: `getRunningVersion()` (`boServer.ts` around 4377) returns
    `app.getVersion()` + a `+dev.<sha>` suffix on dev builds. Truncate or strip
    the suffix to stay within 32 characters.
 5. **Keep the new logic out of `boServer.ts` and Electron**: boServer cannot
@@ -182,13 +187,24 @@ From a read-only review of `develop` (version 2.5.0). Line numbers may drift.
    calls `app.exit(0)`, which skips `will-quit`, hence the `unref()`. The BO
    "save" and "disable" actions must be able to start and stop it without a
    restart.
-7. **BO patterns to copy**: the ScreenScraper settings (admin-only
-   credentials form: `GET /screenscraper`, `POST /screenscraper/save`,
-   `renderScreenScraperCard()`), and the MAUI page subtabs
-   (`renderMauiPage()`, around line 4471). Values always go through
-   `escapeHtml()`. Pages are re-rendered after POST with an `info` or
-   `error` message.
-8. **Tests**: Vitest, `tests/unit/*.test.ts`, temp directories for files
+7. **No admin role in the BO anymore** (MAUI PR #90). There is a single BO
+   account (`puckman`/`puckman` by default), and the former admin-only tabs
+   and sections sit behind the header's "Advanced configuration" switch:
+   `req.session.boAdvanced`, toggled by `POST /advanced`, off at every
+   sign-in. It is a display switch, not access control: any logged-in user
+   can turn it on. Routes still check it server side (`if
+   (!req.session.boAdvanced)`, e.g. `GET /screenscraper`), and the Online
+   routes must do the same, but the only real barrier is the BO login.
+   Consequences: never show the token again once saved (section 6), and the
+   CSRF check of item 1 matters more, since there is no separate admin
+   session to target.
+8. **BO patterns to copy**: the ScreenScraper settings (credentials form
+   behind the Advanced configuration switch: `GET /screenscraper`,
+   `POST /screenscraper/save`, `renderScreenScraperCard()`), and the MAUI
+   page subtabs (`renderMauiPage(config, messages, isAdvanced, ...)`, around
+   line 4795). Values always go through `escapeHtml()`. Pages are re-rendered
+   after POST with an `info` or `error` message.
+9. **Tests**: Vitest, `tests/unit/*.test.ts`, temp directories for files
    (`tests/unit/Config.class.test.ts`), injected fetch for HTTP
    (`tests/unit/ZipCentralDirectory.test.ts`), `vi.mock('node:os', ...)`
    with the `node:` prefix.
@@ -206,7 +222,8 @@ Electron-free modules, each unit tested:
 | `MauiApiClient` | `ping()`, `reportStartup()`, `heartbeat()`: headers, timeout, maps responses to a typed result (`ok`, `rejected` with the problem `code`, `rate_limited` with the delay, `unavailable`). |
 | `OnlineSession` | Startup report + 60 s heartbeat, stops on a definitive rejection, keeps the last status (last success, last error code) for the BO. |
 
-BO, new admin-only "Online" subtab in the MAUI page:
+BO, new "Online" subtab in the MAUI page, shown and served only with the
+Advanced configuration switch on (section 5, item 7):
 - a "Paste configuration" field (decodes the string, shows url and key, never
   the token once saved);
 - "Test connection" (calls `/ping`, shows the cabinet name and whether it
@@ -217,10 +234,12 @@ BO, new admin-only "Online" subtab in the MAUI page:
 ## 7. Suggested slices (one PR each, on MAUI `develop`)
 
 1. `ConfigurationString`, `OnlineSettings`, `MachineFingerprint` + tests.
+   In review: MAUI PR #88. The macOS (`ioreg`) and Windows (`reg query`)
+   parsing is only tested against sample outputs, not on a real machine yet.
 2. `MauiApiClient` + tests against the contract (fake fetch returning the
    contract's examples and problem documents).
-3. BO Online subtab: paste, save, test connection. `Origin` check on its
-   routes.
+3. BO Online subtab behind the Advanced configuration switch: paste, save,
+   test connection. `boAdvanced` and `Origin` checks on its routes.
 4. `MameVersion`, `OnlineSession`, wiring in `background.ts`, status in the
    BO.
 5. End-to-end check against a local MAUI-API (section 8).
