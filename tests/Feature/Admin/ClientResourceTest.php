@@ -192,6 +192,32 @@ describe('service account actions', function () {
     });
 });
 
+it('shows the readable OS name of the latest startup, or the kernel when unknown', function (?string $osName, string $shown) {
+    $client = Client::factory()->create();
+    $client->recordStartup([
+        'mame_version' => '0.289', 'maui_version' => '2.5.0', 'os' => 'linux',
+        'os_version' => '6.8.0-139-generic', 'os_name' => $osName, 'client_datetime' => now(),
+    ]);
+
+    livewire(ViewClient::class, ['record' => $client->getRouteKey()])->assertSee($shown);
+})->with([
+    'with OS name' => ['Ubuntu 24.04.5 LTS', 'Ubuntu 24.04.5 LTS'],
+    'without OS name' => [null, 'linux 6.8.0-139-generic'],
+]);
+
+it('shows the OS name next to the kernel version in the startup history', function () {
+    $client = Client::factory()->create();
+    $client->recordStartup([
+        'mame_version' => '0.289', 'maui_version' => '2.5.0', 'os' => 'win32',
+        'os_version' => '10.0.22631', 'os_name' => 'Windows 11 (build 22631)', 'client_datetime' => now(),
+    ]);
+
+    livewire(StartupsRelationManager::class, ['ownerRecord' => $client, 'pageClass' => ViewClient::class])
+        ->assertSee('OS name')
+        ->assertSee('Windows 11 (build 22631)')
+        ->assertSee('10.0.22631');
+});
+
 it('shows the startup history of a cabinet', function () {
     $client = Client::factory()->create();
     $startup = $client->startups()->create([

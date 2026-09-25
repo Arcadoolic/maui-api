@@ -40,7 +40,9 @@ class ClientInfolist
                         TextEntry::make('latestStartup.mame_version')->label(__('MAME version'))->placeholder('-'),
                         TextEntry::make('latestStartup.os')
                             ->label(__('OS'))
-                            ->formatStateUsing(fn (string $state, Client $record): string => $state.' '.$record->latestStartup?->os_version)
+                            // Readable name when MAUI sends it (D42), else platform and kernel.
+                            ->formatStateUsing(fn (string $state, Client $record): string => $record->latestStartup->os_name
+                                ?? $state.' '.$record->latestStartup?->os_version)
                             ->placeholder('-'),
                     ]),
             ]);

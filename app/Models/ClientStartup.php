@@ -15,7 +15,8 @@ use Illuminate\Support\Carbon;
  * @property string $mame_version
  * @property string $maui_version
  * @property string $os
- * @property string $os_version
+ * @property string $os_version Kernel version (Node os.release()).
+ * @property string|null $os_name Readable OS name, e.g. "Ubuntu 24.04.5 LTS".
  * @property Carbon $client_datetime
  * @property Carbon $received_at
  */
@@ -25,7 +26,7 @@ class ClientStartup extends Model
 
     public $timestamps = false;
 
-    protected $fillable = ['mame_version', 'maui_version', 'os', 'os_version', 'client_datetime', 'received_at'];
+    protected $fillable = ['mame_version', 'maui_version', 'os', 'os_version', 'os_name', 'client_datetime', 'received_at'];
 
     protected function casts(): array
     {

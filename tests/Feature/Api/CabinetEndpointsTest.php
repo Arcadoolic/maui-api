@@ -80,6 +80,27 @@ describe('POST /startups', function () {
         'microseconds' => '2026-09-23T18:15:00.123456+02:00',
     ]);
 
+    it('stores the readable OS name when MAUI sends it', function () use ($validStartup) {
+        [$client, $token] = cabinetWithToken();
+
+        $id = $this->postJson('/api/v1/startups', [...$validStartup(), 'os_name' => 'Ubuntu 24.04.5 LTS'], cabinetHeaders($client, $token))
+            ->assertCreated()
+            ->json('id');
+
+        expect(ClientStartup::findOrFail($id)->os_name)->toBe('Ubuntu 24.04.5 LTS')
+            ->and(ClientStartup::findOrFail($id)->os_version)->toBe('6.8.0-139-generic');
+    });
+
+    it('accepts a startup without OS name, as older MAUI versions send', function () use ($validStartup) {
+        [$client, $token] = cabinetWithToken();
+
+        $id = $this->postJson('/api/v1/startups', $validStartup(), cabinetHeaders($client, $token))
+            ->assertCreated()
+            ->json('id');
+
+        expect(ClientStartup::findOrFail($id)->os_name)->toBeNull();
+    });
+
     it('ignores unknown fields', function () use ($validStartup) {
         [$client, $token] = cabinetWithToken();
 
@@ -102,6 +123,8 @@ describe('POST /startups', function () {
         'missing maui_version' => ['maui_version', null],
         'unknown os' => ['os', 'amiga'],
         'too long os_version' => ['os_version', str_repeat('1', 65)],
+        'too long os_name' => ['os_name', str_repeat('a', 65)],
+        'os_name not a string' => ['os_name', ['Ubuntu']],
         'datetime without offset' => ['client_datetime', '2026-09-23T20:15:00'],
         'not a datetime' => ['client_datetime', 'yesterday'],
     ]);

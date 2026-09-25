@@ -27,6 +27,8 @@ final class StoreStartupRequest extends FormRequest
             'maui_version' => ['required', 'string', 'max:32'],
             'os' => ['required', Rule::in(self::OPERATING_SYSTEMS)],
             'os_version' => ['required', 'string', 'max:64'],
+            // Optional: older MAUI versions do not send it (D42).
+            'os_name' => ['nullable', 'string', 'max:64'],
             'client_datetime' => ['required', 'string', 'date_format:'.self::DATETIME_FORMATS],
         ];
     }

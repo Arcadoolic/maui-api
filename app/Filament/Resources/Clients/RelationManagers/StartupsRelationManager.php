@@ -27,6 +27,7 @@ class StartupsRelationManager extends RelationManager
                 TextColumn::make('maui_version')->label(__('MAUI')),
                 TextColumn::make('mame_version')->label(__('MAME')),
                 TextColumn::make('os')->label(__('OS')),
+                TextColumn::make('os_name')->label(__('OS name'))->placeholder('-'),
                 TextColumn::make('os_version')->label(__('OS version')),
                 TextColumn::make('client_datetime')->label(__('Cabinet clock'))->dateTime(),
             ]);

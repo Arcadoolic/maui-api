@@ -58,12 +58,19 @@ Accept: application/json
   "maui_version": "2.5.0",
   "os": "linux",
   "os_version": "6.8.0-139-generic",
+  "os_name": "Ubuntu 24.04.5 LTS",
   "client_datetime": "2026-09-23T18:15:00.123Z"
 }
 ```
 
 - `os`: Node `process.platform`, one of `linux`, `darwin`, `win32`.
-- `os_version`: Node `os.release()`, 64 characters max.
+- `os_version`: Node `os.release()` (the kernel version), 64 characters max.
+- `os_name`: optional readable name, 64 characters max, omitted when unknown:
+  `PRETTY_NAME` of `/etc/os-release` (`Ubuntu 24.04.5 LTS`), `sw_vers` on
+  macOS (`macOS 15.1`), derived from the build number on Windows
+  (`Windows 11 (build 22631)`: the registry `ProductName` still says
+  Windows 10 on Windows 11). The admin panel shows it instead of the kernel
+  version when present (D42).
 - `mame_version`, `maui_version`: 32 characters max each.
 - `client_datetime`: `new Date().toISOString()` is accepted as is.
 - Keep the returned `id` in memory for the run: Lot 2 will attach it to scores.

@@ -459,8 +459,18 @@ components:
         os_version:
           type: string
           maxLength: 64
-          description: Node.js `os.release()`.
+          description: Node.js `os.release()`, i.e. the kernel version.
           examples: ['6.8.0-139-generic']
+        os_name:
+          type: string
+          maxLength: 64
+          description: |
+            Optional readable OS name: `PRETTY_NAME` of `/etc/os-release` on
+            Linux, `sw_vers` on macOS, derived from the build number on
+            Windows (the registry `ProductName` still says Windows 10 on
+            Windows 11). Truncated to 64 characters by MAUI, omitted when it
+            cannot be read. Older MAUI versions do not send it.
+          examples: ['Ubuntu 24.04.5 LTS', 'macOS 15.1', 'Windows 11 (build 22631)']
         client_datetime:
           type: string
           format: date-time
