@@ -7,9 +7,10 @@ MAUI repository. MAUI's own `CLAUDE.md` still applies there; this document
 only adds what MAUI-API expects.
 
 **Status (2026-09-25):** MAUI-API Lot 1 is merged on `develop`. The API side
-is done and tested. On the MAUI side, slices 1 and 2 (section 7) are merged
-on `develop` (`Arcadoolic/maui` PRs #88 and #92), not wired into the BO or
-`background.ts` yet. Slice 3 is in progress.
+is done and tested. On the MAUI side, slices 1 to 3 (section 7) are merged
+on `develop` (`Arcadoolic/maui` PRs #88, #92 and #93): the BO can paste, save
+and test credentials. Not wired into `background.ts` yet (no startup report,
+no heartbeat): that is slice 4.
 
 Read alongside:
 - `docs/openapi.yaml`: the contract. It is the reference if this document and
@@ -243,7 +244,14 @@ Advanced configuration switch on (section 5, item 7):
    as a network error: the configuration string must carry the final URL.
 3. BO Online subtab behind the Advanced configuration switch: paste, save,
    test connection. `boAdvanced` and `Origin` checks on its routes (CSRF:
-   `Origin` on the Online routes only for now, see section 9).
+   `Origin` on the Online routes only for now, see section 9). Merged: MAUI
+   PR #93. Routes `POST /maui/online/save`, `/test`, `/reset`; same-origin
+   check in `src/class/SameOrigin.ts` (`Origin` host must equal `Host`,
+   `Referer` as fallback, requests with neither refused). A corrupt
+   `online.json` can only be reset, keeping `localUuid` when it can be
+   salvaged, so the machine binding stays valid. The happy path (successful
+   test with a claimed string, binding visible in the admin panel) is left
+   to slice 5.
 4. `MameVersion`, `OnlineSession`, wiring in `background.ts`, status in the
    BO. Also decides what to do with a `rejected` result whose `code` MAUI
    does not know (stop, or keep retrying).
@@ -282,8 +290,13 @@ as online when its last heartbeat is less than 3 minutes old
 cabinet appear offline in the admin panel; if that is not wanted, adjust the
 threshold in MAUI-API rather than working around it in MAUI.
 
-1. CSRF: `Origin` check on the Online routes only, or a CSRF token for the
-   whole BO (it is a wider gap than ONLINE)?
+1. ~~CSRF: `Origin` check on the Online routes only, or a CSRF token for the
+   whole BO?~~ Decided in MAUI PR #93: `Origin` check on the Online routes
+   only; a CSRF token for the whole BO is separate work. DNS rebinding
+   against the default BO login is not covered by that check: for ONLINE it
+   allows sabotage, not token theft (the token is never shown again, and a
+   new string replaces URL and token together). A `Host` allowlist for the
+   whole BO is noted as separate work on the MAUI side.
 2. Should the cabinet UI (not only the BO) show anything about ONLINE, e.g. an
    icon when the API is unreachable?
 3. Heartbeat backoff on repeated network failures: keep 60 s, or back off?

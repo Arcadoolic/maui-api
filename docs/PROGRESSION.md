@@ -4,14 +4,14 @@ Current state of the delivery plan. For the plan itself, see `docs/PLAN.md`.
 For why things are done this way, see `docs/DECISIONS.md`.
 
 **Repository:** `git@github.com:Arcadoolic/maui-api.git` (public), git-flow: `develop` (default) and `main`.
-**Last updated:** 2026-09-25, staging deployment prepared (D40), Lot 1 done on the API side.
+**Last updated:** 2026-09-25, staging deployment prepared (D40), Lot 1 done on the API side, MAUI slices 1 to 3 merged.
 
 ## Status: Lot 0 done (except deployment), Lot 1 done on the API side.
 
 | Lot | What | Status |
 |-----|------|--------|
 | 0 | Foundation: Docker Compose, Laravel 13 skeleton, CI | **Done**; staging prepared (D40, `docs/DEPLOYMENT.md`), production hosting undecided |
-| 1 | MAUI authentication, machine binding, telemetry, Filament BO | **API done** (PR #1, #2, #4); MAUI side not started, see `docs/MAUI-INTEGRATION.md` |
+| 1 | MAUI authentication, machine binding, telemetry, Filament BO | **API done** (PR #1, #2, #4); MAUI side: slices 1 to 3 of 5 merged, see `docs/MAUI-INTEGRATION.md` |
 | 2 | Hiscores: catalog, players, scores, leaderboards | Design points noted, open questions pending |
 | 3 | Hiscores front end | Not started |
 
@@ -98,10 +98,10 @@ For why things are done this way, see `docs/DECISIONS.md`.
 
 ## Next
 
-1. MAUI side (`../mame-awesome-ui`): handoff in `docs/MAUI-INTEGRATION.md`
-   (contract summary, fingerprint, constraints found in the MAUI codebase,
-   proposed modules and PR slices). To be done in a session opened in the
-   MAUI repository.
+1. MAUI side (`../mame-awesome-ui`): handoff in `docs/MAUI-INTEGRATION.md`,
+   done in a session opened in the MAUI repository. Slices 1 to 3 merged
+   (MAUI PRs #88, #92, #93: settings, API client, BO Online subtab); next:
+   slice 4 (startup report, heartbeat) and slice 5 (end-to-end check).
 2. Lot 2 design questions (see `docs/PLAN.md`), then hiscores.
 
 ## Pending outside the code
