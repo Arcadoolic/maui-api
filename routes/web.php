@@ -18,3 +18,6 @@ Route::middleware(['throttle:invitations', SecureInvitationPages::class])
         Route::post('name', [InvitationController::class, 'rename'])->name('rename');
         Route::post('claim', [InvitationController::class, 'claim'])->name('claim');
     });
+
+Route::get('/login', fn () => redirect('/dashboard'))
+    ->name('login');
