@@ -286,3 +286,25 @@ clients). On creation, the back office asks for a name only when the type
 is service account (required, snake_case, unique, e.g. `catalog_importer`);
 cabinets keep their generated name. `Client` refuses to create a service
 account without a name instead of generating one.
+
+## Hosting
+
+**D40: Staging on miyamoto with Docker Compose behind the host nginx.** (2026-09-25)
+Online tests (a real MAUI cabinet against the API) need a public HTTPS
+endpoint before the production server exists. Staging runs on miyamoto
+(Online/Scaleway Dedibox, Debian 13) at `https://api.maui.afronob.com`, a
+CNAME to the machine. The server already hosts other sites behind nginx and
+certbot, which own ports 80 and 443: FrankenPHP cannot do its automatic
+HTTPS there (D9), so it serves plain HTTP on `:8080`, published on
+`127.0.0.1` only, and nginx terminates TLS like for the other vhosts.
+Docker Compose (`compose.staging.yaml`, image target `prod`) rather than a
+native install: same base image as local development, nothing PHP-specific
+installed on a shared host, and it tries out one answer to the production
+hosting question (PLAN open question 0) without settling it: production is
+still planned on an Ubuntu server of its own.
+Behind the proxy, Laravel must trust `X-Forwarded-*` or it sees plain HTTP
+and records the proxy as the client IP (`claimed_ip`, rate limits).
+`TRUSTED_PROXIES` (`config/trustedproxy.php`) lists the Docker bridge range
+on staging and is unset locally. Trusting a range is safe only because the
+app port is bound to loopback; nginx overwrites `X-Forwarded-For` with the
+real peer address instead of appending to a client-supplied value.
