@@ -343,15 +343,14 @@ threshold in MAUI-API rather than working around it in MAUI.
    off?~~ Decided on the MAUI side (same section): no backoff, a fixed 60 s,
    consistent with `ONLINE_THRESHOLD_MINUTES = 3`.
 
-### Open on the API side
+### API side
 
-4. **Sanctum `last_used_at` stays `null`** for cabinet tokens, although they
-   are used every minute. Checked: not a deliberate choice, a side effect of
-   D20. Sanctum updates `last_used_at` in its `Guard`
+4. ~~**Sanctum `last_used_at` stays `null`** for cabinet tokens, although
+   they are used every minute.~~ Checked: a side effect of D20, not a
+   deliberate choice at first. Sanctum updates `last_used_at` in its `Guard`
    (`vendor/laravel/sanctum/src/Guard.php`), and `AuthenticateCabinet` does
    not go through that guard: it resolves the token with
-   `PersonalAccessToken::findToken()`, which only looks it up. No decision
-   or document mentioned it. `clients.last_heartbeat_at` already records
-   when a cabinet was last seen. To decide: update `last_used_at` in the
-   middleware (one extra write per request, useful for service accounts,
-   which send no heartbeat), or record that it is not maintained.
+   `PersonalAccessToken::findToken()`, which only looks it up. Decided in
+   D43: not maintained for cabinets (`clients.last_heartbeat_at` already
+   records when a cabinet was last seen), required for service accounts,
+   which send no heartbeat, when their endpoints come in Lot 2.

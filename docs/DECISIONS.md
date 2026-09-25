@@ -338,3 +338,17 @@ field before this change). The client page shows `os_name` when present,
 else the platform and kernel as before; the startup history shows both.
 The contract stays `1.0.0-draft`: an optional request field is not a
 breaking change.
+
+**D43: `last_used_at` is not maintained for cabinets, required for service accounts.** (2026-09-25)
+Found during the MAUI end-to-end checks: cabinet tokens keep
+`last_used_at = null`. `AuthenticateCabinet` resolves tokens with
+`PersonalAccessToken::findToken()` and bypasses Sanctum's `Guard`, which is
+where Sanctum updates that column (D20); nothing had recorded it. For
+cabinets this stays as is, on purpose: `clients.last_heartbeat_at` already
+says when a cabinet was last seen, and updating the token too would add a
+write per minute and per cabinet for no new information. Service accounts
+send no heartbeat, so `last_used_at` is their only "last seen": the
+authentication of their endpoints (Lot 2, `catalog:write`) must update it,
+and the back office must show it. Nothing to do in Lot 1: service accounts
+have no endpoint yet (the cabinet endpoints refuse them with
+`403 insufficient_ability`).
