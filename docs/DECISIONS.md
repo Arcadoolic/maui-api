@@ -294,9 +294,13 @@ Online tests (a real MAUI cabinet against the API) need a public HTTPS
 endpoint before the production server exists. Staging runs on miyamoto
 (Online/Scaleway Dedibox, Debian 13) at
 `https://api.maui.staging.afronob.com`, a CNAME to the machine, with
-Docker Compose (`compose.staging.yaml`, image target `prod`): same base
-image as local development and nothing PHP-specific installed on a shared
-host.
+Docker Compose (`compose.staging.yaml`): same base image as local
+development and nothing PHP-specific installed on a shared host. Staging
+runs the `release` image target, the one meant for production too (no dev
+dependencies, code baked in, production php.ini and opcache, www-data), so
+it validates what will be deployed; only the settings differ
+(`compose.staging.yaml`, the server `.env`). Named after the build, not an
+environment.
 FrankenPHP terminates TLS and manages its Let's Encrypt certificate, as
 planned for production (D9), so staging exercises the real HTTPS path. The
 server already hosts other sites behind nginx, which owns ports 80 and 443.

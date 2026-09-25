@@ -83,11 +83,12 @@ For why things are done this way, see `docs/DECISIONS.md`.
 - Staging on miyamoto, `https://api.maui.staging.afronob.com`, Docker Compose;
   FrankenPHP terminates TLS and manages its certificate, the host nginx
   routes port 443 by SNI without decrypting, with the PROXY protocol (D40).
-- `Dockerfile` target `prod` (no dev dependencies, code baked in, opcache
-  without timestamp checks, www-data allowed to bind 80/443),
+- `Dockerfile` target `release`, the image deployed in every environment
+  (no dev dependencies, code baked in, opcache without timestamp checks,
+  www-data allowed to bind 80/443),
   `compose.staging.yaml` (loopback ports, PROXY protocol on 443, HSTS, no
   HTTP/3, PostgreSQL 16 volume), runbook `docs/DEPLOYMENT.md`.
-- Checked locally: prod image with a throwaway database (`/up` and
+- Checked locally: release image with a throwaway database (`/up` and
   `/admin/login` 200, migrations, API errors as problem+json with debug
   off); behind an nginx `stream` with `ssl_preread`: TLS served by
   FrankenPHP, HTTP/2, HSTS, `REMOTE_ADDR` = real client, HTTPS asset URLs,

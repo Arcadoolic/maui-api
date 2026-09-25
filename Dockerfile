@@ -38,17 +38,19 @@ ENV COMPOSER_HOME=/tmp/composer
 
 USER app
 
-# Production-like image (staging, D40): code baked in, no dev dependencies,
-# runs as www-data. With a domain in SERVER_NAME, FrankenPHP serves HTTPS on
-# :443 and gets its certificate itself (D9), hence the bind capability.
-FROM base AS prod
+# Release image: what is deployed, whatever the environment (staging now,
+# production later, D40); only the settings differ. Code baked in, no dev
+# dependencies, runs as www-data. With a domain in SERVER_NAME, FrankenPHP
+# serves HTTPS on :443 and gets its certificate itself (D9), hence the bind
+# capability.
+FROM base AS release
 
 ENV APP_ENV=production \
     APP_DEBUG=false \
     COMPOSER_HOME=/tmp/composer
 
 RUN cp "$PHP_INI_DIR/php.ini-production" "$PHP_INI_DIR/php.ini"
-COPY docker/php/prod.ini "$PHP_INI_DIR/conf.d/zz-prod.ini"
+COPY docker/php/release.ini "$PHP_INI_DIR/conf.d/zz-release.ini"
 
 # Dependencies first for layer caching; scripts run once the code is there
 # (post-autoload-dump publishes the Filament assets, which are not committed).

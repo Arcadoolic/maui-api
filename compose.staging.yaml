@@ -15,8 +15,8 @@ services:
   app:
     build:
       context: .
-      target: prod
-    image: maui-api:prod
+      target: release
+    image: maui-api:release
     restart: unless-stopped
     env_file: .env
     environment:
