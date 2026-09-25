@@ -80,7 +80,7 @@ For why things are done this way, see `docs/DECISIONS.md`.
 
 ## Lot 0: staging deployment (prepared)
 
-- Staging on miyamoto, `https://api.maui.afronob.com`, Docker Compose;
+- Staging on miyamoto, `https://api.maui.staging.afronob.com`, Docker Compose;
   FrankenPHP terminates TLS and manages its certificate, the host nginx
   routes port 443 by SNI without decrypting, with the PROXY protocol (D40).
 - `Dockerfile` target `prod` (no dev dependencies, code baked in, opcache

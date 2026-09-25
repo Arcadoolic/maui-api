@@ -292,10 +292,11 @@ account without a name instead of generating one.
 **D40: Staging on miyamoto, FrankenPHP behind an SNI passthrough.** (2026-09-25)
 Online tests (a real MAUI cabinet against the API) need a public HTTPS
 endpoint before the production server exists. Staging runs on miyamoto
-(Online/Scaleway Dedibox, Debian 13) at `https://api.maui.afronob.com`, a
-CNAME to the machine, with Docker Compose (`compose.staging.yaml`, image
-target `prod`): same base image as local development and nothing
-PHP-specific installed on a shared host.
+(Online/Scaleway Dedibox, Debian 13) at
+`https://api.maui.staging.afronob.com`, a CNAME to the machine, with
+Docker Compose (`compose.staging.yaml`, image target `prod`): same base
+image as local development and nothing PHP-specific installed on a shared
+host.
 FrankenPHP terminates TLS and manages its Let's Encrypt certificate, as
 planned for production (D9), so staging exercises the real HTTPS path. The
 server already hosts other sites behind nginx, which owns ports 80 and 443.

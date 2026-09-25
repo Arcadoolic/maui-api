@@ -1,7 +1,7 @@
 name: maui-api-staging
 
-# Staging on miyamoto (https://api.maui.afronob.com), see docs/DECISIONS.md D40
-# and docs/DEPLOYMENT.md. FrankenPHP terminates TLS and manages its Let's
+# Staging on miyamoto (https://api.maui.staging.afronob.com), see
+# docs/DECISIONS.md D40 and docs/DEPLOYMENT.md. FrankenPHP terminates TLS and manages its Let's
 # Encrypt certificate (D9). nginx on the host keeps ports 80/443 for the other
 # sites: it passes this domain's TLS stream through by SNI, with the PROXY
 # protocol, to the loopback ports published below.
@@ -21,7 +21,7 @@ services:
     env_file: .env
     environment:
       # A domain name enables automatic HTTPS (docker/frankenphp/Caddyfile).
-      SERVER_NAME: ${APP_DOMAIN:-api.maui.afronob.com}
+      SERVER_NAME: ${APP_DOMAIN:-api.maui.staging.afronob.com}
       # The PROXY header comes from nginx through the Docker bridge gateway.
       # No HTTP/3: nginx passes TCP only.
       CADDY_GLOBAL_OPTIONS: |

@@ -1,6 +1,6 @@
 # Deployment: staging
 
-Staging for online tests: `https://api.maui.afronob.com`, on miyamoto
+Staging for online tests: `https://api.maui.staging.afronob.com`, on miyamoto
 (Debian 13), Docker Compose. FrankenPHP terminates TLS and manages its
 Let's Encrypt certificate; the host nginx, which serves the other sites,
 only routes connections to it. Why: `docs/DECISIONS.md` D40. Production is
@@ -8,10 +8,10 @@ not covered here (PLAN open question 0).
 
 ```
 :443  nginx stream (ssl_preread: reads the SNI, does not decrypt), PROXY protocol
-       ├─ api.maui.afronob.com ─> 127.0.0.1:8443 ─> app container :443 (FrankenPHP, TLS, Let's Encrypt)
-       └─ any other name ───────> 127.0.0.1:4443 ─> nginx http (existing vhosts, TLS as today)
+       ├─ api.maui.staging.afronob.com ─> 127.0.0.1:8443 ─> app container :443 (FrankenPHP, TLS, Let's Encrypt)
+       └─ any other name ───────────────> 127.0.0.1:4443 ─> nginx http (existing vhosts, TLS as today)
 :80   nginx http
-       ├─ api.maui.afronob.com ─> 127.0.0.1:8081 ─> app container :80 (ACME HTTP-01, redirect to HTTPS)
+       ├─ api.maui.staging.afronob.com ─> 127.0.0.1:8081 ─> app container :80 (ACME HTTP-01, redirect to HTTPS)
        └─ other vhosts, unchanged
 app container ─> db container (PostgreSQL 16, volume db_data)
 ```
@@ -21,8 +21,9 @@ once the app answers on its loopback ports and has its certificate.
 
 ## 1. One-time server setup
 
-DNS: `api.maui.afronob.com` is a CNAME to `miyamoto.afronob.com` (DNS only,
-not proxied by Cloudflare: the TLS stream must reach the server as is).
+DNS: `api.maui.staging.afronob.com` is a CNAME to `miyamoto.afronob.com`
+(DNS only, not proxied by Cloudflare: the TLS stream must reach the server
+as is).
 
 Docker Engine and the Compose plugin, from Docker's Debian repository
 (https://docs.docker.com/engine/install/debian/):
@@ -59,7 +60,7 @@ to the app. Start from `.env.example` and change at least:
 ```dotenv
 APP_ENV=production
 APP_DEBUG=false
-APP_URL=https://api.maui.afronob.com    # embedded in MAUI configuration strings
+APP_URL=https://api.maui.staging.afronob.com    # embedded in MAUI configuration strings
 APP_KEY=                                 # see below
 
 LOG_CHANNEL=stderr                       # read with `docker compose logs`
@@ -72,7 +73,7 @@ DB_PASSWORD=                             # long random value
 SESSION_SECURE_COOKIE=true
 
 # Optional, defaults shown:
-# APP_DOMAIN=api.maui.afronob.com        # FrankenPHP SERVER_NAME, certificate
+# APP_DOMAIN=api.maui.staging.afronob.com        # FrankenPHP SERVER_NAME, certificate
 # HTTP_PORT=8081                         # loopback ports nginx forwards to
 # HTTPS_PORT=8443
 ```
@@ -102,7 +103,7 @@ challenge itself.
 server {
     listen 80;
     listen [::]:80;
-    server_name api.maui.afronob.com;
+    server_name api.maui.staging.afronob.com;
 
     location / {
         proxy_pass http://127.0.0.1:8081;
@@ -117,8 +118,8 @@ docker compose -f compose.staging.yaml logs app | grep -E 'certificate obtained|
 ```
 
 FrankenPHP retries on its own: wait for `certificate obtained successfully`
-(issuer `acme-v02.api.letsencrypt.org`). `curl -I http://api.maui.afronob.com/up`
-must answer `308` to `https://api.maui.afronob.com/up`.
+(issuer `acme-v02.api.letsencrypt.org`). `curl -I http://api.maui.staging.afronob.com/up`
+must answer `308` to `https://api.maui.staging.afronob.com/up`.
 
 ## 4. Switch port 443 to SNI routing
 
@@ -158,8 +159,8 @@ SNI routing, in `/etc/nginx/stream.conf`, then add
 ```nginx
 stream {
     map $ssl_preread_server_name $tls_upstream {
-        api.maui.afronob.com 127.0.0.1:8443;
-        default              127.0.0.1:4443;
+        api.maui.staging.afronob.com 127.0.0.1:8443;
+        default                      127.0.0.1:4443;
     }
 
     server {
@@ -207,10 +208,10 @@ docker compose -f compose.staging.yaml exec app php artisan make:filament-user
 ## 6. Checks
 
 ```bash
-curl -s -o /dev/null -w '%{http_code}\n' https://api.maui.afronob.com/up          # 200
-curl -s https://api.maui.afronob.com/api/v1/ping                                  # 401 problem+json
-curl -sI https://api.maui.afronob.com/up | grep -i strict-transport-security
-echo | openssl s_client -connect api.maui.afronob.com:443 -servername api.maui.afronob.com 2>/dev/null \
+curl -s -o /dev/null -w '%{http_code}\n' https://api.maui.staging.afronob.com/up          # 200
+curl -s https://api.maui.staging.afronob.com/api/v1/ping                                  # 401 problem+json
+curl -sI https://api.maui.staging.afronob.com/up | grep -i strict-transport-security
+echo | openssl s_client -connect api.maui.staging.afronob.com:443 -servername api.maui.staging.afronob.com 2>/dev/null \
   | openssl x509 -noout -issuer                                                   # Let's Encrypt
 ```
 
