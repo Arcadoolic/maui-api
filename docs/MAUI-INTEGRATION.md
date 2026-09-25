@@ -7,10 +7,10 @@ MAUI repository. MAUI's own `CLAUDE.md` still applies there; this document
 only adds what MAUI-API expects.
 
 **Status (2026-09-25):** MAUI-API Lot 1 is merged on `develop`. The API side
-is done and tested. On the MAUI side, slices 1 to 3 (section 7) are merged
-on `develop` (`Arcadoolic/maui` PRs #88, #92 and #93): the BO can paste, save
-and test credentials. Not wired into `background.ts` yet (no startup report,
-no heartbeat): that is slice 4.
+is done and tested. On the MAUI side, slices 1 to 4 (section 7) are merged
+on `develop` (`Arcadoolic/maui` PRs #88, #92, #93 and #96): ONLINE runs, with
+a startup report and a heartbeat every 60 seconds. `os_name`: MAUI PR #97
+merged, API side in review (`Arcadoolic/maui-api` PR #9).
 
 Read alongside:
 - `docs/openapi.yaml`: the contract. It is the reference if this document and
@@ -254,14 +254,39 @@ Advanced configuration switch on (section 5, item 7):
    to slice 5.
 4. `MameVersion`, `OnlineSession`, wiring in `background.ts`, status in the
    BO. Also decides what to do with a `rejected` result whose `code` MAUI
-   does not know (stop, or keep retrying).
-5. End-to-end check against a local MAUI-API (section 8). Partly done on
-   2026-09-25, manually, with a real MAUI and a claimed configuration
-   string: test connection and machine binding, then disable (MAUI shows the
-   client as disabled), reset machine binding (next test newly bound), and
-   renewal (the old string works until the new link is claimed, then is
-   rejected). Left for after slice 4: startup history and online status in
-   the admin panel.
+   does not know (stop, or keep retrying). Merged: MAUI PR #96.
+   `OnlineSession` (`src/class/OnlineSession.ts`):
+   - no backoff, a fixed 60 s interval;
+   - on `429`, waits `Retry-After`, never less than the interval;
+   - stops on any rejection, known `code` or not;
+   - ON / OFF switch and live status in the BO Online subtab;
+   - "Retry" is shown only once the session has stopped; it restarts the
+     session, so it records one more startup.
+   Unknown MAME version: MAUI sends `"unknown"`, since `mame_version` is
+   required.
+5. End-to-end check against a local MAUI-API (section 8). Done on
+   2026-09-25, manually, with a real MAUI and a string claimed through an
+   invitation (client `overclocked_mario`):
+   - **Nominal path**: binding and first startup at 12:41:29 UTC (MAME
+     0.289, MAUI 2.5.0, linux 6.8.0-139-generic), a heartbeat every minute,
+     the cabinet shown online.
+   - **Renew credentials**: the renewal was claimed at 13:01:11 while MAUI
+     was running on the old token. The next heartbeat got `401` and the BO
+     showed "ONLINE stopped: Credentials rejected". Once the new string was
+     pasted, the session restarted by itself (no Retry): second startup and
+     new binding at 13:02:59.
+     Not shown manually: that the old token still works before the claim
+     (no heartbeat fell between the renewal and the claim). It is covered on
+     the API side by the Pest test "keeps the old token valid until the new
+     one is claimed, then revokes it and resets the binding".
+   - **Disable** (13:05:07): the next heartbeat was refused and the BO showed
+     "disabled by the administrator". While the client stayed disabled,
+     Test connection and Retry got the same refusal. After Enable (the modal
+     must be confirmed), Retry produced the third startup at 13:08:03, the
+     binding unchanged.
+   - **Reset machine binding**: the next heartbeat bound the machine again
+     (`bound_at` 13:02:59, then 13:09:03), with no error and no new
+     startup: any authenticated call binds (D20), not only Test connection.
 
 ## 8. Testing against a local MAUI-API
 
@@ -303,6 +328,23 @@ threshold in MAUI-API rather than working around it in MAUI.
    allows sabotage, not token theft (the token is never shown again, and a
    new string replaces URL and token together). A `Host` allowlist for the
    whole BO is noted as separate work on the MAUI side.
-2. Should the cabinet UI (not only the BO) show anything about ONLINE, e.g. an
-   icon when the API is unreachable?
-3. Heartbeat backoff on repeated network failures: keep 60 s, or back off?
+2. ~~Should the cabinet UI (not only the BO) show anything about ONLINE, e.g.
+   an icon when the API is unreachable?~~ Decided on the MAUI side (its
+   `docs/DECISIONS.md`, section "ONLINE mode (MAUI-API)"): nothing in the
+   cabinet UI, the state is visible in the BO only.
+3. ~~Heartbeat backoff on repeated network failures: keep 60 s, or back
+   off?~~ Decided on the MAUI side (same section): no backoff, a fixed 60 s,
+   consistent with `ONLINE_THRESHOLD_MINUTES = 3`.
+
+### Open on the API side
+
+4. **Sanctum `last_used_at` stays `null`** for cabinet tokens, although they
+   are used every minute. Checked: not a deliberate choice, a side effect of
+   D20. Sanctum updates `last_used_at` in its `Guard`
+   (`vendor/laravel/sanctum/src/Guard.php`), and `AuthenticateCabinet` does
+   not go through that guard: it resolves the token with
+   `PersonalAccessToken::findToken()`, which only looks it up. No decision
+   or document mentioned it. `clients.last_heartbeat_at` already records
+   when a cabinet was last seen. To decide: update `last_used_at` in the
+   middleware (one extra write per request, useful for service accounts,
+   which send no heartbeat), or record that it is not maintained.
