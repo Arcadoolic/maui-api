@@ -108,6 +108,8 @@ client_startups    id (uuid), client_id, mame_version, maui_version, os, os_vers
 | MAUI | `GET /api/v1/ping` | Credentials test + machine binding |
 | MAUI | `POST /api/v1/startups` | Startup telemetry |
 | MAUI | `POST /api/v1/heartbeat` | "Online" status |
+| MAUI, service | `GET /api/v1/repository` | Starting-pack repository URL (D46) |
+| Repository | `GET /api/v1/repository/authorize` | `forward_auth` check of every repository request (D46) |
 
 ### 1.7 Filament back office
 

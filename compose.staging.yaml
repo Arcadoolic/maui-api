@@ -36,6 +36,8 @@ services:
         }
       CADDY_SERVER_EXTRA_DIRECTIVES: |
         header Strict-Transport-Security "max-age=31536000"
+      # Announced to the cabinets by GET /api/v1/repository (D46).
+      MAUI_REPOSITORY_URL: ${MAUI_REPOSITORY_URL:-https://repo.maui.staging.afronob.com}
       DB_CONNECTION: pgsql
       DB_HOST: db
       DB_PORT: "5432"

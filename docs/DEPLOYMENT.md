@@ -80,6 +80,7 @@ SESSION_SECURE_COOKIE=true
 # APP_DOMAIN=api.maui.staging.afronob.com        # FrankenPHP SERVER_NAME, certificate
 # HTTP_PORT=8081                         # loopback ports nginx forwards to
 # HTTPS_PORT=8443
+# MAUI_REPOSITORY_URL=https://repo.maui.staging.afronob.com   # announced to the cabinets (D46); empty: no repository
 ```
 
 ```bash
