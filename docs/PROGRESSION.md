@@ -4,13 +4,13 @@ Current state of the delivery plan. For the plan itself, see `docs/PLAN.md`.
 For why things are done this way, see `docs/DECISIONS.md`.
 
 **Repository:** `git@github.com:Arcadoolic/maui-api.git` (public), git-flow: `develop` (default) and `main`.
-**Last updated:** 2026-09-25, Lot 1 done (API and MAUI), staging deployment prepared (D40).
+**Last updated:** 2026-09-25, Lot 1 done (API and MAUI), staging deployed on miyamoto (D40).
 
-## Status: Lot 0 done (except deployment), Lot 1 done.
+## Status: Lot 0 done (staging deployed, production pending), Lot 1 done.
 
 | Lot | What | Status |
 |-----|------|--------|
-| 0 | Foundation: Docker Compose, Laravel 13 skeleton, CI | **Done**; staging prepared (D40, `docs/DEPLOYMENT.md`), production hosting undecided |
+| 0 | Foundation: Docker Compose, Laravel 13 skeleton, CI | **Done**; staging deployed (D40, `docs/DEPLOYMENT.md`), production hosting undecided |
 | 1 | MAUI authentication, machine binding, telemetry, Filament BO | **Done**: API (PR #1 to #4, follow-ups #9, #11), MAUI slices 1 to 5 (`Arcadoolic/maui` PRs #88, #92, #93, #96, #97), end-to-end checked, see `docs/MAUI-INTEGRATION.md` |
 | 2 | Hiscores: catalog, players, scores, leaderboards | Design points noted, open questions pending |
 | 3 | Hiscores front end | Not started |
@@ -29,6 +29,8 @@ For why things are done this way, see `docs/DECISIONS.md`.
     database;
   - GitHub Actions workflow (`.github/workflows/ci.yml`), green on the first
     push.
+- Releases by semantic-release on every push to `main` (D44): 0.1.0
+  published on 2026-09-25.
 
 ## Lot 1, part 1: cabinet API (merged, PR #1)
 
@@ -81,7 +83,7 @@ For why things are done this way, see `docs/DECISIONS.md`.
 - Dates shown in each admin's timezone, Paris by default, chosen on the
   profile page (D41).
 
-## Lot 0: staging deployment (prepared)
+## Lot 0: staging deployment (done)
 
 - Staging on miyamoto, `https://api.maui.staging.afronob.com`, Docker Compose;
   FrankenPHP terminates TLS and manages its certificate, the host nginx
@@ -96,14 +98,20 @@ For why things are done this way, see `docs/DECISIONS.md`.
   off); behind an nginx `stream` with `ssl_preread`: TLS served by
   FrankenPHP, HTTP/2, HSTS, `REMOTE_ADDR` = real client, HTTPS asset URLs,
   port 80 redirects to HTTPS.
-- Not done yet: the server setup itself (Docker, app, nginx port 80 then
-  port 443 switch), then an automated deploy job.
+- Deployed on 2026-09-25 from `develop` (`/opt/maui-api`): Docker 29.8,
+  Let's Encrypt certificate obtained by FrankenPHP (HTTP-01 through the
+  nginx port 80 vhost), nginx upgraded to 1.26.3-3+deb13u9 for
+  `libnginx-mod-stream`, the 15 existing HTTPS vhosts moved to
+  `127.0.0.1:4443` with the PROXY protocol (backup
+  `/etc/nginx.bak-2026-09-25-1617`), every site answering as before, real
+  client IPs in their logs. Runbook fixed on the way (symlinked vhosts,
+  `listen` with two spaces).
+- Not done yet: client IP check behind the PROXY protocol (see "Pending
+  outside the code"), automated deploy job.
 
 ## Next
 
-1. First release: semantic-release is set up (D44); the promotion PR from
-   `develop` to `main` publishes it.
-2. Lot 2 design questions (see `docs/PLAN.md`, open questions), to settle
+1. Lot 2 design questions (see `docs/PLAN.md`, open questions), to settle
    with the MAUI side before any code: LOCAL to ONLINE player migration,
    `pseudo_2` scope, pseudo namespace. Then hiscores. Service account
    endpoints must update `last_used_at` (D43).

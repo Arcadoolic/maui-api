@@ -39,11 +39,15 @@ sudo apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plug
 sudo usermod -aG docker "$USER"   # then log out and back in
 ```
 
-nginx `stream` module (dynamic module on Debian):
+nginx `stream` module (dynamic module on Debian), needed in section 4 only:
 
 ```bash
 ls /etc/nginx/modules-enabled/ | grep -q stream || sudo apt-get install -y libnginx-mod-stream
 ```
+
+The module must match the nginx version exactly: if nginx lags behind the
+archive, this upgrades nginx too and restarts it (a few seconds for every
+site). Check the sites right after.
 
 Code:
 
@@ -131,17 +135,22 @@ sudo cp -a /etc/nginx /etc/nginx.bak-$(date +%F)
 
 Existing vhosts: move `listen 443` to a loopback port that accepts the
 PROXY protocol, drop the IPv6 443 listeners (the stream listens on both).
+Most files in `sites-enabled` are symlinks: `-R` makes grep follow them and
+`--follow-symlinks` makes sed edit the target instead of replacing the link
+with a copy. `\s+` also matches `listen  443` written with two spaces.
+Note each site's HTTPS status code first, to compare after the reload.
 Review the list and the result before reloading:
 
 ```bash
 cd /etc/nginx/sites-enabled
-grep -ln 'listen .*443' *
-sudo sed -i -E \
-  -e 's/^(\s*)listen 443 ssl/\1listen 127.0.0.1:4443 ssl proxy_protocol/' \
-  -e '/^\s*listen \[::\]:443/d' \
-  $(grep -ln 'listen .*443' *)
-grep -n 'listen' *
-grep -n 'server_port' *    # would now read 4443: replace with 443 if any
+grep -Rl 'listen.*443' .
+sudo sed -i --follow-symlinks -E \
+  -e 's/^(\s*)listen\s+443 ssl/\1listen 127.0.0.1:4443 ssl proxy_protocol/' \
+  -e '/^\s*listen\s+\[::\]:443/d' \
+  $(grep -Rl 'listen.*443' .)
+grep -Rn 'listen' .
+find . -maxdepth 1 -type l | wc -l   # same number of symlinks as before
+grep -Rn 'server_port' .   # would now read 4443: replace with 443 if any
 ```
 
 Real client address for those sites (their logs and `$remote_addr`), in
