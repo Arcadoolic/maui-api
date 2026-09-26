@@ -52,7 +52,7 @@ describe('ClientTokenIssuer', function () {
 
         expect($client->tokens()->first()->abilities)->toBe($abilities);
     })->with([
-        'maui' => [ClientType::Maui, ['session', 'scores:write', 'scores:read']],
-        'service' => [ClientType::Service, ['catalog:write']],
+        'maui' => [ClientType::Maui, ['session', 'scores:write', 'scores:read', 'repository:read']],
+        'service' => [ClientType::Service, ['catalog:write', 'repository:read']],
     ]);
 });

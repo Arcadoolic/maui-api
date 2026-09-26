@@ -4,7 +4,7 @@ Current state of the delivery plan. For the plan itself, see `docs/PLAN.md`.
 For why things are done this way, see `docs/DECISIONS.md`.
 
 **Repository:** `git@github.com:Arcadoolic/maui-api.git` (public), git-flow: `develop` (default) and `main`.
-**Last updated:** 2026-09-25, Lot 1 done (API and MAUI), staging deployed on miyamoto (D40).
+**Last updated:** 2026-09-26, repository access through the API (D46) on the API side, Lot 1 done (API and MAUI), staging deployed on miyamoto (D40).
 
 ## Status: Lot 0 done (staging deployed, production pending), Lot 1 done.
 
@@ -17,7 +17,7 @@ For why things are done this way, see `docs/DECISIONS.md`.
 
 ## Done
 
-- Delivery plan (`docs/PLAN.md`), decisions D1 to D45 (`docs/DECISIONS.md`).
+- Delivery plan (`docs/PLAN.md`), decisions D1 to D46 (`docs/DECISIONS.md`).
 - Lot 1 OpenAPI 3.1 contract (`docs/openapi.yaml`).
 - Lot 0 skeleton:
   - Docker: FrankenPHP + PHP 8.4 image (`Dockerfile`, `docker/`), Compose
@@ -31,6 +31,25 @@ For why things are done this way, see `docs/DECISIONS.md`.
     push.
 - Releases by semantic-release on every push to `main` (D44): 0.1.0
   published on 2026-09-25.
+
+## Starting-pack repository access (API side done, D46)
+
+- Ability `repository:read` for cabinets and service accounts, data
+  migration granting it to the tokens already issued.
+- `ClientAuthenticator` extracted from `AuthenticateCabinet` (key + token,
+  expiry, active, ability, machine binding), shared with the new
+  `repository` middleware (`AuthorizeRepositoryAccess`): cabinets bound as
+  on the other routes, service accounts without machine header.
+- `GET /api/v1/repository/authorize` (204, `forward_auth` target, own
+  `repository` limiter) and `GET /api/v1/repository` (`{url}` from
+  `MAUI_REPOSITORY_URL`, `null` when unset), in `docs/openapi.yaml`.
+- `MAUI_REPOSITORY_URL` set in `compose.yaml` (local repository on
+  `http://localhost:8081`) and `compose.staging.yaml`
+  (`https://repo.maui.staging.afronob.com`).
+- Next: MAUI side (repository URL and headers from the API, repository
+  features in ONLINE mode only, Basic Auth removed) and the repository's
+  own FrankenPHP container (`maui-repository`), then the deployment in the
+  order of the plan (API first).
 
 ## Lot 1, part 1: cabinet API (merged, PR #1)
 
