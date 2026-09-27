@@ -57,9 +57,10 @@ For why things are done this way, see `docs/DECISIONS.md`.
   (22 packs, Let's Encrypt certificate by Caddy, SNI map entry), checked
   end to end on the Raspberry Pi cabinet with the MAUI dev build
   `2.5.0+dev.2036311`. The old `repo.maui.afronob.com` (nginx Basic Auth)
-  is removed on the server; its DNS record is left to delete.
-- Not measured yet: the requests of a big pack import, to size the
-  `repository` limiter (its per-IP cap sees the repository server only).
+  is removed on the server; its DNS record is kept for the future
+  production repository.
+- Before production: the `repository` limiter must count per real cabinet
+  IP, after measuring a big import (`docs/PLAN.md`, "Before production").
 
 ## Lot 1, part 1: cabinet API (merged, PR #1)
 

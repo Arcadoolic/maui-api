@@ -195,6 +195,25 @@ Any token holder can submit an arbitrary score. Accepted risk, mitigated by mode
 
 Consumes the Lot 2 read endpoints. Public read-only endpoints with HTTP caching are enough.
 
+## Before production
+
+Decided, to do before the first production deployment (with open question 0).
+
+1. **Repository limiter per real cabinet IP (D46).** Every repository
+   request reaches `GET /api/v1/repository/authorize` from the repository
+   server (Caddy `forward_auth`), so the API sees that server's IP only: the
+   per-IP cap of the `repository` limiter (2400/min) is a global cap shared
+   by every cabinet and every unauthenticated request. Many cabinets
+   importing at once could hit it, and anyone flooding the repository with
+   requests without credentials could block it for everyone (they would
+   still get no file). Fix: on that route only, and only for requests coming
+   from the repository server, read the cabinet's IP from the
+   `X-Forwarded-For` Caddy sets (Laravel trusted proxies scoped to that
+   address), so that each cabinet and each attacker has its own counter.
+   Before that, measure a big import on staging (e.g. `capcom-pack`, whole
+   and partial) to check the per-key limit (1200/min) as well. Record the
+   outcome in a decision that supersedes the limiter part of D46.
+
 ## Open questions
 
 0. **Production hosting (Lot 0)**: Docker Compose on the Ubuntu server, or native install? FrankenPHP fits both (Docker image or standalone binary with a systemd unit), so the local choice does not constrain it. To decide with the team before the first deployment.
