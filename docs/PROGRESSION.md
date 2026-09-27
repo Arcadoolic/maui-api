@@ -4,7 +4,7 @@ Current state of the delivery plan. For the plan itself, see `docs/PLAN.md`.
 For why things are done this way, see `docs/DECISIONS.md`.
 
 **Repository:** `git@github.com:Arcadoolic/maui-api.git` (public), git-flow: `develop` (default) and `main`.
-**Last updated:** 2026-09-26, repository access through the API (D46) on the API side, Lot 1 done (API and MAUI), staging deployed on miyamoto (D40).
+**Last updated:** 2026-09-27, repository access through the API (D46) deployed on staging, Lot 1 done (API and MAUI), staging deployed on miyamoto (D40).
 
 ## Status: Lot 0 done (staging deployed, production pending), Lot 1 done.
 
@@ -32,7 +32,7 @@ For why things are done this way, see `docs/DECISIONS.md`.
 - Releases by semantic-release on every push to `main` (D44): 0.1.0
   published on 2026-09-25.
 
-## Starting-pack repository access (API side done, D46)
+## Starting-pack repository access (done, staging, D46)
 
 - Ability `repository:read` for cabinets and service accounts, data
   migration granting it to the tokens already issued.
@@ -46,10 +46,20 @@ For why things are done this way, see `docs/DECISIONS.md`.
 - `MAUI_REPOSITORY_URL` set in `compose.yaml` (local repository on
   `http://localhost:8081`) and `compose.staging.yaml`
   (`https://repo.maui.staging.afronob.com`).
-- Next: MAUI side (repository URL and headers from the API, repository
-  features in ONLINE mode only, Basic Auth removed) and the repository's
-  own FrankenPHP container (`maui-repository`), then the deployment in the
-  order of the plan (API first).
+- API: PR #22. MAUI: `Arcadoolic/maui` PR #104 (repository URL and
+  headers from the API, repository features in ONLINE mode only, starter
+  pack in MAME > Import, no manual pack upload anymore). Repository
+  container: `Arcadoolic/maui-repository` PRs #1 and #7 (FrankenPHP,
+  `forward_auth`, smoke test in CI).
+- Deployed on staging on 2026-09-27: API `759b217` (migration applied, the
+  3 enrolled cabinets got `repository:read`), service account
+  `repository_admin`, repository on `https://repo.maui.staging.afronob.com`
+  (22 packs, Let's Encrypt certificate by Caddy, SNI map entry), checked
+  end to end on the Raspberry Pi cabinet with the MAUI dev build
+  `2.5.0+dev.2036311`. The old `repo.maui.afronob.com` (nginx Basic Auth)
+  is removed on the server; its DNS record is left to delete.
+- Not measured yet: the requests of a big pack import, to size the
+  `repository` limiter (its per-IP cap sees the repository server only).
 
 ## Lot 1, part 1: cabinet API (merged, PR #1)
 
