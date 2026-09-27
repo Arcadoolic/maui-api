@@ -83,6 +83,10 @@ servers:
 tags:
   - name: Session
     description: Credentials check, machine binding and telemetry (MAUI cabinets).
+  - name: Repository
+    description: |
+      Access to the starting-pack repository: its URL, announced by this
+      server, and the check its web server runs on every file request.
   - name: Invitations
     description: |
       Public web pages (HTML, not JSON) used by a cabinet owner to retrieve
@@ -181,6 +185,89 @@ paths:
       responses:
         '204':
           description: Heartbeat recorded.
+        '400':
+          $ref: '#/components/responses/MachineFingerprintMissing'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/MachineMismatch'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /repository:
+    get:
+      tags: [Repository]
+      operationId: getRepository
+      summary: Get the starting-pack repository URL
+      description: |
+        Base URL of the repository serving the starting packs to the cabinets
+        of this server (`MAUI_REPOSITORY_URL` on the server side). MAUI calls
+        it before each repository action (list, install, import) and never
+        asks the user for this URL: requests to the repository carry the
+        cabinet credentials, which must only go to the host announced here.
+
+        MAUI accepts an `http:` URL only when the API itself is reached over
+        `http:` (local development).
+
+        Requires the `repository:read` ability. A service account may call it
+        without the machine header.
+      security:
+        - mauiKey: []
+          bearerToken: []
+          mauiMachine: []
+        - mauiKey: []
+          bearerToken: []
+      responses:
+        '200':
+          description: Repository URL, or `null` when this server has none.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RepositoryResponse'
+        '400':
+          $ref: '#/components/responses/MachineFingerprintMissing'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/MachineMismatch'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /repository/authorize:
+    get:
+      tags: [Repository]
+      operationId: authorizeRepository
+      summary: Authorize a repository request
+      description: |
+        Called by the repository's Caddy (`forward_auth`) on every request
+        it receives, with the headers of that request: the cabinet or service
+        account never calls it directly. Any response other than 2xx is sent
+        back unchanged to the caller of the repository.
+
+        Cabinets: same rules as the other routes, including the machine
+        binding (an unbound cabinet gets bound here). Service accounts: no
+        machine header.
+
+        Requires the `repository:read` ability. Rate limit separate from the
+        other routes and wider (1200/min per key, 2400/min per IP), since a
+        pack import sends many Range requests.
+      security:
+        - mauiKey: []
+          bearerToken: []
+          mauiMachine: []
+        - mauiKey: []
+          bearerToken: []
+      responses:
+        '204':
+          description: Access granted.
         '400':
           $ref: '#/components/responses/MachineFingerprintMissing'
         '401':
@@ -493,6 +580,17 @@ components:
         received_at:
           type: string
           format: date-time
+
+    RepositoryResponse:
+      type: object
+      required: [url]
+      additionalProperties: false
+      properties:
+        url:
+          type: [string, 'null']
+          format: uri
+          description: Base URL without trailing slash, or `null` when this server has no repository.
+          examples: ['https://repo.maui.staging.afronob.com']
 
     Problem:
       type: object

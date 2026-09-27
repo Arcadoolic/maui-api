@@ -40,6 +40,15 @@ Base URL: the `url` field of the configuration string + `/api/v1`.
 | `GET /ping` | "Test connection" button in the BO | `200` `{client: {key, name}, machine: {bound_at, newly_bound}, server_time}` |
 | `POST /startups` | Once at MAUI startup, when ONLINE | `201` `{id, received_at}` |
 | `POST /heartbeat` | Every ~60 s, when ONLINE | `204`, no body |
+| `GET /repository` | Before each repository action, when ONLINE | `200` `{url}`, `url` is `null` when the server has no repository |
+
+The starting-pack repository (D46) takes the same three headers on every
+request (`index.json`, ZIP downloads, Range requests): its web server checks
+them against the API, so there is no repository login in MAUI anymore. Its
+URL comes from `GET /repository` and is never typed in the BO. Refuse an
+`http:` URL unless the API itself is on `http:` (local development), and do
+not follow redirects: the token must only reach the announced host. The
+repository answers errors with the same problem+json as the API.
 
 Every call sends three headers:
 
