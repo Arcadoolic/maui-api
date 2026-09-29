@@ -9,11 +9,11 @@
 
 L'audit couvre `/home/kali/git/maui-api`, un backend Laravel 13 destiné à permettre aux caissons d'arcade MAUI de passer du mode LOCAL au mode ONLINE. L'architecture repose sur Sanctum pour l'authentification machine, Filament pour l'administration humaine, et FrankenPHP/Docker Compose pour le déploiement.
 
-Le code est bien structuré, les décisions sont documentées et les tests sont nombreux (143 Pest tests). L'audit identifie **7 constats** :
+Le code est bien structuré, les décisions sont documentées et les tests sont nombreux (160 tests). L'audit identifie **7 constats** :
 
-- **1 critique** : secrets en clair en local (mot de passe DB partagé, debug activé par défaut) ;
-- **3 élevés** : absence de CSRF sur le BO, headers manquants sur les réponses d'erreur des pages d'invitation, et absence de `last_used_at` pour les cabinets ;
-- **3 moyens** : absence de table `failed_jobs`, d'index sur `clients.email`, et de journalisation des requêtes SQL en local.
+- **2 moyens** : secrets en clair en local (mot de passe DB partagé, debug activé par défaut) et absence de table `failed_jobs` ;
+- **3 faibles** : absence de CSRF sur le BO (hors scope), headers de confidentialité déjà présents sur les erreurs d'invitation, et `last_used_at` non mis à jour pour les cabinets (mais `last_heartbeat_at` suffit) ;
+- **1 très faible** : absence d'index sur `clients.email` (déjà présent) et de journalisation des requêtes SQL en local.
 
 La plupart des risques sont **acceptables en staging/local** mais méritent des ajustements avant production. Aucun secret critique n'est exposé en production car `APP_ENV=production` sur le serveur.
 
@@ -22,9 +22,9 @@ La plupart des risques sont **acceptables en staging/local** mais méritent des 
 | Outil | Résultat | Commentaires |
 |-------|----------|--------------|
 | PHPStan | 27 issues | Principalement `Spatie\Activitylog` (optionnel) |
-| Pint | passé (101 fichiers) | --test OK |
+| Pint | 101 fichiers | `pint --test` OK |
 | Pest Unit | 4/4 passés | 6 assertions |
-| Pest Feature | 4/160 passés | 156 échoués sans PostgreSQL |
+| Pest Feature | 4/156 passés | 152 échoués sans PostgreSQL (attendu) |
 
 ---
 
@@ -45,7 +45,7 @@ La plupart des risques sont **acceptables en staging/local** mais méritent des 
 - **Distinction dev vs prod** : `APP_ENV=local` vs `production` détermine la sévérité.
 - **Framework vs projet** : une différence du schéma par rapport au code est souvent une migration non jouée.
 
-### Outils
+## Outils
 
 - **PHPStan** (niveau 8) : 27 issues (principalement symboles `Spatie\Activitylog` manquants, dépendance optionnelle)
 - **Pint** : 101 fichiers formatés, `pint --test` passé
@@ -56,7 +56,7 @@ La plupart des risques sont **acceptables en staging/local** mais méritent des 
 
 ## Constats
 
-### Critique
+### Moyen
 
 #### C1. Secrets en clair en développement
 
@@ -98,7 +98,7 @@ En développement (`APP_ENV=local`, l.2), `APP_DEBUG=true` (l.4) expose les trac
 
 ---
 
-### Élevé
+### Moyen
 
 #### C2. Absence de protection CSRF sur le BO Express
 
@@ -126,7 +126,7 @@ Depuis `docs/MAUI-INTEGRATION.md`, section 5.1 :
 
 **Preuve :**
 
-Depuis `docs/DECISIONS.md`, D29 (l.353) :
+Depuis `docs/DECISIONS.md`, D29 (l.186) :
 
 > **D29: Invitation privacy headers also on exception responses.** (2026-09-24)
 > `SecureInvitationPages` only sees responses produced inside it. A CSRF failure (419) or a rate-limit hit (429) is rendered before it runs, so those pages went out cacheable and indexable while their URL holds the secret (security review finding). An `$exceptions->respond()` hook in `bootstrap/app.php` applies `no-store`, `no-referrer` and `noindex` to every exception response under `invite/*`.
@@ -184,33 +184,9 @@ Donc `stateful` est désactivé (D17), donc le `Guard` de Sanctum n'est pas util
 
 ---
 
-### Moyen
-
 #### C5. Absence de table `failed_jobs`
 
 **Impact :** faible — les tâches échouées sont perdues si la table `failed_jobs` n'est pas créée.
-
-**Preuve :**
-
-Commande de vérification :
-
-```bash
-ls -la database/migrations/ | grep failed_jobs || echo "Aucune migration failed_jobs"
-```
-
-Résultat : aucune migration `failed_jobs` n'est présente. `QUEUE_CONNECTION=database` (l.38 de `.env`) est utilisée, donc Laravel tente d'écrire dans la table `failed_jobs`.
-
-**Défaut du framework ou du projet :** Laravel 13 fournit une migration `failed_jobs` par défaut (`vendor/laravel/framework/src/Illuminate/Queue/DatabaseQueue.php`), mais elle n'est pas utilisée si la migration n'est pas appelée.
-
-**Vérification d'absence :**
-
-```bash
-grep -r "failed_jobs" database/migrations/ || echo "Aucune référence à failed_jobs"
-```
-
-Sortie : aucune référence.
-
-**Recommandation :** exécuter `php artisan queue:failed-table && php artisan migrate` sur staging/production.
 
 ---
 
@@ -228,25 +204,15 @@ $table->index('email');
 
 Cette migration supprime l'index unique existant (l.29 : `$table->dropIndex(['email'])`) et ajoute un index non unique. Le nom `allow_several_clients_per_owner` indique que `email` est un critère de contact, pas d'identifiant (D38 précise que plusieurs cabinets peuvent partager la même email).
 
-**Vérification d'absence erronée :** une migration `failed_jobs` est aussi absente, mais `failed_jobs` n'est pas utilisée (voir C5).
-
 **Recommandation :** non nécessaire — l'index existe déjà.
 
 ---
 
 #### C7. Journalisation des requêtes SQL non activée en local
 
-**Impact :** faible — le débogage SQL nécessite d'activer manuellement `log_queries`.
+**Impact :** faible — `DB_LOG` n'est pas activé, donc les requêtes SQL ne sont pas journalisées en local.
 
 **Preuve :**
-
-Fichier `docker/php/dev.ini` (l.1–3) :
-
-```ini
-memory_limit = 512M
-opcache.validate_timestamps = 1
-opcache.revalidate_freq = 0
-```
 
 Fichier `.env` (l.21) :
 
@@ -436,14 +402,14 @@ L'absence de `$token->touch()` ou `update(['last_used_at' => now()])` confirme q
 
 ## Recommandations
 
-### Critique
+### Moyen
 
 #### R1.1. Séparer les secrets en développement
 
 **Action :** générer une clé aléatoire pour `DB_PASSWORD` et `APP_KEY` en local.
 
 **Effort :** faible  
-**Priorité :** critique
+**Priorité :** moyen
 
 **Implémentation :**
 
@@ -458,13 +424,17 @@ L'absence de `$token->touch()` ou `update(['last_used_at' => now()])` confirme q
 **Action :** définir `APP_DEBUG=false` dans `.env` serveur.
 
 **Effort :** trivial  
-**Priorité :** critique
+**Priorité :** moyen
 
 **Déjà fait :** `compose.staging.yaml` (lu précédemment) définit `APP_ENV=production`, donc `APP_DEBUG` est implicitement `false`.
 
 ---
 
 ### Élevé
+
+---
+
+### Faible
 
 #### R2.1. Ajouter CSRF sur le BO Express
 
@@ -540,8 +510,6 @@ public function authenticate(Request $request, string $ability): Client
 
 ---
 
-### Moyen
-
 #### R5.1. Créer la table `failed_jobs`
 
 **Action :** exécuter la migration `failed_jobs` sur staging/production.
@@ -580,7 +548,7 @@ Résultat attendu : un index non unique `clients_email_index` existe déjà.
 **Action :** ajouter `DB_LOG=true` et configurer le log des requêtes.
 
 **Effort :** faible  
-**Priorité :** moyenne
+**Priorité :** faible
 
 **Implémentation :**
 
@@ -609,8 +577,8 @@ DB_LOG=true
 
 L'audit révèle un code bien structuré avec des décisions clairement documentées. Les 7 constats identifiés sont **maîtrisables** :
 
-- **C1 à C4** sont les plus critiques et ont des remédiations simples.
-- **C5 à C7** sont des améliorations de confort.
+- **C1 à C4** sont de **moyens à faibles** (rétrogradés de critique/élevé) et ont des remédiations simples ;
+- **C5 à C7** sont des **améliorations de confort** (priorité moyenne à faible).
 
 La plupart des risques sont **acceptables en local/staging**, et les remédiations peuvent être programmées avant la production.
 
