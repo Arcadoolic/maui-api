@@ -4,7 +4,7 @@ Current state of the delivery plan. For the plan itself, see `docs/PLAN.md`.
 For why things are done this way, see `docs/DECISIONS.md`.
 
 **Repository:** `git@github.com:Arcadoolic/maui-api.git` (public), git-flow: `develop` (default) and `main`.
-**Last updated:** 2026-10-02, Lot 2.2 players API (D48, D49); 2.1 catalog merged (D47).
+**Last updated:** 2026-10-02, Lot 2.2 players merged (API and MAUI, D48, D49); 2.1 catalog merged (D47).
 
 ## Status: Lot 0 done (staging deployed, production pending), Lot 1 done, Lot 2 in progress.
 
@@ -12,7 +12,7 @@ For why things are done this way, see `docs/DECISIONS.md`.
 |-----|------|--------|
 | 0 | Foundation: Docker Compose, Laravel 13 skeleton, CI | **Done**; staging deployed (D40, `docs/DEPLOYMENT.md`), production hosting undecided |
 | 1 | MAUI authentication, machine binding, telemetry, Filament BO | **Done**: API (PR #1 to #4, follow-ups #9, #11), MAUI slices 1 to 5 (`Arcadoolic/maui` PRs #88, #92, #93, #96, #97), end-to-end checked, see `docs/MAUI-INTEGRATION.md` |
-| 2 | Hiscores: catalog, players, scores, leaderboards | **In progress**: 2.1 catalog merged, 2.2 players in PR (API + MAUI); staging pending |
+| 2 | Hiscores: catalog, players, scores, leaderboards | **In progress**: 2.1 catalog and 2.2 players merged (not on staging yet), 2.3 scores next |
 | 3 | Hiscores front end | Not started |
 | Last | Anti-cheat | Not started, after Lot 3 |
 
@@ -33,7 +33,7 @@ For why things are done this way, see `docs/DECISIONS.md`.
 - Releases by semantic-release on every push to `main` (D44): 0.1.0
   published on 2026-09-25.
 
-## Lot 2.2: players (API done, D48)
+## Lot 2.2: players (merged, D48, D49)
 
 - `players` (public `uuid`, `pseudo_3`, `is_public`, status, PIN hash and
   lock) and `client_player` tables; ability `players` for cabinets, data
@@ -52,9 +52,10 @@ For why things are done this way, see `docs/DECISIONS.md`.
   receive them.
 - Checked on Bazzite against the local API: player sync, registration
   from the cabinet (after the renderer `fetch` fix) and from the BO, Go
-  ONLINE for players created locally. Not checked by hand yet: the
-  reconciliation refusal, score attribution, Filament "Show PIN".
-- PRs: API `feat/players`, MAUI `feat/online-players`.
+  ONLINE for players created locally. Not checked by hand yet (unit and
+  feature tests only): the reconciliation refusal, score attribution,
+  Filament "Show PIN".
+- Merged on 2026-10-02: API PR #29, MAUI PR #122. Not on staging yet.
 
 ## Lot 2.1: catalog (merged, D47)
 
@@ -184,8 +185,8 @@ For why things are done this way, see `docs/DECISIONS.md`.
 
 ## Next
 
-1. Lot 2.2: merge the PRs, finish the hand checks (reconciliation, scores,
-   Show PIN).
+1. Lot 2.2: the hand checks left (reconciliation refusal, score
+   attribution, Show PIN).
 2. Lot 2.3: score capture (per-play diff, outbox) and `POST /scores`.
 3. Deploy develop on staging (2.1 and 2.2), push the staging catalog.
 
