@@ -3,6 +3,7 @@
 use App\Http\Controllers\Api\CatalogGamesController;
 use App\Http\Controllers\Api\HeartbeatController;
 use App\Http\Controllers\Api\PingController;
+use App\Http\Controllers\Api\PlayersController;
 use App\Http\Controllers\Api\RepositoryAuthorizeController;
 use App\Http\Controllers\Api\RepositoryController;
 use App\Http\Controllers\Api\StartupController;
@@ -15,6 +16,17 @@ Route::middleware(['throttle:cabinet', 'cabinet:session'])->group(function () {
     Route::get('ping', PingController::class);
     Route::post('startups', StartupController::class);
     Route::post('heartbeat', HeartbeatController::class);
+});
+
+// Players of the cabinet (docs/DECISIONS.md D48).
+Route::middleware(['throttle:cabinet', 'cabinet:players'])->group(function () {
+    Route::get('players', [PlayersController::class, 'index']);
+    Route::get('players/availability', [PlayersController::class, 'availability']);
+    Route::post('players', [PlayersController::class, 'store']);
+    Route::post('players/link', [PlayersController::class, 'link'])->middleware('throttle:player-link');
+    Route::patch('players/{player}', [PlayersController::class, 'update']);
+    Route::post('players/{player}/pin', [PlayersController::class, 'regeneratePin']);
+    Route::delete('players/{player}/link', [PlayersController::class, 'unlink']);
 });
 
 // Starting-pack repository (docs/DECISIONS.md D46). The URL is looked up once

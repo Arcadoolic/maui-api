@@ -31,6 +31,30 @@ Only three things, no hiscores yet (Lot 2):
 Everything else in MAUI keeps working locally. Any API failure must leave MAUI
 fully usable in LOCAL mode.
 
+## 1 bis. Lot 2.2: players
+
+Contract in `docs/openapi.yaml` (tag Players), rules in `docs/DECISIONS.md`
+D48. What the MAUI side has to do:
+
+- Only `pseudo_3` and `is_public` are sent: `realname` and `email` stay
+  local, `pseudo_2` is ignored. Keep the remote `id` (UUID) on the local
+  user.
+- Registration in ONLINE mode is synchronous (D4): `GET
+  /players/availability`, then `POST /players` (show the returned PIN once,
+  never store it on the cabinet; MAUI-API admins can read it back, D49) or,
+  for taken initials, the PIN entry and `POST /players/link`. API
+  unreachable: refuse the registration.
+- Branch on `code`: `initials_taken` (409), `pin_invalid` (403, with
+  `attempts_left`), `player_locked` (423, a cabinet of this player must issue
+  a new PIN: `POST /players/{id}/pin`), `player_disabled` (403),
+  `player_not_found` (404, also for a player of another cabinet).
+- Sync with `GET /players`: status `disabled` or `locked` per player.
+- Switching to ONLINE: every active local player must be reserved or
+  linked (create, or link with the PIN), or deactivated locally.
+
+Done on the MAUI side in `Arcadoolic/maui` branch `feat/online-players`
+(see its `docs/DECISIONS.md`, section "ONLINE mode (MAUI-API)").
+
 ## 2. The API in one page
 
 Base URL: the `url` field of the configuration string + `/api/v1`.

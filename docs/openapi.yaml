@@ -6,7 +6,7 @@ info:
   summary: Backend for MAUI arcade cabinets running in ONLINE mode.
   description: |
     Lot 1 contract: MAUI client authentication, machine binding and telemetry.
-    Lot 2 (in progress): game catalog.
+    Lot 2 (in progress): game catalog, players.
     See `docs/PLAN.md` for the design decisions behind this contract.
 
     ## Authentication
@@ -63,6 +63,16 @@ info:
     | 409 | `machine_mismatch` | Credentials already bound to another cabinet. Fall back to LOCAL. |
     | 422 | `validation_failed` | Invalid body, details in `errors`. |
     | 429 | `rate_limited` | Retry after `Retry-After` seconds. |
+
+    Players (`/players`):
+
+    | Status | `code` | Meaning for MAUI |
+    |--------|--------|------------------|
+    | 403 | `pin_invalid` | Wrong PIN, `attempts_left` before the player is locked. |
+    | 403 | `player_disabled` | Player disabled by an admin. |
+    | 404 | `player_not_found` | No such initials, or a player not linked to this cabinet. |
+    | 409 | `initials_taken` | Initials of another player: offer to link with the PIN. |
+    | 423 | `player_locked` | Too many wrong PINs: a cabinet of this player must issue a new PIN. |
     | 500 | `server_error` | No technical detail is ever exposed. |
 
     Generic codes, not tied to a business rule: `forbidden` (403),
@@ -88,6 +98,11 @@ tags:
     description: |
       Access to the starting-pack repository: its URL, announced by this
       server, and the check its web server runs on every file request.
+  - name: Players
+    description: |
+      Players are global: initials unique across the fleet, linked to each
+      cabinet they play on, at creation or with their 4-digit PIN. No name
+      or email is ever sent. Requires the `players` ability.
   - name: Catalog
     description: |
       Game catalog fed by service accounts (maui-repository's `push-catalog`).
@@ -278,6 +293,249 @@ paths:
           $ref: '#/components/responses/Unauthenticated'
         '403':
           $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/MachineMismatch'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /players:
+    get:
+      tags: [Players]
+      operationId: listPlayers
+      summary: List the players of this cabinet
+      description: |
+        Players linked to the calling cabinet, by initials, with their status:
+        `active`, `disabled` (by an admin) or `locked` (too many wrong PINs).
+        MAUI syncs its local players from it.
+      responses:
+        '200':
+          description: Players linked to this cabinet.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PlayerListResponse'
+        '400':
+          $ref: '#/components/responses/MachineFingerprintMissing'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/MachineMismatch'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/ServerError'
+    post:
+      tags: [Players]
+      operationId: createPlayer
+      summary: Create a player
+      description: |
+        Reserves the initials across the fleet and links the player to this
+        cabinet (D4: synchronous, no player without the API in ONLINE mode).
+        The PIN is returned once, in plain text: show it to the player, never
+        store it on the cabinet (admins can read it in the back office, D49).
+        Players are private unless `is_public` is true.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreatePlayerRequest'
+      responses:
+        '201':
+          description: Player created and linked.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CreatedPlayerResponse'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+        '400':
+          $ref: '#/components/responses/MachineFingerprintMissing'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/PlayerForbidden'
+        '409':
+          $ref: '#/components/responses/PlayerConflict'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /players/availability:
+    get:
+      tags: [Players]
+      operationId: getPlayerAvailability
+      summary: Check whether initials are free
+      parameters:
+        - name: pseudo_3
+          in: query
+          required: true
+          schema:
+            $ref: '#/components/schemas/Pseudo3'
+      responses:
+        '200':
+          description: '`free`, `taken` (link with the PIN) or `disabled` (taken by a disabled player).'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PlayerAvailabilityResponse'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+        '400':
+          $ref: '#/components/responses/MachineFingerprintMissing'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/MachineMismatch'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /players/link:
+    post:
+      tags: [Players]
+      operationId: linkPlayer
+      summary: Link an existing player with its PIN
+      description: |
+        Links the player owning these initials to this cabinet. Idempotent for
+        a player already linked (the PIN is still checked). Each wrong PIN is
+        counted; the fifth in a row locks the player (`423`) until a cabinet
+        of this player issues a new PIN, or an admin unlocks it. Own rate
+        limit: 10 requests per minute per key.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LinkPlayerRequest'
+      responses:
+        '200':
+          description: Player linked.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PlayerResponse'
+        '404':
+          $ref: '#/components/responses/PlayerNotFound'
+        '423':
+          $ref: '#/components/responses/PlayerLocked'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+        '400':
+          $ref: '#/components/responses/MachineFingerprintMissing'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/PlayerForbidden'
+        '409':
+          $ref: '#/components/responses/MachineMismatch'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /players/{playerId}:
+    parameters:
+      - $ref: '#/components/parameters/PlayerId'
+    patch:
+      tags: [Players]
+      operationId: updatePlayer
+      summary: Change the visibility of a player
+      description: |
+        Public players appear in the shared leaderboards; the scores of a
+        private one are hidden, and shown again if it becomes public. Only for
+        a player linked to this cabinet; refused for a disabled player.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdatePlayerRequest'
+      responses:
+        '200':
+          description: Player updated.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PlayerResponse'
+        '404':
+          $ref: '#/components/responses/PlayerNotFound'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+        '400':
+          $ref: '#/components/responses/MachineFingerprintMissing'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/PlayerForbidden'
+        '409':
+          $ref: '#/components/responses/MachineMismatch'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /players/{playerId}/pin:
+    parameters:
+      - $ref: '#/components/parameters/PlayerId'
+    post:
+      tags: [Players]
+      operationId: regeneratePlayerPin
+      summary: Issue a new PIN
+      description: |
+        Replaces the PIN and unlocks the player. Only from a cabinet the
+        player is linked to; refused for a disabled player. The PIN is
+        returned once.
+      responses:
+        '200':
+          description: New PIN.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PinResponse'
+        '404':
+          $ref: '#/components/responses/PlayerNotFound'
+        '400':
+          $ref: '#/components/responses/MachineFingerprintMissing'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/PlayerForbidden'
+        '409':
+          $ref: '#/components/responses/MachineMismatch'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /players/{playerId}/link:
+    parameters:
+      - $ref: '#/components/parameters/PlayerId'
+    delete:
+      tags: [Players]
+      operationId: unlinkPlayer
+      summary: Unlink a player from this cabinet
+      description: |
+        The player keeps its initials and its other cabinets.
+      responses:
+        '204':
+          description: Unlinked.
+        '404':
+          $ref: '#/components/responses/PlayerNotFound'
+        '400':
+          $ref: '#/components/responses/MachineFingerprintMissing'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/PlayerForbidden'
         '409':
           $ref: '#/components/responses/MachineMismatch'
         '429':
@@ -505,6 +763,15 @@ components:
       description: Machine fingerprint, 64 lowercase hex characters (SHA-256).
 
   parameters:
+    PlayerId:
+      name: playerId
+      in: path
+      required: true
+      description: Player `id` as returned by the API (UUID).
+      schema:
+        type: string
+        format: uuid
+
     InvitationToken:
       name: invitationToken
       in: path
@@ -646,6 +913,110 @@ components:
           description: Base URL without trailing slash, or `null` when this server has no repository.
           examples: ['https://repo.maui.staging.afronob.com']
 
+    Pseudo3:
+      type: string
+      pattern: '^[A-Z]{3}$'
+      description: Player initials, 3 uppercase letters (same rule as MAUI's Pseudo3.ts).
+      examples: [ACE]
+
+    Player:
+      type: object
+      required: [id, pseudo_3, is_public, status]
+      additionalProperties: false
+      properties:
+        id:
+          type: string
+          format: uuid
+        pseudo_3:
+          $ref: '#/components/schemas/Pseudo3'
+        is_public:
+          type: boolean
+        status:
+          type: string
+          enum: [active, disabled, locked]
+          description: '`disabled` by an admin; `locked` after too many wrong PINs.'
+
+    PlayerResponse:
+      type: object
+      required: [player]
+      additionalProperties: false
+      properties:
+        player:
+          $ref: '#/components/schemas/Player'
+
+    PlayerListResponse:
+      type: object
+      required: [players]
+      additionalProperties: false
+      properties:
+        players:
+          type: array
+          items:
+            $ref: '#/components/schemas/Player'
+
+    Pin:
+      type: string
+      pattern: '^[0-9]{4}$'
+      description: 4-digit PIN, returned once in plain text.
+
+    CreatedPlayerResponse:
+      type: object
+      required: [player, pin]
+      additionalProperties: false
+      properties:
+        player:
+          $ref: '#/components/schemas/Player'
+        pin:
+          $ref: '#/components/schemas/Pin'
+
+    PinResponse:
+      type: object
+      required: [pin]
+      additionalProperties: false
+      properties:
+        pin:
+          $ref: '#/components/schemas/Pin'
+
+    PlayerAvailabilityResponse:
+      type: object
+      required: [pseudo_3, availability]
+      additionalProperties: false
+      properties:
+        pseudo_3:
+          $ref: '#/components/schemas/Pseudo3'
+        availability:
+          type: string
+          enum: [free, taken, disabled]
+
+    CreatePlayerRequest:
+      type: object
+      required: [pseudo_3]
+      additionalProperties: false
+      properties:
+        pseudo_3:
+          $ref: '#/components/schemas/Pseudo3'
+        is_public:
+          type: boolean
+          default: false
+
+    LinkPlayerRequest:
+      type: object
+      required: [pseudo_3, pin]
+      additionalProperties: false
+      properties:
+        pseudo_3:
+          $ref: '#/components/schemas/Pseudo3'
+        pin:
+          $ref: '#/components/schemas/Pin'
+
+    UpdatePlayerRequest:
+      type: object
+      required: [is_public]
+      additionalProperties: false
+      properties:
+        is_public:
+          type: boolean
+
     CatalogGame:
       type: object
       required: [romname, description]
@@ -750,6 +1121,9 @@ components:
           type: integer
         detail:
           type: string
+        attempts_left:
+          type: integer
+          description: '`pin_invalid` only: wrong PINs left before the player is locked.'
         code:
           type: string
           enum:
@@ -761,6 +1135,11 @@ components:
             - validation_failed
             - rate_limited
             - server_error
+            - initials_taken
+            - player_not_found
+            - player_disabled
+            - player_locked
+            - pin_invalid
             - forbidden
             - not_found
             - method_not_allowed
@@ -869,6 +1248,79 @@ components:
             title: Too Many Requests
             status: 429
             code: rate_limited
+
+    PlayerForbidden:
+      description: |
+        Client disabled, token lacking the `players` ability, player disabled
+        by an admin, or wrong PIN (`attempts_left` before the lock).
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+          examples:
+            clientDisabled:
+              value:
+                type: about:blank
+                title: Forbidden
+                status: 403
+                code: client_disabled
+            playerDisabled:
+              value:
+                type: about:blank
+                title: Forbidden
+                status: 403
+                code: player_disabled
+            pinInvalid:
+              value:
+                type: about:blank
+                title: Forbidden
+                status: 403
+                code: pin_invalid
+                attempts_left: 3
+
+    PlayerConflict:
+      description: Initials of another player, or credentials bound to another cabinet.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+          examples:
+            initialsTaken:
+              value:
+                type: about:blank
+                title: Conflict
+                status: 409
+                code: initials_taken
+            machineMismatch:
+              value:
+                type: about:blank
+                title: Conflict
+                status: 409
+                code: machine_mismatch
+
+    PlayerNotFound:
+      description: No player with these initials, or not linked to this cabinet.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+          example:
+            type: about:blank
+            title: Not Found
+            status: 404
+            code: player_not_found
+
+    PlayerLocked:
+      description: Too many wrong PINs in a row.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+          example:
+            type: about:blank
+            title: Locked
+            status: 423
+            code: player_locked
 
     ServerError:
       description: Unexpected error. No technical detail exposed.
