@@ -4,7 +4,7 @@ Guidance for AI coding agents working in this repository. `AGENTS.md` points her
 
 ## What this is
 
-MAUI-API: Laravel backend for MAUI arcade cabinets (`../mame-awesome-ui`,
+MAUI-API: Laravel backend for MAUI arcade cabinets (`../maui`,
 GitHub `Arcadoolic/maui`) running in ONLINE mode. Machine authentication with
 per-cabinet binding, telemetry, then shared hiscores. Admin back office is
 Filament.
