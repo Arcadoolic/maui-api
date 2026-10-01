@@ -4,7 +4,7 @@ Current state of the delivery plan. For the plan itself, see `docs/PLAN.md`.
 For why things are done this way, see `docs/DECISIONS.md`.
 
 **Repository:** `git@github.com:Arcadoolic/maui-api.git` (public), git-flow: `develop` (default) and `main`.
-**Last updated:** 2026-10-01, Lot 2 started: catalog endpoint and back office (2.1, D47).
+**Last updated:** 2026-10-02, Lot 2.2 players API (D48, D49); 2.1 catalog merged (D47).
 
 ## Status: Lot 0 done (staging deployed, production pending), Lot 1 done, Lot 2 in progress.
 
@@ -12,13 +12,13 @@ For why things are done this way, see `docs/DECISIONS.md`.
 |-----|------|--------|
 | 0 | Foundation: Docker Compose, Laravel 13 skeleton, CI | **Done**; staging deployed (D40, `docs/DEPLOYMENT.md`), production hosting undecided |
 | 1 | MAUI authentication, machine binding, telemetry, Filament BO | **Done**: API (PR #1 to #4, follow-ups #9, #11), MAUI slices 1 to 5 (`Arcadoolic/maui` PRs #88, #92, #93, #96, #97), end-to-end checked, see `docs/MAUI-INTEGRATION.md` |
-| 2 | Hiscores: catalog, players, scores, leaderboards | **In progress**: 2.1 catalog done locally (API + maui-repository `push-catalog`), PRs pending |
+| 2 | Hiscores: catalog, players, scores, leaderboards | **In progress**: 2.1 catalog merged, 2.2 players in PR (API + MAUI); staging pending |
 | 3 | Hiscores front end | Not started |
 | Last | Anti-cheat | Not started, after Lot 3 |
 
 ## Done
 
-- Delivery plan (`docs/PLAN.md`), decisions D1 to D47 (`docs/DECISIONS.md`).
+- Delivery plan (`docs/PLAN.md`), decisions D1 to D49 (`docs/DECISIONS.md`).
 - Lot 1 OpenAPI 3.1 contract (`docs/openapi.yaml`).
 - Lot 0 skeleton:
   - Docker: FrankenPHP + PHP 8.4 image (`Dockerfile`, `docker/`), Compose
@@ -33,7 +33,30 @@ For why things are done this way, see `docs/DECISIONS.md`.
 - Releases by semantic-release on every push to `main` (D44): 0.1.0
   published on 2026-09-25.
 
-## Lot 2.1: catalog (done locally, D47)
+## Lot 2.2: players (API done, D48)
+
+- `players` (public `uuid`, `pseudo_3`, `is_public`, status, PIN hash and
+  lock) and `client_player` tables; ability `players` for cabinets, data
+  migration for the tokens already issued.
+- Endpoints `GET /players`, `GET /players/availability`, `POST /players`,
+  `POST /players/link` (own `player-link` limiter), `PATCH /players/{id}`,
+  `POST /players/{id}/pin`, `DELETE /players/{id}/link`, in
+  `docs/openapi.yaml`.
+- Filament: Players resource (status, PIN lock, public, cabinets, audit;
+  disable, enable, unlock, show PIN, new PIN). PINs encrypted, not hashed,
+  so admins can read them (D49).
+- MAUI side done locally (`Arcadoolic/maui` branch `feat/online-players`):
+  player sync, registration with the PIN on the cabinet and in the BO, BO
+  MAUI-API column (visibility, new PIN, Go ONLINE), ONLINE refused while an
+  active player is not in the API, scores only for players allowed to
+  receive them.
+- Checked on Bazzite against the local API: player sync, registration
+  from the cabinet (after the renderer `fetch` fix) and from the BO, Go
+  ONLINE for players created locally. Not checked by hand yet: the
+  reconciliation refusal, score attribution, Filament "Show PIN".
+- PRs: API `feat/players`, MAUI `feat/online-players`.
+
+## Lot 2.1: catalog (merged, D47)
 
 - `categories` and `games` tables, `Game` and `Category` models.
 - `PUT /api/v1/catalog/games` (batches of 500, idempotent upsert by
@@ -49,8 +72,8 @@ For why things are done this way, see `docs/DECISIONS.md`.
 - Checked end to end on 2026-10-01 against the local API: 366 games of the
   local packs folder created, a second push all unchanged, 401 and
   unreachable API reported clearly.
-- Pending: PRs (API, maui-repository), then a service account push on
-  staging.
+- Merged: API PR #28, maui-repository PR #14. Pending: deploy on staging,
+  then a service account push there.
 
 ## Starting-pack repository access (done, staging, D46)
 
@@ -161,9 +184,10 @@ For why things are done this way, see `docs/DECISIONS.md`.
 
 ## Next
 
-1. Lot 2.1: PRs, deploy on staging, push the staging repository's
-   catalog.
-2. Lot 2.2: players (settle `pseudo_2` scope in a decision first).
+1. Lot 2.2: merge the PRs, finish the hand checks (reconciliation, scores,
+   Show PIN).
+2. Lot 2.3: score capture (per-play diff, outbox) and `POST /scores`.
+3. Deploy develop on staging (2.1 and 2.2), push the staging catalog.
 
 ## Pending outside the code
 

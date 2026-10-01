@@ -442,3 +442,42 @@ machine binding, refuses any non-service client even if its token carries
 the ability, and records the token's `last_used_at` (D43), shown on the
 service account page of the back office. Own `service` limiter, 120/min
 per key. Games resource in Filament, read only.
+
+**D48: Players linked to cabinets with a 4-digit PIN; no personal data, no `pseudo_2`.** (2026-10-02, PIN storage superseded by D49)
+Follows D4 (initials unique across the fleet). A cabinet creates a player
+(`POST /players`, `409 initials_taken` otherwise) and gets its PIN once in
+plain text; the player joins another cabinet with initials + PIN
+(`POST /players/link`), which replaces the email validation the plan first
+had in mind: no mail is set up, and a PIN typed with the joystick works on
+any cabinet. Only `pseudo_3` and `is_public` reach the API: `realname` and
+`email` stay on the cabinet. MAUI's `pseudo_2` is a leftover nothing reads,
+so it is not synced at all (closes open question 3 of `docs/PLAN.md`).
+Players are private by default; a private player's scores will be hidden
+from the shared leaderboards, and shown again if it becomes public (Lot 2.3,
+2.4). Brute force: a 4-digit PIN is guessable, so 5 wrong PINs in a row lock
+the player (`423 player_locked`), on top of a `player-link` limiter (10/min
+per key); a cabinet of that player issues a new PIN, which unlocks it, or an
+admin unlocks it in Filament (PIN unchanged). The accepted cost: anyone can
+lock someone else's player by guessing on purpose. The lock is a timestamp,
+reported as status `locked`, apart from the admin status (`active`,
+`disabled`). Players are never deleted (scores will reference them);
+unlinking only removes the cabinet. Cabinets only see their own players:
+another cabinet's player answers `404 player_not_found`. `players.id` is a
+bigint and the API exposes a separate `uuid`: the audit log
+(`activity_log.subject_id`) needs integer keys, and every change is logged
+with the cabinet or the admin as causer, never the PIN. New ability
+`players` for cabinets, granted to the tokens already issued by a data
+migration, as in D46.
+
+**D49: PINs encrypted, readable by admins.** (2026-10-02, supersedes the PIN storage of D48)
+Admins help players who lost their PIN, so the PIN is stored encrypted
+with `APP_KEY` (Laravel `encrypted` cast, column `players.pin`) instead of
+hashed with bcrypt. Little is lost: a 4-digit PIN hash falls to 10,000
+guesses offline, so the hash only ever protected it from a casual look at
+the database, which encryption does as well; the real protection stays the
+lock after 5 wrong PINs (D48). Filament: "Show PIN" (confirmation, every
+reading recorded as `player.pin_viewed`, never the PIN) and "New PIN"
+(also unlocks, recorded as `player.pin_regenerated` with the admin as
+causer), both shown once in a modal, as for client secrets (D34). Comparing
+a PIN uses `hash_equals`. Losing `APP_KEY` loses the PINs, as the rest of
+the encrypted data: players then get a new PIN from their cabinet.

@@ -62,6 +62,14 @@ class AppServiceProvider extends ServiceProvider
             ];
         });
 
+        // PIN attempts: on top of the lock after 5 wrong PINs per player
+        // (docs/DECISIONS.md D48), slows a cabinet trying many players.
+        RateLimiter::for('player-link', function (Request $request): Limit {
+            $key = $request->header(AuthenticateCabinet::KEY_HEADER);
+
+            return Limit::perMinute(10)->by(is_string($key) ? 'key:'.$key : 'ip:'.$request->ip());
+        });
+
         // Service accounts (catalog push): batches of up to 500 games, a full
         // catalog is a few dozen requests (docs/DECISIONS.md D47).
         RateLimiter::for('service', function (Request $request): Limit {
