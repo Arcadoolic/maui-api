@@ -1,3 +1,13 @@
+## [0.2.0](https://github.com/Arcadoolic/maui-api/compare/0.1.0...0.2.0) (2026-10-01)
+
+### Features
+
+* authorize starting-pack repository access through the API ([0d01ac5](https://github.com/Arcadoolic/maui-api/commit/0d01ac59574a29c70899f0b42ec3f4a396312514))
+
+### Bug Fixes
+
+* let an empty MAUI_REPOSITORY_URL turn the repository off in compose ([1b4a768](https://github.com/Arcadoolic/maui-api/commit/1b4a76861fd3d537ebb52147f04bce8b67f60d33))
+
 ## [0.1.0](https://github.com/Arcadoolic/maui-api/compare/0.0.0...0.1.0) (2026-09-25)
 
 ### Features
