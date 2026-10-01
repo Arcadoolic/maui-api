@@ -233,3 +233,16 @@ it('shows the startup history of a cabinet', function () {
     livewire(StartupsRelationManager::class, ['ownerRecord' => $client, 'pageClass' => ViewClient::class])
         ->assertCanSeeTableRecords([$startup]);
 });
+
+it('shows when a service account last used its token (D43)', function () {
+    [$client, $token] = serviceWithToken();
+
+    livewire(ViewClient::class, ['record' => $client->getRouteKey()])->assertSee('Never used');
+
+    $this->putJson('/api/v1/catalog/games', ['games' => [['romname' => 'dkong', 'description' => 'Donkey Kong']]], serviceHeaders($client, $token))
+        ->assertOk();
+
+    livewire(ViewClient::class, ['record' => $client->fresh()->getRouteKey()])
+        ->assertSee('Token last used')
+        ->assertDontSee('Never used');
+});

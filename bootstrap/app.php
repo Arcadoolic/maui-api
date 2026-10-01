@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Middleware\AuthenticateCabinet;
+use App\Http\Middleware\AuthenticateService;
 use App\Http\Middleware\AuthorizeRepositoryAccess;
 use App\Http\Middleware\SecureInvitationPages;
 use App\Http\Problems\ApiProblemException;
@@ -23,6 +24,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->alias([
             'cabinet' => AuthenticateCabinet::class,
             'repository' => AuthorizeRepositoryAccess::class,
+            'service' => AuthenticateService::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
