@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Api\CatalogGamesController;
 use App\Http\Controllers\Api\HeartbeatController;
 use App\Http\Controllers\Api\PingController;
 use App\Http\Controllers\Api\RepositoryAuthorizeController;
@@ -22,4 +23,9 @@ Route::middleware(['throttle:cabinet', 'cabinet:session'])->group(function () {
 Route::middleware('repository')->group(function () {
     Route::get('repository', RepositoryController::class)->middleware('throttle:cabinet');
     Route::get('repository/authorize', RepositoryAuthorizeController::class)->middleware('throttle:repository');
+});
+
+// Service accounts: game catalog pushed by maui-repository (docs/DECISIONS.md D47).
+Route::middleware(['throttle:service', 'service:catalog:write'])->group(function () {
+    Route::put('catalog/games', CatalogGamesController::class);
 });

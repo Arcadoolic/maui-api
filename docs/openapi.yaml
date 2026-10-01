@@ -6,6 +6,7 @@ info:
   summary: Backend for MAUI arcade cabinets running in ONLINE mode.
   description: |
     Lot 1 contract: MAUI client authentication, machine binding and telemetry.
+    Lot 2 (in progress): game catalog.
     See `docs/PLAN.md` for the design decisions behind this contract.
 
     ## Authentication
@@ -87,6 +88,9 @@ tags:
     description: |
       Access to the starting-pack repository: its URL, announced by this
       server, and the check its web server runs on every file request.
+  - name: Catalog
+    description: |
+      Game catalog fed by service accounts (maui-repository's `push-catalog`).
   - name: Invitations
     description: |
       Public web pages (HTML, not JSON) used by a cabinet owner to retrieve
@@ -276,6 +280,56 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '409':
           $ref: '#/components/responses/MachineMismatch'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /catalog/games:
+    put:
+      tags: [Catalog]
+      operationId: putCatalogGames
+      summary: Upsert a batch of catalog games
+      description: |
+        Creates or updates up to 500 games, keyed by `romname`. Idempotent:
+        sending the same batch again changes nothing. A game missing from a
+        push is never deleted, since scores may reference it. Each push
+        describes a game completely: a field left out is stored as `null`
+        (`false` for `mature`).
+
+        Categories are created on the fly: `genre` (genre.ini) on one level,
+        `catver_genre` and `catver_subgenre` (catver.ini) as a genre and its
+        child. The sender removes the `TTL *` prefix of both files and
+        catver's `* Mature *` suffix, sent as `mature`.
+
+        The batch is validated as a whole: one invalid game rejects the batch
+        and nothing is written.
+
+        Service accounts only, ability `catalog:write`, no machine header. A
+        cabinet is refused with `403 insufficient_ability`. Records the
+        token's `last_used_at`. Rate limit: 120 requests per minute per key.
+      security:
+        - mauiKey: []
+          bearerToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CatalogGamesRequest'
+      responses:
+        '200':
+          description: Batch applied.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CatalogGamesResponse'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
         '429':
           $ref: '#/components/responses/RateLimited'
         '500':
@@ -591,6 +645,95 @@ components:
           format: uri
           description: Base URL without trailing slash, or `null` when this server has no repository.
           examples: ['https://repo.maui.staging.afronob.com']
+
+    CatalogGame:
+      type: object
+      required: [romname, description]
+      additionalProperties: false
+      properties:
+        romname:
+          type: string
+          pattern: '^[a-z0-9_]{1,32}$'
+          description: MAME short name, unique key of the game.
+          examples: [dkong]
+        description:
+          type: string
+          maxLength: 255
+          examples: ['Donkey Kong (US set 1)']
+        manufacturer:
+          type: [string, 'null']
+          maxLength: 255
+          examples: ['Nintendo of America']
+        year:
+          type: [string, 'null']
+          pattern: '^[0-9?]{4}$'
+          description: MAME year, not always a number.
+          examples: ['1981', '198?']
+        parent_romname:
+          type: [string, 'null']
+          pattern: '^[a-z0-9_]{1,32}$'
+          description: Parent set of a clone. Need not be catalogued.
+        player_sim:
+          type: [integer, 'null']
+          minimum: 0
+          maximum: 255
+          description: Simultaneous players (Multiplayer.ini).
+        player_alt:
+          type: [integer, 'null']
+          minimum: 0
+          maximum: 255
+          description: Alternating players (Multiplayer.ini).
+        genre:
+          type: [string, 'null']
+          maxLength: 128
+          description: genre.ini section.
+          examples: [Platform]
+        catver_genre:
+          type: [string, 'null']
+          maxLength: 128
+          description: catver.ini genre, required with `catver_subgenre`.
+          examples: [Platform]
+        catver_subgenre:
+          type: [string, 'null']
+          maxLength: 128
+          examples: ['Run Jump']
+        mature:
+          type: boolean
+          default: false
+          description: catver.ini `* Mature *` flag.
+
+    CatalogGamesRequest:
+      type: object
+      required: [games]
+      additionalProperties: false
+      properties:
+        games:
+          type: array
+          minItems: 1
+          maxItems: 500
+          description: Each `romname` at most once per batch.
+          items:
+            $ref: '#/components/schemas/CatalogGame'
+
+    CatalogGamesResponse:
+      type: object
+      required: [received, created, updated, unchanged]
+      additionalProperties: false
+      properties:
+        received:
+          type: integer
+        created:
+          type: integer
+        updated:
+          type: integer
+          description: Changed games, and games known from a score only that are now catalogued.
+        unchanged:
+          type: integer
+      example:
+        received: 500
+        created: 12
+        updated: 3
+        unchanged: 485
 
     Problem:
       type: object

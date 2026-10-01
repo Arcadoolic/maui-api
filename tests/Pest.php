@@ -47,6 +47,31 @@ function cabinetWithToken(array $attributes = []): array
     return [$client, app(ClientTokenIssuer::class)->issue($client)];
 }
 
+/**
+ * Creates an active service account with a valid token.
+ *
+ * @return array{0: Client, 1: string}
+ */
+function serviceWithToken(): array
+{
+    $client = Client::factory()->service()->create();
+
+    return [$client, app(ClientTokenIssuer::class)->issue($client)];
+}
+
+/**
+ * Service accounts send no machine header.
+ *
+ * @return array<string, string>
+ */
+function serviceHeaders(Client $client, string $token): array
+{
+    return [
+        'X-Maui-Key' => $client->public_key,
+        'Authorization' => 'Bearer '.$token,
+    ];
+}
+
 function issueInvitation(?Client $client = null, InvitationPurpose $purpose = InvitationPurpose::Initial): IssuedInvitation
 {
     return app(InvitationIssuer::class)->issue($client ?? Client::factory()->create(), $purpose);

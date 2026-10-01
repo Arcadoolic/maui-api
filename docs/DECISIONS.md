@@ -416,3 +416,29 @@ put `GET /repository` behind `cabinet:repository:read`, both routes use the
 `repository` middleware: through `cabinet`, a service account would have
 been bound to a machine fingerprint.
 
+
+## Lot 2 implementation
+
+**D47: Catalog pushed by service accounts, upsert without deletion.** (2026-10-01)
+`PUT /api/v1/catalog/games` takes batches of up to 500 games keyed by MAME
+`romname`; maui-repository pushes them from its configuration pack
+(genre.ini, catver.ini, Multiplayer.ini) and its pack manifests. Each push
+describes a game completely, so a field left out becomes `null`, and the
+upsert is idempotent (the response counts created, updated and unchanged
+games). Games missing from a push are never deleted: scores will reference
+them. A batch is validated as a whole (one invalid game, nothing written),
+which keeps the sender's error handling simple. Categories keep the raw
+MAME support files, not MAUI's carousel grouping (`CatverGenres.ts`, a
+display concern): `categories(source, name, parent_id)`, genre.ini on one
+level, catver.ini genre with its subgenre as a child; the sender strips
+the `TTL *` prefix (both files) and catver's `* Mature *` suffix, the
+latter sent as `mature`. `year` stays a string (MAME has `198?`). `parent_romname` is not
+a foreign key, a clone may be catalogued without its parent. A score for an
+unknown `romname` (Lot 2 scores) will create a bare game with
+`catalogued_at = null` instead of being refused; the next push completes
+it. The plan's `extra` jsonb column is left out until a field needs it.
+New `service:<ability>` middleware: same authentication as cabinets, no
+machine binding, refuses any non-service client even if its token carries
+the ability, and records the token's `last_used_at` (D43), shown on the
+service account page of the back office. Own `service` limiter, 120/min
+per key. Games resource in Filament, read only.

@@ -27,6 +27,16 @@ class ClientInfolist
                         TextEntry::make('email')->copyable(),
                         TextEntry::make('notes')->placeholder('-')->columnSpanFull(),
                     ]),
+                // Service accounts send no heartbeat: the token is their only "last seen" (D43).
+                Section::make(__('Service account'))
+                    ->visible(fn (Client $record): bool => $record->type === ClientType::Service)
+                    ->schema([
+                        TextEntry::make('token_last_used_at')
+                            ->label(__('Token last used'))
+                            ->state(fn (Client $record): mixed => $record->tokens()->max('last_used_at'))
+                            ->since()
+                            ->placeholder(__('Never used')),
+                    ]),
                 Section::make(__('Cabinet'))
                     ->columns(2)
                     ->visible(fn (Client $record): bool => $record->type === ClientType::Maui)

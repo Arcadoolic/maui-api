@@ -163,9 +163,11 @@ Consequences for the integration:
 
 ## Lot 2: Hiscores (design points to anticipate now)
 
-### Catalog
+Detailed plan agreed on 2026-09-30, in four sub-lots delivered in order: 2.1 catalog, 2.2 players, 2.3 score capture and sending, 2.4 leaderboards. No anti-cheat in this lot: see "Last lot" below.
 
-Games and categories are fed by service accounts through an idempotent bulk upsert (`PUT /api/v1/catalog/games`), keyed by MAME `romname`.
+### Catalog (2.1, D47)
+
+Games and categories are fed by service accounts through an idempotent bulk upsert (`PUT /api/v1/catalog/games`), keyed by MAME `romname`. maui-repository pushes them from its configuration pack and pack manifests (`just push-catalog`). Read-only Games resource in Filament.
 
 ### Players (follows D4)
 
@@ -189,11 +191,19 @@ MAUI needs a local queue (outbox pattern) for scores to send, and a cache of rem
 
 ### Trust
 
-Any token holder can submit an arbitrary score. Accepted risk, mitigated by moderation in Filament (hide a score, ban a client).
+Any token holder can submit an arbitrary score. Accepted risk, mitigated by moderation in Filament (hide a score, ban a client). Anti-cheat comes in the last lot.
 
 ## Lot 3: Hiscores front end
 
 Consumes the Lot 2 read endpoints. Public read-only endpoints with HTTP caching are enough.
+
+## Last lot: anti-cheat
+
+Hiscores start simple, without anti-cheat. Leads, to rework once hiscores are in use:
+- MAME launched locked down (`-nocheat -nodebug -noconsole`, `cheat` and `cheatfind` plugins excluded);
+- sha256 of the hi and nvram files, recomputed on each MAME exit, to spot a change between two plays;
+- each score tied to a play opened server side (`plays`), with a plausible duration, and a `verified` status;
+- encrypted local score queue.
 
 ## Before production
 

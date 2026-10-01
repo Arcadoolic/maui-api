@@ -4,20 +4,21 @@ Current state of the delivery plan. For the plan itself, see `docs/PLAN.md`.
 For why things are done this way, see `docs/DECISIONS.md`.
 
 **Repository:** `git@github.com:Arcadoolic/maui-api.git` (public), git-flow: `develop` (default) and `main`.
-**Last updated:** 2026-09-27, repository access through the API (D46) deployed on staging, Lot 1 done (API and MAUI), staging deployed on miyamoto (D40).
+**Last updated:** 2026-10-01, Lot 2 started: catalog endpoint and back office (2.1, D47).
 
-## Status: Lot 0 done (staging deployed, production pending), Lot 1 done.
+## Status: Lot 0 done (staging deployed, production pending), Lot 1 done, Lot 2 in progress.
 
 | Lot | What | Status |
 |-----|------|--------|
 | 0 | Foundation: Docker Compose, Laravel 13 skeleton, CI | **Done**; staging deployed (D40, `docs/DEPLOYMENT.md`), production hosting undecided |
 | 1 | MAUI authentication, machine binding, telemetry, Filament BO | **Done**: API (PR #1 to #4, follow-ups #9, #11), MAUI slices 1 to 5 (`Arcadoolic/maui` PRs #88, #92, #93, #96, #97), end-to-end checked, see `docs/MAUI-INTEGRATION.md` |
-| 2 | Hiscores: catalog, players, scores, leaderboards | Design points noted, open questions pending |
+| 2 | Hiscores: catalog, players, scores, leaderboards | **In progress**: 2.1 catalog done locally (API + maui-repository `push-catalog`), PRs pending |
 | 3 | Hiscores front end | Not started |
+| Last | Anti-cheat | Not started, after Lot 3 |
 
 ## Done
 
-- Delivery plan (`docs/PLAN.md`), decisions D1 to D46 (`docs/DECISIONS.md`).
+- Delivery plan (`docs/PLAN.md`), decisions D1 to D47 (`docs/DECISIONS.md`).
 - Lot 1 OpenAPI 3.1 contract (`docs/openapi.yaml`).
 - Lot 0 skeleton:
   - Docker: FrankenPHP + PHP 8.4 image (`Dockerfile`, `docker/`), Compose
@@ -31,6 +32,25 @@ For why things are done this way, see `docs/DECISIONS.md`.
     push.
 - Releases by semantic-release on every push to `main` (D44): 0.1.0
   published on 2026-09-25.
+
+## Lot 2.1: catalog (done locally, D47)
+
+- `categories` and `games` tables, `Game` and `Category` models.
+- `PUT /api/v1/catalog/games` (batches of 500, idempotent upsert by
+  `romname`, never deletes), in `docs/openapi.yaml`.
+- `service:<ability>` middleware for service accounts: no machine binding,
+  service type required, token `last_used_at` recorded (D43) and shown on
+  the service account page; own `service` limiter.
+- Filament: read-only Games resource (filters by genre, catver genre or
+  subgenre, players, catalogued or not).
+- maui-repository: `just push-catalog` (`scripts/push-catalog.ts`) sends
+  the games of the packs' manifests with their genre.ini and catver.ini
+  categories, batches of 500, no MAME needed.
+- Checked end to end on 2026-10-01 against the local API: 366 games of the
+  local packs folder created, a second push all unchanged, 401 and
+  unreachable API reported clearly.
+- Pending: PRs (API, maui-repository), then a service account push on
+  staging.
 
 ## Starting-pack repository access (done, staging, D46)
 
@@ -141,10 +161,9 @@ For why things are done this way, see `docs/DECISIONS.md`.
 
 ## Next
 
-1. Lot 2 design questions (see `docs/PLAN.md`, open questions), to settle
-   with the MAUI side before any code: LOCAL to ONLINE player migration,
-   `pseudo_2` scope, pseudo namespace. Then hiscores. Service account
-   endpoints must update `last_used_at` (D43).
+1. Lot 2.1: PRs, deploy on staging, push the staging repository's
+   catalog.
+2. Lot 2.2: players (settle `pseudo_2` scope in a decision first).
 
 ## Pending outside the code
 
