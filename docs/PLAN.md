@@ -108,6 +108,8 @@ client_startups    id (uuid), client_id, mame_version, maui_version, os, os_vers
 | MAUI | `GET /api/v1/ping` | Credentials test + machine binding |
 | MAUI | `POST /api/v1/startups` | Startup telemetry |
 | MAUI | `POST /api/v1/heartbeat` | "Online" status |
+| MAUI, service | `GET /api/v1/repository` | Starting-pack repository URL (D46) |
+| Repository | `GET /api/v1/repository/authorize` | `forward_auth` check of every repository request (D46) |
 
 ### 1.7 Filament back office
 
@@ -127,7 +129,7 @@ client_startups    id (uuid), client_id, mame_version, maui_version, os, os_vers
 
 ### 1.8 MAUI client side
 
-Client code lives in `../mame-awesome-ui` (GitHub `Arcadoolic/maui`): Electron + Vue 3, TypeScript. Its BO is an Express server (`src/boServer.ts`, port 3131) running in the Electron main process and **reachable from the whole LAN**, protected by an `express-session` login.
+Client code lives in `../maui` (GitHub `Arcadoolic/maui`): Electron + Vue 3, TypeScript. Its BO is an Express server (`src/boServer.ts`, port 3131) running in the Electron main process and **reachable from the whole LAN**, protected by an `express-session` login.
 
 Consequences for the integration:
 
@@ -192,6 +194,25 @@ Any token holder can submit an arbitrary score. Accepted risk, mitigated by mode
 ## Lot 3: Hiscores front end
 
 Consumes the Lot 2 read endpoints. Public read-only endpoints with HTTP caching are enough.
+
+## Before production
+
+Decided, to do before the first production deployment (with open question 0).
+
+1. **Repository limiter per real cabinet IP (D46).** Every repository
+   request reaches `GET /api/v1/repository/authorize` from the repository
+   server (Caddy `forward_auth`), so the API sees that server's IP only: the
+   per-IP cap of the `repository` limiter (2400/min) is a global cap shared
+   by every cabinet and every unauthenticated request. Many cabinets
+   importing at once could hit it, and anyone flooding the repository with
+   requests without credentials could block it for everyone (they would
+   still get no file). Fix: on that route only, and only for requests coming
+   from the repository server, read the cabinet's IP from the
+   `X-Forwarded-For` Caddy sets (Laravel trusted proxies scoped to that
+   address), so that each cabinet and each attacker has its own counter.
+   Before that, measure a big import on staging (e.g. `capcom-pack`, whole
+   and partial) to check the per-key limit (1200/min) as well. Record the
+   outcome in a decision that supersedes the limiter part of D46.
 
 ## Open questions
 

@@ -372,3 +372,47 @@ release is always 1.0.0); a dry run then computes 0.1.0. semantic-release has
 no special rule for 0.x: a breaking change (`!` or `BREAKING CHANGE`) moves
 straight to 1.0.0, so none should be marked as such before that is wanted.
 
+**D45: Dependency security in CI and Dependabot.** (2026-09-25)
+`composer audit` had only been run by hand. The quality job now runs it
+after `composer install`: a known vulnerability fails the build; abandoned
+packages are only reported (`--abandoned=report`, Composer 2.10 fails on
+them by default), since they are not a vulnerability by themselves and
+would otherwise block every PR at once. Dependabot opens weekly PRs on
+`develop` for Composer (Laravel, Filament and Livewire grouped for minor
+and patch updates), the Docker base images, the Compose images (PostgreSQL
+majors ignored: they need a dump and restore of the data volume) and the
+GitHub Actions. Commit messages use `build(deps)` and `ci`, which release
+nothing (D44). npm is not covered: no lockfile and no front-end build in
+the image. The release tooling pinned in `release.yml` is invisible to
+Dependabot; `conventional-changelog-conventionalcommits` must stay on 9.x
+there (10.x breaks the release notes, as found in MAUI).
+
+**D46: Starting-pack repository access through the API.** (2026-09-26)
+The repository (`maui-repository`, static ZIP files and `index.json`) was
+behind nginx `auth_basic` with a single `admin` account copied into every
+cabinet's BO. It moves to its own FrankenPHP container (same deployment
+model as D40, staging domain `repo.maui.staging.afronob.com`) and Caddy
+checks every request with `forward_auth` against
+`GET /api/v1/repository/authorize`: a cabinet allowed by the API reaches the
+repository with its usual headers, and Basic Auth is dropped. New ability
+`repository:read`, granted to cabinets and service accounts (which replace
+`admin` for scripts); a data migration adds it to the tokens already issued,
+so enrolled cabinets need no new token. Cabinets go through the machine
+binding as on the other routes (an unbound cabinet gets bound here); service
+accounts send no machine header. Authentication is shared with the
+`cabinet` middleware in `ClientAuthenticator`. `forward_auth` has no cache:
+every Range request of an import reaches the API, hence a separate
+`repository` limiter (1200/min per key, 2400/min per IP) that does not eat
+the heartbeat budget. The per-IP cap sees the repository server, not the
+cabinets, so it is a global cap on repository traffic; raise it when real
+imports are measured. The repository URL is announced by the API
+(`GET /api/v1/repository`, `MAUI_REPOSITORY_URL`, `null` when the server has
+none) instead of being typed in MAUI: the repository only accepts the
+cabinets of the API it asks, so its environment follows the API's, and a
+wrong or malicious URL would receive the cabinet's key, token and
+fingerprint. An endpoint rather than a field of the `MAUI1.` string, so the
+URL can change without enrolling the cabinets again. Unlike the plan, which
+put `GET /repository` behind `cabinet:repository:read`, both routes use the
+`repository` middleware: through `cabinet`, a service account would have
+been bound to a machine fingerprint.
+

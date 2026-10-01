@@ -50,6 +50,18 @@ class AppServiceProvider extends ServiceProvider
             ];
         });
 
+        // forward_auth of the repository: one call per file request, Range
+        // requests of a pack import included (docs/DECISIONS.md D46). The
+        // per-IP cap sees the repository server, not the cabinets.
+        RateLimiter::for('repository', function (Request $request): array {
+            $key = $request->header(AuthenticateCabinet::KEY_HEADER);
+
+            return [
+                Limit::perMinute(1200)->by(is_string($key) ? 'key:'.$key : 'ip:'.$request->ip()),
+                Limit::perMinute(2400)->by('ip-wide:'.$request->ip()),
+            ];
+        });
+
         // Public invitation pages: the token space is too large to guess, this
         // only slows down scanning (docs/PLAN.md 1.2). High enough for an owner
         // drawing several cabinet names (two requests per draw).

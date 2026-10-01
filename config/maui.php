@@ -8,6 +8,13 @@ return [
     'invitation_ttl_hours' => (int) env('MAUI_INVITATION_TTL_HOURS', 72),
 
     /*
+    | Base URL of the starting-pack repository served to the cabinets of this
+    | server, announced by GET /api/v1/repository (docs/DECISIONS.md D46).
+    | Unset: this server has no repository.
+    */
+    'repository_url' => env('MAUI_REPOSITORY_URL'),
+
+    /*
     | Timezone used to display dates in the back office when the admin has not
     | chosen one (or nobody is logged in). Storage always stays in UTC.
     */

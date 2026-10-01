@@ -4,7 +4,7 @@ Guidance for AI coding agents working in this repository. `AGENTS.md` points her
 
 ## What this is
 
-MAUI-API: Laravel backend for MAUI arcade cabinets (`../mame-awesome-ui`,
+MAUI-API: Laravel backend for MAUI arcade cabinets (`../maui`,
 GitHub `Arcadoolic/maui`) running in ONLINE mode. Machine authentication with
 per-cabinet binding, telemetry, then shared hiscores. Admin back office is
 Filament.
@@ -29,6 +29,7 @@ PostgreSQL 16, Sanctum (machine tokens only), Filament 5, Pest 4, Larastan.
 `justfile` recipes (they export `UID`/`GID` so files keep the host owner):
 
 ```bash
+just init          # first-time setup (.env, up, composer install, key, migrate), re-runnable
 just up            # build and start app (http://localhost:8080) + db
 just down
 just sh            # shell in the app container

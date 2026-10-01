@@ -4,20 +4,20 @@ Current state of the delivery plan. For the plan itself, see `docs/PLAN.md`.
 For why things are done this way, see `docs/DECISIONS.md`.
 
 **Repository:** `git@github.com:Arcadoolic/maui-api.git` (public), git-flow: `develop` (default) and `main`.
-**Last updated:** 2026-09-25, Lot 1 done (API and MAUI), staging deployment prepared (D40).
+**Last updated:** 2026-09-27, repository access through the API (D46) deployed on staging, Lot 1 done (API and MAUI), staging deployed on miyamoto (D40).
 
-## Status: Lot 0 done (except deployment), Lot 1 done.
+## Status: Lot 0 done (staging deployed, production pending), Lot 1 done.
 
 | Lot | What | Status |
 |-----|------|--------|
-| 0 | Foundation: Docker Compose, Laravel 13 skeleton, CI | **Done**; staging prepared (D40, `docs/DEPLOYMENT.md`), production hosting undecided |
+| 0 | Foundation: Docker Compose, Laravel 13 skeleton, CI | **Done**; staging deployed (D40, `docs/DEPLOYMENT.md`), production hosting undecided |
 | 1 | MAUI authentication, machine binding, telemetry, Filament BO | **Done**: API (PR #1 to #4, follow-ups #9, #11), MAUI slices 1 to 5 (`Arcadoolic/maui` PRs #88, #92, #93, #96, #97), end-to-end checked, see `docs/MAUI-INTEGRATION.md` |
 | 2 | Hiscores: catalog, players, scores, leaderboards | Design points noted, open questions pending |
 | 3 | Hiscores front end | Not started |
 
 ## Done
 
-- Delivery plan (`docs/PLAN.md`), decisions D1 to D44 (`docs/DECISIONS.md`).
+- Delivery plan (`docs/PLAN.md`), decisions D1 to D46 (`docs/DECISIONS.md`).
 - Lot 1 OpenAPI 3.1 contract (`docs/openapi.yaml`).
 - Lot 0 skeleton:
   - Docker: FrankenPHP + PHP 8.4 image (`Dockerfile`, `docker/`), Compose
@@ -29,6 +29,38 @@ For why things are done this way, see `docs/DECISIONS.md`.
     database;
   - GitHub Actions workflow (`.github/workflows/ci.yml`), green on the first
     push.
+- Releases by semantic-release on every push to `main` (D44): 0.1.0
+  published on 2026-09-25.
+
+## Starting-pack repository access (done, staging, D46)
+
+- Ability `repository:read` for cabinets and service accounts, data
+  migration granting it to the tokens already issued.
+- `ClientAuthenticator` extracted from `AuthenticateCabinet` (key + token,
+  expiry, active, ability, machine binding), shared with the new
+  `repository` middleware (`AuthorizeRepositoryAccess`): cabinets bound as
+  on the other routes, service accounts without machine header.
+- `GET /api/v1/repository/authorize` (204, `forward_auth` target, own
+  `repository` limiter) and `GET /api/v1/repository` (`{url}` from
+  `MAUI_REPOSITORY_URL`, `null` when unset), in `docs/openapi.yaml`.
+- `MAUI_REPOSITORY_URL` set in `compose.yaml` (local repository on
+  `http://localhost:8081`) and `compose.staging.yaml`
+  (`https://repo.maui.staging.afronob.com`).
+- API: PR #22. MAUI: `Arcadoolic/maui` PR #104 (repository URL and
+  headers from the API, repository features in ONLINE mode only, starter
+  pack in MAME > Import, no manual pack upload anymore). Repository
+  container: `Arcadoolic/maui-repository` PRs #1 and #7 (FrankenPHP,
+  `forward_auth`, smoke test in CI).
+- Deployed on staging on 2026-09-27: API `759b217` (migration applied, the
+  3 enrolled cabinets got `repository:read`), service account
+  `repository_admin`, repository on `https://repo.maui.staging.afronob.com`
+  (22 packs, Let's Encrypt certificate by Caddy, SNI map entry), checked
+  end to end on the Raspberry Pi cabinet with the MAUI dev build
+  `2.5.0+dev.2036311`. The old `repo.maui.afronob.com` (nginx Basic Auth)
+  is removed on the server; its DNS record is kept for the future
+  production repository.
+- Before production: the `repository` limiter must count per real cabinet
+  IP, after measuring a big import (`docs/PLAN.md`, "Before production").
 
 ## Lot 1, part 1: cabinet API (merged, PR #1)
 
@@ -81,7 +113,7 @@ For why things are done this way, see `docs/DECISIONS.md`.
 - Dates shown in each admin's timezone, Paris by default, chosen on the
   profile page (D41).
 
-## Lot 0: staging deployment (prepared)
+## Lot 0: staging deployment (done)
 
 - Staging on miyamoto, `https://api.maui.staging.afronob.com`, Docker Compose;
   FrankenPHP terminates TLS and manages its certificate, the host nginx
@@ -96,14 +128,20 @@ For why things are done this way, see `docs/DECISIONS.md`.
   off); behind an nginx `stream` with `ssl_preread`: TLS served by
   FrankenPHP, HTTP/2, HSTS, `REMOTE_ADDR` = real client, HTTPS asset URLs,
   port 80 redirects to HTTPS.
-- Not done yet: the server setup itself (Docker, app, nginx port 80 then
-  port 443 switch), then an automated deploy job.
+- Deployed on 2026-09-25 from `develop` (`/opt/maui-api`): Docker 29.8,
+  Let's Encrypt certificate obtained by FrankenPHP (HTTP-01 through the
+  nginx port 80 vhost), nginx upgraded to 1.26.3-3+deb13u9 for
+  `libnginx-mod-stream`, the 15 existing HTTPS vhosts moved to
+  `127.0.0.1:4443` with the PROXY protocol (backup
+  `/etc/nginx.bak-2026-09-25-1617`), every site answering as before, real
+  client IPs in their logs. Runbook fixed on the way (symlinked vhosts,
+  `listen` with two spaces).
+- Not done yet: client IP check behind the PROXY protocol (see "Pending
+  outside the code"), automated deploy job.
 
 ## Next
 
-1. First release: semantic-release is set up (D44); the promotion PR from
-   `develop` to `main` publishes it.
-2. Lot 2 design questions (see `docs/PLAN.md`, open questions), to settle
+1. Lot 2 design questions (see `docs/PLAN.md`, open questions), to settle
    with the MAUI side before any code: LOCAL to ONLINE player migration,
    `pseudo_2` scope, pseudo namespace. Then hiscores. Service account
    endpoints must update `last_used_at` (D43).
@@ -112,10 +150,19 @@ For why things are done this way, see `docs/DECISIONS.md`.
 
 - `ubuntu-latest` moves to Ubuntu 26 from 2026-10-19 (GitHub annotation):
   check the first CI run after that date.
-- Staging server setup, following `docs/DEPLOYMENT.md`.
+- Staging is up (2026-09-25) with a real MAUI cabinet (Bazzite) connected.
+  To check on the server: the client IP recorded behind the PROXY protocol
+  must be the real public one (e.g. the `ip` of `maui.auth_failed` log
+  lines), not a `172.x` or `127.0.0.1` address, since every per-IP limit
+  (invitations, API, admin login) depends on it.
 - Production hosting (Docker Compose or native), to decide with the team.
-- Security headers still missing: `Strict-Transport-Security` (production
-  HTTPS only; set on staging by `compose.staging.yaml`) and `Content-Security-Policy` (to define with Filament, Lot 1).
+- Security headers still missing: `Content-Security-Policy` on the back
+  office (to define with what Filament, Livewire and Alpine accept). HSTS is
+  set on staging by `compose.staging.yaml`.
+- Admin management, postponed while there are two admins: accounts are
+  created with `make:filament-user`; no admin list in the back office, no
+  forced password change at first login, no password reset by email (no
+  mail set up).
 
 ## Open questions
 
