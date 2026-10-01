@@ -1,6 +1,6 @@
 # MAUI integration: handoff
 
-Handoff for the work on the MAUI side (`../mame-awesome-ui`, GitHub
+Handoff for the work on the MAUI side (`../maui`, GitHub
 `Arcadoolic/maui`): let a cabinet switch to ONLINE mode against MAUI-API.
 Written for whoever picks it up, human or agent, in a session opened in the
 MAUI repository. MAUI's own `CLAUDE.md` still applies there; this document

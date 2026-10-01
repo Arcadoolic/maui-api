@@ -129,7 +129,7 @@ client_startups    id (uuid), client_id, mame_version, maui_version, os, os_vers
 
 ### 1.8 MAUI client side
 
-Client code lives in `../mame-awesome-ui` (GitHub `Arcadoolic/maui`): Electron + Vue 3, TypeScript. Its BO is an Express server (`src/boServer.ts`, port 3131) running in the Electron main process and **reachable from the whole LAN**, protected by an `express-session` login.
+Client code lives in `../maui` (GitHub `Arcadoolic/maui`): Electron + Vue 3, TypeScript. Its BO is an Express server (`src/boServer.ts`, port 3131) running in the Electron main process and **reachable from the whole LAN**, protected by an `express-session` login.
 
 Consequences for the integration:
 
