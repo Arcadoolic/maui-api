@@ -29,6 +29,7 @@ PostgreSQL 16, Sanctum (machine tokens only), Filament 5, Pest 4, Larastan.
 `justfile` recipes (they export `UID`/`GID` so files keep the host owner):
 
 ```bash
+just init          # first-time setup (.env, up, composer install, key, migrate), re-runnable
 just up            # build and start app (http://localhost:8080) + db
 just down
 just sh            # shell in the app container

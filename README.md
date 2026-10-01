@@ -10,11 +10,13 @@ Backend for [MAUI](https://github.com/Arcadoolic/maui) arcade cabinets running i
 ## Getting started
 
 ```bash
-cp .env.example .env
-just up
-just artisan key:generate
-just artisan migrate
+just init
 ```
+
+`just init` creates `.env` from `.env.example` if it is missing, starts the
+stack, installs the Composer dependencies, generates the app key if none is
+set and runs the migrations. It is safe to re-run: it never overwrites `.env`
+or an existing key.
 
 - API: http://localhost:8080/api/v1
 - Admin panel: http://localhost:8080/admin
