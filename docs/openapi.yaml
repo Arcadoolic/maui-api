@@ -1233,7 +1233,7 @@ components:
 
     Player:
       type: object
-      required: [id, pseudo_3, is_public, status]
+      required: [id, pseudo_3, is_public, status, avatar]
       additionalProperties: false
       properties:
         id:
@@ -1247,6 +1247,9 @@ components:
           type: string
           enum: [active, disabled, locked]
           description: '`disabled` by an admin; `locked` after too many wrong PINs.'
+        avatar:
+          type: [string, 'null']
+          description: SHA-256 of the player's avatar (D53), null without one. Send the PNG again when the cabinet's differs.
 
     PlayerResponse:
       type: object

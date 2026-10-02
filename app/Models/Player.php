@@ -146,7 +146,7 @@ class Player extends Model
         };
     }
 
-    /** @return array{id: string, pseudo_3: string, is_public: bool, status: string} */
+    /** @return array{id: string, pseudo_3: string, is_public: bool, status: string, avatar: string|null} */
     public function toApiArray(): array
     {
         return [
@@ -154,6 +154,8 @@ class Player extends Model
             'pseudo_3' => $this->pseudo_3,
             'is_public' => $this->is_public,
             'status' => $this->apiStatus(),
+            // SHA-256 of the avatar (D53): the cabinet sends its PNG again when it differs.
+            'avatar' => $this->avatar_hash,
         ];
     }
 }

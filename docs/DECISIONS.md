@@ -543,5 +543,7 @@ SHA-256 in `players.avatar_hash`. Every cabinet reads it with
 `GET /players/{id}/avatar` (`scores:read`), for public and active players
 only, the hash as ETag (`304` when unchanged); leaderboard entries carry
 the same hash as `player.avatar`, so a cabinet only downloads an avatar it
-does not have yet. No avatar: `404 avatar_not_found`. A change is recorded
+does not have yet. `GET /players` gives the hash of each of the cabinet's
+players too: the cabinet sends its PNG again when its own differs, which
+covers creation and every change. No avatar: `404 avatar_not_found`. A change is recorded
 as `player.avatar_changed` with the cabinet as causer.
