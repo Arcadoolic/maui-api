@@ -481,3 +481,11 @@ reading recorded as `player.pin_viewed`, never the PIN) and "New PIN"
 causer), both shown once in a modal, as for client secrets (D34). Comparing
 a PIN uses `hash_equals`. Losing `APP_KEY` loses the PINs, as the rest of
 the encrypted data: players then get a new PIN from their cabinet.
+
+**D51: No new player with the same letter three times.** (2026-10-02, Lot 2.2)
+`POST /players` refuses initials made of one letter three times (AAA,
+ZZZ...) with `422`, and MAUI refuses them too, in the BO and on the
+cabinet. Requested by the project owner. The players who already have such
+initials keep them: `GET /players/availability` and `POST /players/link`
+still accept them, so they can be linked with their PIN. Rule in
+`App\Support\Pseudo3::newPlayerRules()`, same as MAUI's `newPseudo3Error()`.
