@@ -6,6 +6,7 @@ use Database\Factories\GameFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Carbon;
 
 /**
@@ -62,6 +63,12 @@ class Game extends Model
     public function catverCategory(): BelongsTo
     {
         return $this->belongsTo(Category::class, 'catver_category_id');
+    }
+
+    /** @return HasMany<Score, $this> */
+    public function scores(): HasMany
+    {
+        return $this->hasMany(Score::class);
     }
 
     public function isCatalogued(): bool
