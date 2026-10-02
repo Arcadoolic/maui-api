@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Support\Carbon;
 use Spatie\Activitylog\Models\Activity;
@@ -70,6 +71,12 @@ class Player extends Model
     public function clients(): BelongsToMany
     {
         return $this->belongsToMany(Client::class)->withPivot('linked_at');
+    }
+
+    /** @return HasMany<Score, $this> */
+    public function scores(): HasMany
+    {
+        return $this->hasMany(Score::class);
     }
 
     /**

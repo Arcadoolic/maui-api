@@ -4,7 +4,7 @@ Current state of the delivery plan. For the plan itself, see `docs/PLAN.md`.
 For why things are done this way, see `docs/DECISIONS.md`.
 
 **Repository:** `git@github.com:Arcadoolic/maui-api.git` (public), git-flow: `develop` (default) and `main`.
-**Last updated:** 2026-10-02, Lot 2.3 scores intake in progress (D50); 2.2 players merged (D48, D49); 2.1 catalog merged (D47).
+**Last updated:** 2026-10-02, Lot 2.4 leaderboards in progress (D52); 2.3 scores merged (D50); 2.2 players merged (D48, D49); 2.1 catalog merged (D47).
 
 ## Status: Lot 0 done (staging deployed, production pending), Lot 1 done, Lot 2 in progress.
 
@@ -18,7 +18,7 @@ For why things are done this way, see `docs/DECISIONS.md`.
 
 ## Done
 
-- Delivery plan (`docs/PLAN.md`), decisions D1 to D51 (`docs/DECISIONS.md`).
+- Delivery plan (`docs/PLAN.md`), decisions D1 to D52 (`docs/DECISIONS.md`).
 - Lot 1 OpenAPI 3.1 contract (`docs/openapi.yaml`).
 - Lot 0 skeleton:
   - Docker: FrankenPHP + PHP 8.4 image (`Dockerfile`, `docker/`), Compose
@@ -32,6 +32,17 @@ For why things are done this way, see `docs/DECISIONS.md`.
     push.
 - Releases by semantic-release on every push to `main` (D44): 0.1.0
   published on 2026-09-25.
+
+## Lot 2.4: leaderboards (in progress, D52)
+
+- `GET /leaderboards/{romname}`, `GET /leaderboards?romnames=...` (100 at
+  most), `GET /players/{id}/bests` (`scores:read`): best visible score of
+  each player, top 9; hidden scores, private or disabled players and
+  disabled cabinets left out. ETag and `304` on these answers.
+- Filament: leaderboard on the game page, "with scores" filter on the
+  games, latest scores on the dashboard.
+- Next: player avatars (`PUT`/`GET /players/{id}/avatar`), then the MAUI
+  side (leaderboards shown in ONLINE mode, cache, avatars).
 
 ## Lot 2.3: scores (in progress, D50)
 

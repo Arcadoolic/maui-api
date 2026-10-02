@@ -1,6 +1,7 @@
 <?php
 
 use App\Filament\Resources\Scores\Pages\ListScores;
+use App\Filament\Widgets\LatestScores;
 use App\Models\Score;
 use App\Models\User;
 use Spatie\Activitylog\Models\Activity;
@@ -41,4 +42,10 @@ it('hides a score and shows it again, with the admin in the audit log', function
 
     $events = Activity::query()->whereMorphedTo('subject', $score)->where('causer_id', $this->admin->id)->pluck('event')->all();
     expect($events)->toBe(['score.hidden', 'score.shown']);
+});
+
+it('lists the latest scores on the dashboard', function () {
+    $scores = Score::factory()->count(2)->create();
+
+    livewire(LatestScores::class)->assertCanSeeTableRecords($scores);
 });

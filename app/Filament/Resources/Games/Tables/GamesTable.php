@@ -57,6 +57,12 @@ class GamesTable
                 SelectFilter::make('player_alt')
                     ->label(__('Alternating players'))
                     ->options(fn (): array => self::playerOptions('player_alt')),
+                TernaryFilter::make('scores')
+                    ->label(__('With scores'))
+                    ->queries(
+                        true: fn (Builder $query) => $query->whereHas('scores'),
+                        false: fn (Builder $query) => $query->whereDoesntHave('scores'),
+                    ),
                 TernaryFilter::make('catalogued')
                     ->label(__('Catalogued'))
                     ->nullable()

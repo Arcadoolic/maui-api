@@ -3,6 +3,7 @@
 use App\Http\Middleware\AuthenticateCabinet;
 use App\Http\Middleware\AuthenticateService;
 use App\Http\Middleware\AuthorizeRepositoryAccess;
+use App\Http\Middleware\EtagResponses;
 use App\Http\Middleware\SecureInvitationPages;
 use App\Http\Problems\ApiProblemException;
 use App\Http\Problems\ApiProblemRenderer;
@@ -23,6 +24,7 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->alias([
             'cabinet' => AuthenticateCabinet::class,
+            'etag' => EtagResponses::class,
             'repository' => AuthorizeRepositoryAccess::class,
             'service' => AuthenticateService::class,
         ]);

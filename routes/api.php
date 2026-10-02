@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Api\CatalogGamesController;
 use App\Http\Controllers\Api\HeartbeatController;
+use App\Http\Controllers\Api\LeaderboardsController;
 use App\Http\Controllers\Api\PingController;
 use App\Http\Controllers\Api\PlayersController;
 use App\Http\Controllers\Api\RepositoryAuthorizeController;
@@ -33,6 +34,13 @@ Route::middleware(['throttle:cabinet', 'cabinet:players'])->group(function () {
 // Scores of the cabinet's players: personal bests only (docs/DECISIONS.md D50).
 Route::middleware(['throttle:cabinet', 'cabinet:scores:write'])->group(function () {
     Route::post('scores', [ScoresController::class, 'store']);
+});
+
+// Shared leaderboards, with an ETag (docs/DECISIONS.md D52).
+Route::middleware(['throttle:cabinet', 'cabinet:scores:read', 'etag'])->group(function () {
+    Route::get('leaderboards', [LeaderboardsController::class, 'index']);
+    Route::get('leaderboards/{romname}', [LeaderboardsController::class, 'show']);
+    Route::get('players/{player}/bests', [LeaderboardsController::class, 'bests']);
 });
 
 // Starting-pack repository (docs/DECISIONS.md D46). The URL is looked up once
