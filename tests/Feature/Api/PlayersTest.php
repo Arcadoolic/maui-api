@@ -1,23 +1,9 @@
 <?php
 
-use App\Models\Client;
 use App\Models\Player;
 use Illuminate\Support\Facades\DB;
 
 // Global players, linked to cabinets with a PIN (docs/DECISIONS.md D48).
-
-/**
- * Creates a player linked to a cabinet, with a known PIN.
- *
- * @param  array<string, mixed>  $attributes
- */
-function linkedPlayer(Client $client, array $attributes = [], string $pin = '1234'): Player
-{
-    $player = Player::factory()->create([...$attributes, 'pin' => $pin]);
-    $player->clients()->attach($client, ['linked_at' => now()]);
-
-    return $player;
-}
 
 describe('availability', function () {
     it('tells free, taken and disabled initials apart', function () {

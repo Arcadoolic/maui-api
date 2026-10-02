@@ -6,6 +6,7 @@ use App\Http\Controllers\Api\PingController;
 use App\Http\Controllers\Api\PlayersController;
 use App\Http\Controllers\Api\RepositoryAuthorizeController;
 use App\Http\Controllers\Api\RepositoryController;
+use App\Http\Controllers\Api\ScoresController;
 use App\Http\Controllers\Api\StartupController;
 use Illuminate\Support\Facades\Route;
 
@@ -27,6 +28,11 @@ Route::middleware(['throttle:cabinet', 'cabinet:players'])->group(function () {
     Route::patch('players/{player}', [PlayersController::class, 'update']);
     Route::post('players/{player}/pin', [PlayersController::class, 'regeneratePin']);
     Route::delete('players/{player}/link', [PlayersController::class, 'unlink']);
+});
+
+// Scores of the cabinet's players: personal bests only (docs/DECISIONS.md D50).
+Route::middleware(['throttle:cabinet', 'cabinet:scores:write'])->group(function () {
+    Route::post('scores', [ScoresController::class, 'store']);
 });
 
 // Starting-pack repository (docs/DECISIONS.md D46). The URL is looked up once

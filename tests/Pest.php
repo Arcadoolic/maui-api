@@ -2,6 +2,7 @@
 
 use App\Enums\InvitationPurpose;
 use App\Models\Client;
+use App\Models\Player;
 use App\Services\ClientTokenIssuer;
 use App\Services\Invitations\InvitationIssuer;
 use App\Services\Invitations\IssuedInvitation;
@@ -83,4 +84,17 @@ function configurationStringFrom(TestResponse $response): string
     preg_match('/MAUI1\.[A-Za-z0-9_-]+/', $response->getContent(), $matches);
 
     return $matches[0] ?? '';
+}
+
+/**
+ * Creates a player linked to a cabinet, with a known PIN.
+ *
+ * @param  array<string, mixed>  $attributes
+ */
+function linkedPlayer(Client $client, array $attributes = [], string $pin = '1234'): Player
+{
+    $player = Player::factory()->create([...$attributes, 'pin' => $pin]);
+    $player->clients()->attach($client, ['linked_at' => now()]);
+
+    return $player;
 }

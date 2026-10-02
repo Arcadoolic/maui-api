@@ -482,6 +482,30 @@ causer), both shown once in a modal, as for client secrets (D34). Comparing
 a PIN uses `hash_equals`. Losing `APP_KEY` loses the PINs, as the rest of
 the encrypted data: players then get a new PIN from their cabinet.
 
+**D50: Scores: personal bests only, one outcome per score.** (2026-10-02, Lot 2.3)
+`POST /scores` takes batches of up to 100 scores from a cabinet (ability
+`scores:write`, already in the cabinet tokens). Only personal bests are
+stored: a score not above the player's best on the game and table (hidden
+scores aside) is answered `not_improved` and dropped, which keeps `scores`
+small and makes a leaderboard a plain "best per player". Each score gets
+its own outcome (`accepted`, `not_improved`, `rejected` with a `code`), so
+that one bad score never blocks a cabinet's outbox; a malformed batch is
+still refused as a whole (`422`). The cabinet-generated `id` is the
+idempotency key: a resend answers `accepted` again, the same `id` from
+another cabinet or player `id_conflict`. Each answer carries the player's
+`best`, which the cabinet caches to send only what beats it. A score locks
+its player row for the check and the insert, so two cabinets cannot both
+store a "best". Rejected: players not linked to the cabinet
+(`player_not_found`) and disabled players. Accepted: private players (kept
+out of the shared leaderboards, back if they become public, D48) and
+PIN-locked ones (the lock only blocks linking). An unknown `romname`
+creates a bare game (D47); a `startup_id` of another cabinet is ignored
+(D6). No `cheats` flag: anti-cheat comes in the last lot. Moderation in
+Filament: hide a score, or show it again, recorded in the audit log
+(`score.hidden`, `score.shown`); a hidden score no longer counts as the
+best. Scores of disabled players or cabinets are left as they are and
+filtered out of the leaderboards (Lot 2.4).
+
 **D51: No new player with the same letter three times.** (2026-10-02, Lot 2.2)
 `POST /players` refuses initials made of one letter three times (AAA,
 ZZZ...) with `422`, and MAUI refuses them too, in the BO and on the
