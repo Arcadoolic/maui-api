@@ -4,7 +4,7 @@ Current state of the delivery plan. For the plan itself, see `docs/PLAN.md`.
 For why things are done this way, see `docs/DECISIONS.md`.
 
 **Repository:** `git@github.com:Arcadoolic/maui-api.git` (public), git-flow: `develop` (default) and `main`.
-**Last updated:** 2026-10-02, Lot 2.2 players merged (API and MAUI, D48, D49); 2.1 catalog merged (D47).
+**Last updated:** 2026-10-02, Lot 2.3 scores intake in progress (D50); 2.2 players merged (D48, D49); 2.1 catalog merged (D47).
 
 ## Status: Lot 0 done (staging deployed, production pending), Lot 1 done, Lot 2 in progress.
 
@@ -12,7 +12,7 @@ For why things are done this way, see `docs/DECISIONS.md`.
 |-----|------|--------|
 | 0 | Foundation: Docker Compose, Laravel 13 skeleton, CI | **Done**; staging deployed (D40, `docs/DEPLOYMENT.md`), production hosting undecided |
 | 1 | MAUI authentication, machine binding, telemetry, Filament BO | **Done**: API (PR #1 to #4, follow-ups #9, #11), MAUI slices 1 to 5 (`Arcadoolic/maui` PRs #88, #92, #93, #96, #97), end-to-end checked, see `docs/MAUI-INTEGRATION.md` |
-| 2 | Hiscores: catalog, players, scores, leaderboards | **In progress**: 2.1 catalog and 2.2 players merged (not on staging yet), 2.3 scores next |
+| 2 | Hiscores: catalog, players, scores, leaderboards | **In progress**: 2.1 catalog and 2.2 players merged (not on staging yet), 2.3 scores in progress |
 | 3 | Hiscores front end | Not started |
 | Last | Anti-cheat | Not started, after Lot 3 |
 
@@ -33,6 +33,17 @@ For why things are done this way, see `docs/DECISIONS.md`.
 - Releases by semantic-release on every push to `main` (D44): 0.1.0
   published on 2026-09-25.
 
+## Lot 2.3: scores (in progress, D50)
+
+- `scores` table (cabinet-generated `uuid`, player, game, cabinet, nullable
+  startup, table, score, rank on the cabinet, hidden), `Score` model.
+- `POST /api/v1/scores` (batches of 100, personal bests only, one outcome
+  per score, idempotent by `id`), in `docs/openapi.yaml`.
+- Filament: Scores resource (filters by game, player, cabinet, hidden;
+  hide and show again, in the audit log).
+- MAUI side next: score capture during the game (`PlaySession`), outbox
+  flushed with the heartbeats.
+
 ## Lot 2.2: players (merged, D48, D49)
 
 - `players` (public `uuid`, `pseudo_3`, `is_public`, status, PIN hash and
@@ -52,9 +63,10 @@ For why things are done this way, see `docs/DECISIONS.md`.
   receive them.
 - Checked on Bazzite against the local API: player sync, registration
   from the cabinet (after the renderer `fetch` fix) and from the BO, Go
-  ONLINE for players created locally. Not checked by hand yet (unit and
-  feature tests only): the reconciliation refusal, score attribution,
-  Filament "Show PIN".
+  ONLINE for players created locally, the reconciliation refusal and
+  Filament "Show PIN" (2026-10-02). Left: score attribution by hand, and
+  the cases that need two cabinets (taken initials, wrong PIN, lock), on
+  staging.
 - Merged on 2026-10-02: API PR #29, MAUI PR #122. Not on staging yet.
 
 ## Lot 2.1: catalog (merged, D47)

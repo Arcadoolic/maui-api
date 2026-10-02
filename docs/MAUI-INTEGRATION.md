@@ -55,6 +55,23 @@ D48. What the MAUI side has to do:
 Done on the MAUI side in `Arcadoolic/maui` branch `feat/online-players`
 (see its `docs/DECISIONS.md`, section "ONLINE mode (MAUI-API)").
 
+## 1 ter. Lot 2.3: scores
+
+Contract in `docs/openapi.yaml` (tag Scores), rules in `docs/DECISIONS.md`
+D50. What the MAUI side has to do:
+
+- Send only the new scores of a game just played, for players linked to
+  MAUI-API and not disabled: never the startup scan.
+- Generate the `id` (UUID) when the score is recorded, and keep it in the
+  outbox until an answer: resending it is safe.
+- Send `startup_id` when the run had a startup report.
+- For each result: `accepted` and `not_improved` leave the outbox and
+  update the cached `best` of the player on this game and table;
+  `rejected` leaves it too (log the `code`). Network errors, `429` and
+  `5xx` keep the batch for the next try.
+- Send only what beats the cached `best`: the API answers `not_improved`
+  otherwise.
+
 ## 2. The API in one page
 
 Base URL: the `url` field of the configuration string + `/api/v1`.
