@@ -337,7 +337,8 @@ paths:
         cabinet (D4: synchronous, no player without the API in ONLINE mode).
         The PIN is returned once, in plain text: show it to the player, never
         store it on the cabinet (admins can read it in the back office, D49).
-        Players are private unless `is_public` is true.
+        Players are private unless `is_public` is true. Initials made of
+        one letter three times (AAA, ZZZ...) are refused with `422` (D51).
       requestBody:
         required: true
         content:

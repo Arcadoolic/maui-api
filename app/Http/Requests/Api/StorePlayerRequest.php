@@ -13,7 +13,7 @@ final class StorePlayerRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'pseudo_3' => Pseudo3::rules(),
+            'pseudo_3' => Pseudo3::newPlayerRules(),
             'is_public' => ['sometimes', 'boolean'],
         ];
     }

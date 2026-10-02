@@ -68,6 +68,25 @@ describe('creation', function () {
             ->assertJsonPath('player.is_public', false);
     });
 
+    it('refuses the same letter three times for a new player', function (string $pseudo3) {
+        [$client, $token] = cabinetWithToken();
+
+        $this->postJson('/api/v1/players', ['pseudo_3' => $pseudo3], cabinetHeaders($client, $token))
+            ->assertUnprocessable()
+            ->assertJsonStructure(['errors' => ['pseudo_3']]);
+
+        expect(Player::query()->count())->toBe(0);
+    })->with(['AAA', 'ZZZ']);
+
+    it('still links an existing player with the same letter three times', function () {
+        [$client, $token] = cabinetWithToken();
+        Player::factory()->create(['pseudo_3' => 'AAA', 'pin' => '1234']);
+
+        $this->postJson('/api/v1/players/link', ['pseudo_3' => 'AAA', 'pin' => '1234'], cabinetHeaders($client, $token))
+            ->assertOk()
+            ->assertJsonPath('player.pseudo_3', 'AAA');
+    });
+
     it('refuses initials already taken', function () {
         [$client, $token] = cabinetWithToken();
         Player::factory()->create(['pseudo_3' => 'ACE']);
