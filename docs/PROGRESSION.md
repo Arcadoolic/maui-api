@@ -18,7 +18,7 @@ For why things are done this way, see `docs/DECISIONS.md`.
 
 ## Done
 
-- Delivery plan (`docs/PLAN.md`), decisions D1 to D52 (`docs/DECISIONS.md`).
+- Delivery plan (`docs/PLAN.md`), decisions D1 to D53 (`docs/DECISIONS.md`).
 - Lot 1 OpenAPI 3.1 contract (`docs/openapi.yaml`).
 - Lot 0 skeleton:
   - Docker: FrankenPHP + PHP 8.4 image (`Dockerfile`, `docker/`), Compose
@@ -41,8 +41,10 @@ For why things are done this way, see `docs/DECISIONS.md`.
   disabled cabinets left out. ETag and `304` on these answers.
 - Filament: leaderboard on the game page, "with scores" filter on the
   games, latest scores on the dashboard.
-- Next: player avatars (`PUT`/`GET /players/{id}/avatar`), then the MAUI
-  side (leaderboards shown in ONLINE mode, cache, avatars).
+- Player avatars (D53): `POST /players/{id}/avatar` (PNG checked, 256 KB,
+  1024 px), `GET /players/{id}/avatar` with the PNG's hash as ETag, the
+  same hash in leaderboard entries.
+- Next: the MAUI side (leaderboards shown in ONLINE mode, cache, avatars).
 
 ## Lot 2.3: scores (in progress, D50)
 

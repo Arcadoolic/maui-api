@@ -25,6 +25,7 @@ use Spatie\Activitylog\Models\Activity;
  * @property string $pin 4 digits, encrypted at rest (D49).
  * @property int $pin_failed_attempts
  * @property Carbon|null $pin_locked_at
+ * @property string|null $avatar_hash SHA-256 of the avatar PNG, null without one (D53).
  * @property Carbon $created_at
  * @property Carbon $updated_at
  */

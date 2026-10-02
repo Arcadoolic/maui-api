@@ -95,7 +95,12 @@ final class Leaderboards
     {
         $entries = $game === null ? [] : array_values($this->top($game, $table)->values()->map(fn (Score $score, int $index): array => [
             'rank' => $index + 1,
-            'player' => ['id' => $score->player->uuid, 'pseudo_3' => $score->player->pseudo_3],
+            'player' => [
+                'id' => $score->player->uuid,
+                'pseudo_3' => $score->player->pseudo_3,
+                // Hash of the avatar (D53): download it again only when it changes.
+                'avatar' => $score->player->avatar_hash,
+            ],
             'score' => $score->score,
             'achieved_at' => $score->achieved_at->toIso8601String(),
             'cabinet' => $score->client->name,

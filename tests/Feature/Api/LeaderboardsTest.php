@@ -46,9 +46,9 @@ describe('one game', function () {
                 'romname' => 'dkong',
                 'table' => 'default',
                 'entries' => [
-                    ['rank' => 1, 'player' => ['id' => $nob->uuid, 'pseudo_3' => 'NOB'], 'score' => 19_200,
+                    ['rank' => 1, 'player' => ['id' => $nob->uuid, 'pseudo_3' => 'NOB', 'avatar' => null], 'score' => 19_200,
                         'achieved_at' => '2026-10-01T10:00:00+00:00', 'cabinet' => 'blue_cabinet'],
-                    ['rank' => 2, 'player' => ['id' => $ski->uuid, 'pseudo_3' => 'SKI'], 'score' => 15_000,
+                    ['rank' => 2, 'player' => ['id' => $ski->uuid, 'pseudo_3' => 'SKI', 'avatar' => null], 'score' => 15_000,
                         'achieved_at' => $ski->scores()->sole()->achieved_at->toIso8601String(), 'cabinet' => 'blue_cabinet'],
                 ],
             ]);

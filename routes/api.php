@@ -29,6 +29,7 @@ Route::middleware(['throttle:cabinet', 'cabinet:players'])->group(function () {
     Route::patch('players/{player}', [PlayersController::class, 'update']);
     Route::post('players/{player}/pin', [PlayersController::class, 'regeneratePin']);
     Route::delete('players/{player}/link', [PlayersController::class, 'unlink']);
+    Route::post('players/{player}/avatar', [PlayersController::class, 'storeAvatar']);
 });
 
 // Scores of the cabinet's players: personal bests only (docs/DECISIONS.md D50).
@@ -41,6 +42,11 @@ Route::middleware(['throttle:cabinet', 'cabinet:scores:read', 'etag'])->group(fu
     Route::get('leaderboards', [LeaderboardsController::class, 'index']);
     Route::get('leaderboards/{romname}', [LeaderboardsController::class, 'show']);
     Route::get('players/{player}/bests', [LeaderboardsController::class, 'bests']);
+});
+
+// Avatars carry their own ETag, the hash of the PNG (docs/DECISIONS.md D53).
+Route::middleware(['throttle:cabinet', 'cabinet:scores:read'])->group(function () {
+    Route::get('players/{player}/avatar', [LeaderboardsController::class, 'avatar']);
 });
 
 // Starting-pack repository (docs/DECISIONS.md D46). The URL is looked up once

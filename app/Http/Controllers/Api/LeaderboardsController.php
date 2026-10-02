@@ -7,9 +7,12 @@ use App\Models\Game;
 use App\Models\Player;
 use App\Models\Score;
 use App\Services\Leaderboards\Leaderboards;
+use App\Services\Players\PlayerAvatars;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use Symfony\Component\HttpFoundation\Response;
 
 /** Shared leaderboards, for the cabinets (docs/DECISIONS.md D52). */
 final class LeaderboardsController
@@ -54,12 +57,7 @@ final class LeaderboardsController
     /** Any public and active player: what the shared leaderboards show of it. */
     public function bests(string $player): JsonResponse
     {
-        $found = Str::isUuid($player)
-            ? Player::query()->where('uuid', $player)->where('is_public', true)->first()
-            : null;
-        if ($found === null || ! $found->isActive()) {
-            throw ApiProblemException::playerNotFound();
-        }
+        $found = $this->shownPlayer($player);
 
         return new JsonResponse([
             'player' => ['id' => $found->uuid, 'pseudo_3' => $found->pseudo_3],
@@ -70,5 +68,36 @@ final class LeaderboardsController
                 'achieved_at' => $score->achieved_at->toIso8601String(),
             ])->all(),
         ]);
+    }
+
+    /** The PNG of a public and active player, with its hash as ETag (D53). */
+    public function avatar(Request $request, string $player): Response
+    {
+        $found = $this->shownPlayer($player);
+        if (! PlayerAvatars::exists($found)) {
+            throw ApiProblemException::avatarNotFound();
+        }
+
+        $response = Storage::disk(PlayerAvatars::DISK)->response(PlayerAvatars::path($found), null, [
+            'Content-Type' => 'image/png',
+            'Cache-Control' => 'private, no-cache',
+        ]);
+        $response->setEtag((string) $found->avatar_hash);
+        $response->isNotModified($request);
+
+        return $response;
+    }
+
+    /** Players the shared leaderboards show: public and active. */
+    private function shownPlayer(string $id): Player
+    {
+        $found = Str::isUuid($id)
+            ? Player::query()->where('uuid', $id)->where('is_public', true)->first()
+            : null;
+        if ($found === null || ! $found->isActive()) {
+            throw ApiProblemException::playerNotFound();
+        }
+
+        return $found;
     }
 }

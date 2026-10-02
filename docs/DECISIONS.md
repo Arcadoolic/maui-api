@@ -531,3 +531,17 @@ These GET answers carry an ETag (`Cache-Control: private, no-cache`): a
 cabinet sends `If-None-Match` and gets `304` with no body when nothing
 changed. Filament: the leaderboard on the game page, a "with scores"
 filter on the games, and the latest scores on the dashboard.
+
+**D53: Player avatars: PNG on disk, hash as ETag.** (2026-10-02, Lot 2.4)
+A cabinet of the player sends its avatar when it is created or changed:
+`POST /players/{id}/avatar` (ability `players`, multipart field `avatar`),
+not `PUT`, which PHP does not parse as multipart. A real PNG only (content
+checked, not the name), 256 KB and 1024 px at most. Sent as a file rather
+than base64: no 33 % overhead, and HTTP caching works. Stored on the
+`local` disk, `avatars/<uuid>.png` (the `storage` volume on staging), its
+SHA-256 in `players.avatar_hash`. Every cabinet reads it with
+`GET /players/{id}/avatar` (`scores:read`), for public and active players
+only, the hash as ETag (`304` when unchanged); leaderboard entries carry
+the same hash as `player.avatar`, so a cabinet only downloads an avatar it
+does not have yet. No avatar: `404 avatar_not_found`. A change is recorded
+as `player.avatar_changed` with the cabinet as causer.

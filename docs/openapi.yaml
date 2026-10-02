@@ -737,6 +737,100 @@ paths:
         '500':
           $ref: '#/components/responses/ServerError'
 
+  /players/{playerId}/avatar:
+    parameters:
+      - $ref: '#/components/parameters/PlayerId'
+    post:
+      tags: [Players]
+      operationId: storePlayerAvatar
+      summary: Set the avatar of a player
+      description: |
+        A player linked to this cabinet. A PNG (the content is checked), 256
+        KB and 1024 x 1024 px at most, as multipart field `avatar` (D53).
+        Replaces the previous one.
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [avatar]
+              properties:
+                avatar:
+                  type: string
+                  format: binary
+      responses:
+        '200':
+          description: Avatar stored.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [player, avatar]
+                additionalProperties: false
+                properties:
+                  player:
+                    $ref: '#/components/schemas/Player'
+                  avatar:
+                    type: string
+                    description: SHA-256 of the PNG, as in leaderboard entries.
+        '400':
+          $ref: '#/components/responses/MachineFingerprintMissing'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/PlayerNotFound'
+        '409':
+          $ref: '#/components/responses/MachineMismatch'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/ServerError'
+    get:
+      tags: [Leaderboards]
+      operationId: getPlayerAvatar
+      summary: Avatar of a player
+      description: |
+        The PNG of a public and active player, of any cabinet. The ETag is
+        the SHA-256 of the PNG, as in leaderboard entries (`player.avatar`).
+      parameters:
+        - $ref: '#/components/parameters/IfNoneMatch'
+      responses:
+        '200':
+          description: The PNG.
+          headers:
+            ETag:
+              $ref: '#/components/headers/ETag'
+          content:
+            image/png:
+              schema:
+                type: string
+                format: binary
+        '304':
+          description: Unchanged since the ETag sent in `If-None-Match`.
+        '400':
+          $ref: '#/components/responses/MachineFingerprintMissing'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          description: '`player_not_found` (private, disabled or unknown) or `avatar_not_found`.'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '409':
+          $ref: '#/components/responses/MachineMismatch'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
   /catalog/games:
     put:
       tags: [Catalog]
@@ -1346,6 +1440,9 @@ components:
               format: uuid
             pseudo_3:
               type: string
+            avatar:
+              type: [string, 'null']
+              description: SHA-256 of the player's avatar (D53), null without one.
         score:
           type: integer
           format: int64
@@ -1375,7 +1472,7 @@ components:
         table: default
         entries:
           - rank: 1
-            player: {id: 01a0f983-4470-72c9-be2a-81655c62a811, pseudo_3: NOB}
+            player: {id: 01a0f983-4470-72c9-be2a-81655c62a811, pseudo_3: NOB, avatar: null}
             score: 19200
             achieved_at: '2026-10-01T10:00:00+00:00'
             cabinet: supersonic_sub_zero
