@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Support\Carbon;
 use Spatie\Activitylog\Models\Activity;
@@ -24,6 +25,7 @@ use Spatie\Activitylog\Models\Activity;
  * @property string $pin 4 digits, encrypted at rest (D49).
  * @property int $pin_failed_attempts
  * @property Carbon|null $pin_locked_at
+ * @property string|null $avatar_hash SHA-256 of the avatar PNG, null without one (D53).
  * @property Carbon $created_at
  * @property Carbon $updated_at
  */
@@ -70,6 +72,12 @@ class Player extends Model
     public function clients(): BelongsToMany
     {
         return $this->belongsToMany(Client::class)->withPivot('linked_at');
+    }
+
+    /** @return HasMany<Score, $this> */
+    public function scores(): HasMany
+    {
+        return $this->hasMany(Score::class);
     }
 
     /**
@@ -138,7 +146,7 @@ class Player extends Model
         };
     }
 
-    /** @return array{id: string, pseudo_3: string, is_public: bool, status: string} */
+    /** @return array{id: string, pseudo_3: string, is_public: bool, status: string, avatar: string|null} */
     public function toApiArray(): array
     {
         return [
@@ -146,6 +154,8 @@ class Player extends Model
             'pseudo_3' => $this->pseudo_3,
             'is_public' => $this->is_public,
             'status' => $this->apiStatus(),
+            // SHA-256 of the avatar (D53): the cabinet sends its PNG again when it differs.
+            'avatar' => $this->avatar_hash,
         ];
     }
 }

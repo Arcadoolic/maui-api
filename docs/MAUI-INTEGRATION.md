@@ -72,6 +72,22 @@ D50. What the MAUI side has to do:
 - Send only what beats the cached `best`: the API answers `not_improved`
   otherwise.
 
+## 1 quater. Lot 2.4: leaderboards
+
+Contract in `docs/openapi.yaml` (tag Leaderboards), rules in
+`docs/DECISIONS.md` D52. What the MAUI side has to do:
+
+- In ONLINE mode, show the API's leaderboards instead of the local ones
+  (hiscores table, champions podium); LOCAL mode does not change.
+- Refresh them with `GET /leaderboards?romnames=...` (100 per call), with
+  `If-None-Match`: `304` means the cached copy is still right. Keep a copy
+  for when the API cannot be reached.
+- Refresh a game's leaderboard after its scores were sent.
+- Avatars (D53): send a player's PNG with `POST /players/{id}/avatar` when
+  it is created or changed. For the players of the leaderboards, download
+  `GET /players/{id}/avatar` only when `player.avatar` (its hash) differs
+  from the cached one.
+
 ## 2. The API in one page
 
 Base URL: the `url` field of the configuration string + `/api/v1`.

@@ -190,9 +190,9 @@ describe('players of the cabinet', function () {
         $this->getJson('/api/v1/players', cabinetHeaders($client, $token))
             ->assertOk()
             ->assertExactJson(['players' => [
-                ['id' => $mine->uuid, 'pseudo_3' => 'ACE', 'is_public' => true, 'status' => 'active'],
-                ['id' => $disabled->uuid, 'pseudo_3' => 'BAD', 'is_public' => false, 'status' => 'disabled'],
-                ['id' => $locked->uuid, 'pseudo_3' => 'LCK', 'is_public' => false, 'status' => 'locked'],
+                ['id' => $mine->uuid, 'pseudo_3' => 'ACE', 'is_public' => true, 'status' => 'active', 'avatar' => null],
+                ['id' => $disabled->uuid, 'pseudo_3' => 'BAD', 'is_public' => false, 'status' => 'disabled', 'avatar' => null],
+                ['id' => $locked->uuid, 'pseudo_3' => 'LCK', 'is_public' => false, 'status' => 'locked', 'avatar' => null],
             ]]);
     });
 

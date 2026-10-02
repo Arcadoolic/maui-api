@@ -513,3 +513,37 @@ cabinet. Requested by the project owner. The players who already have such
 initials keep them: `GET /players/availability` and `POST /players/link`
 still accept them, so they can be linked with their PIN. Rule in
 `App\Support\Pseudo3::newPlayerRules()`, same as MAUI's `newPseudo3Error()`.
+
+**D52: Leaderboards: best per player, visible scores only, ETag.** (2026-10-02, Lot 2.4)
+A leaderboard is the best score of each player on a game and table
+(`DISTINCT ON (player_id)`), best first, the earliest first at equal
+scores, top 9 (what a cabinet's hiscore screen shows). Only visible scores
+count: not hidden, of a public and active player, sent by an active
+cabinet. Nothing is deleted or rewritten: a private, disabled or banned
+player's scores come back when that is lifted (D48). Cabinets read them
+with `scores:read`: `GET /leaderboards/{romname}`, and
+`GET /leaderboards?romnames=a,b,...` (100 at most) since a cabinet
+refreshes the leaderboards of all its games, a few hundred. An unknown game
+answers an empty leaderboard, not `404`: the cabinet does not need to know
+which games have scores. `GET /players/{id}/bests` lists the visible best of
+a public and active player on each game (`404 player_not_found` otherwise).
+These GET answers carry an ETag (`Cache-Control: private, no-cache`): a
+cabinet sends `If-None-Match` and gets `304` with no body when nothing
+changed. Filament: the leaderboard on the game page, a "with scores"
+filter on the games, and the latest scores on the dashboard.
+
+**D53: Player avatars: PNG on disk, hash as ETag.** (2026-10-02, Lot 2.4)
+A cabinet of the player sends its avatar when it is created or changed:
+`POST /players/{id}/avatar` (ability `players`, multipart field `avatar`),
+not `PUT`, which PHP does not parse as multipart. A real PNG only (content
+checked, not the name), 256 KB and 1024 px at most. Sent as a file rather
+than base64: no 33 % overhead, and HTTP caching works. Stored on the
+`local` disk, `avatars/<uuid>.png` (the `storage` volume on staging), its
+SHA-256 in `players.avatar_hash`. Every cabinet reads it with
+`GET /players/{id}/avatar` (`scores:read`), for public and active players
+only, the hash as ETag (`304` when unchanged); leaderboard entries carry
+the same hash as `player.avatar`, so a cabinet only downloads an avatar it
+does not have yet. `GET /players` gives the hash of each of the cabinet's
+players too: the cabinet sends its PNG again when its own differs, which
+covers creation and every change. No avatar: `404 avatar_not_found`. A change is recorded
+as `player.avatar_changed` with the cabinet as causer.

@@ -107,6 +107,11 @@ tags:
     description: |
       Scores of the cabinet's players, personal bests only (D50). Requires
       the `scores:write` ability.
+  - name: Leaderboards
+    description: |
+      Shared leaderboards (D52): the best visible score of each player.
+      Requires the `scores:read` ability. Answers carry an ETag: send
+      `If-None-Match` to get `304` when nothing changed.
   - name: Catalog
     description: |
       Game catalog fed by service accounts (maui-repository's `push-catalog`).
@@ -602,6 +607,230 @@ paths:
         '500':
           $ref: '#/components/responses/ServerError'
 
+  /leaderboards:
+    get:
+      tags: [Leaderboards]
+      operationId: getLeaderboards
+      summary: Leaderboards of several games
+      description: |
+        The leaderboards of up to 100 games, sorted by `romname`, duplicates
+        removed. A game without visible scores, or unknown, has no entries.
+      parameters:
+        - name: romnames
+          in: query
+          required: true
+          description: Comma-separated MAME short names, 100 at most.
+          schema:
+            type: string
+          example: dkong,galaga
+        - $ref: '#/components/parameters/ScoreTable'
+        - $ref: '#/components/parameters/IfNoneMatch'
+      responses:
+        '200':
+          description: One leaderboard per game.
+          headers:
+            ETag:
+              $ref: '#/components/headers/ETag'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LeaderboardListResponse'
+        '304':
+          description: Unchanged since the ETag sent in `If-None-Match`.
+        '400':
+          $ref: '#/components/responses/MachineFingerprintMissing'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/MachineMismatch'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /leaderboards/{romname}:
+    parameters:
+      - name: romname
+        in: path
+        required: true
+        schema:
+          type: string
+          pattern: '^[a-z0-9_]{1,32}$'
+    get:
+      tags: [Leaderboards]
+      operationId: getLeaderboard
+      summary: Leaderboard of a game
+      description: |
+        The best visible score of each player on the game and table, best
+        first (the earliest first at equal scores), top 9. Visible: not
+        hidden, of a public and active player, sent by an active cabinet.
+        An unknown game answers an empty leaderboard.
+      parameters:
+        - $ref: '#/components/parameters/ScoreTable'
+        - $ref: '#/components/parameters/IfNoneMatch'
+      responses:
+        '200':
+          description: The leaderboard.
+          headers:
+            ETag:
+              $ref: '#/components/headers/ETag'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Leaderboard'
+        '304':
+          description: Unchanged since the ETag sent in `If-None-Match`.
+        '400':
+          $ref: '#/components/responses/MachineFingerprintMissing'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/MachineMismatch'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /players/{playerId}/bests:
+    parameters:
+      - $ref: '#/components/parameters/PlayerId'
+    get:
+      tags: [Leaderboards]
+      operationId: getPlayerBests
+      summary: Bests of a player
+      description: |
+        The visible best of a public and active player, of any cabinet, on
+        each game and table, by `romname`. A private or disabled player
+        answers `404 player_not_found`.
+      parameters:
+        - $ref: '#/components/parameters/IfNoneMatch'
+      responses:
+        '200':
+          description: The bests.
+          headers:
+            ETag:
+              $ref: '#/components/headers/ETag'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PlayerBestsResponse'
+        '304':
+          description: Unchanged since the ETag sent in `If-None-Match`.
+        '400':
+          $ref: '#/components/responses/MachineFingerprintMissing'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/PlayerNotFound'
+        '409':
+          $ref: '#/components/responses/MachineMismatch'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /players/{playerId}/avatar:
+    parameters:
+      - $ref: '#/components/parameters/PlayerId'
+    post:
+      tags: [Players]
+      operationId: storePlayerAvatar
+      summary: Set the avatar of a player
+      description: |
+        A player linked to this cabinet. A PNG (the content is checked), 256
+        KB and 1024 x 1024 px at most, as multipart field `avatar` (D53).
+        Replaces the previous one.
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [avatar]
+              properties:
+                avatar:
+                  type: string
+                  format: binary
+      responses:
+        '200':
+          description: Avatar stored.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [player, avatar]
+                additionalProperties: false
+                properties:
+                  player:
+                    $ref: '#/components/schemas/Player'
+                  avatar:
+                    type: string
+                    description: SHA-256 of the PNG, as in leaderboard entries.
+        '400':
+          $ref: '#/components/responses/MachineFingerprintMissing'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/PlayerNotFound'
+        '409':
+          $ref: '#/components/responses/MachineMismatch'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/ServerError'
+    get:
+      tags: [Leaderboards]
+      operationId: getPlayerAvatar
+      summary: Avatar of a player
+      description: |
+        The PNG of a public and active player, of any cabinet. The ETag is
+        the SHA-256 of the PNG, as in leaderboard entries (`player.avatar`).
+      parameters:
+        - $ref: '#/components/parameters/IfNoneMatch'
+      responses:
+        '200':
+          description: The PNG.
+          headers:
+            ETag:
+              $ref: '#/components/headers/ETag'
+          content:
+            image/png:
+              schema:
+                type: string
+                format: binary
+        '304':
+          description: Unchanged since the ETag sent in `If-None-Match`.
+        '400':
+          $ref: '#/components/responses/MachineFingerprintMissing'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          description: '`player_not_found` (private, disabled or unknown) or `avatar_not_found`.'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '409':
+          $ref: '#/components/responses/MachineMismatch'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
   /catalog/games:
     put:
       tags: [Catalog]
@@ -841,6 +1070,30 @@ components:
         minLength: 32
         maxLength: 128
 
+    ScoreTable:
+      name: table
+      in: query
+      required: false
+      description: mhiex table.
+      schema:
+        type: string
+        pattern: '^[a-z0-9_]{1,32}$'
+        default: default
+
+    IfNoneMatch:
+      name: If-None-Match
+      in: header
+      required: false
+      description: 'ETag of the last answer: `304` if nothing changed.'
+      schema:
+        type: string
+
+  headers:
+    ETag:
+      description: Version of the answer, for `If-None-Match`.
+      schema:
+        type: string
+
   schemas:
     MauiConfiguration:
       type: object
@@ -980,7 +1233,7 @@ components:
 
     Player:
       type: object
-      required: [id, pseudo_3, is_public, status]
+      required: [id, pseudo_3, is_public, status, avatar]
       additionalProperties: false
       properties:
         id:
@@ -994,6 +1247,9 @@ components:
           type: string
           enum: [active, disabled, locked]
           description: '`disabled` by an admin; `locked` after too many wrong PINs.'
+        avatar:
+          type: [string, 'null']
+          description: SHA-256 of the player's avatar (D53), null without one. Send the PNG again when the cabinet's differs.
 
     PlayerResponse:
       type: object
@@ -1167,6 +1423,105 @@ components:
           - id: 9a7e0c55-0f3c-4b8e-b0f2-2d1e6a4c8f32
             status: rejected
             code: player_not_found
+
+    LeaderboardEntry:
+      type: object
+      required: [rank, player, score, achieved_at, cabinet]
+      additionalProperties: false
+      properties:
+        rank:
+          type: integer
+          minimum: 1
+          maximum: 9
+        player:
+          type: object
+          required: [id, pseudo_3]
+          additionalProperties: false
+          properties:
+            id:
+              type: string
+              format: uuid
+            pseudo_3:
+              type: string
+            avatar:
+              type: [string, 'null']
+              description: SHA-256 of the player's avatar (D53), null without one.
+        score:
+          type: integer
+          format: int64
+        achieved_at:
+          type: string
+          format: date-time
+        cabinet:
+          type: string
+          description: Name of the cabinet the score was made on.
+
+    Leaderboard:
+      type: object
+      required: [romname, table, entries]
+      additionalProperties: false
+      properties:
+        romname:
+          type: string
+        table:
+          type: string
+        entries:
+          type: array
+          maxItems: 9
+          items:
+            $ref: '#/components/schemas/LeaderboardEntry'
+      example:
+        romname: dkong
+        table: default
+        entries:
+          - rank: 1
+            player: {id: 01a0f983-4470-72c9-be2a-81655c62a811, pseudo_3: NOB, avatar: null}
+            score: 19200
+            achieved_at: '2026-10-01T10:00:00+00:00'
+            cabinet: supersonic_sub_zero
+
+    LeaderboardListResponse:
+      type: object
+      required: [leaderboards]
+      additionalProperties: false
+      properties:
+        leaderboards:
+          type: array
+          items:
+            $ref: '#/components/schemas/Leaderboard'
+
+    PlayerBestsResponse:
+      type: object
+      required: [player, bests]
+      additionalProperties: false
+      properties:
+        player:
+          type: object
+          required: [id, pseudo_3]
+          additionalProperties: false
+          properties:
+            id:
+              type: string
+              format: uuid
+            pseudo_3:
+              type: string
+        bests:
+          type: array
+          items:
+            type: object
+            required: [romname, table, score, achieved_at]
+            additionalProperties: false
+            properties:
+              romname:
+                type: string
+              table:
+                type: string
+              score:
+                type: integer
+                format: int64
+              achieved_at:
+                type: string
+                format: date-time
 
     CatalogGame:
       type: object

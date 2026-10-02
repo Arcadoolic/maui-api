@@ -56,6 +56,11 @@ final class ApiProblemException extends RuntimeException
         return new self(Response::HTTP_NOT_FOUND, 'player_not_found');
     }
 
+    public static function avatarNotFound(): self
+    {
+        return new self(Response::HTTP_NOT_FOUND, 'avatar_not_found', 'This player has no avatar.');
+    }
+
     public static function playerDisabled(): self
     {
         return new self(Response::HTTP_FORBIDDEN, 'player_disabled', 'This player has been disabled by an administrator.');

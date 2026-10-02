@@ -5,14 +5,17 @@ namespace App\Http\Controllers\Api;
 use App\Http\Middleware\AuthenticateCabinet;
 use App\Http\Problems\ApiProblemException;
 use App\Http\Requests\Api\LinkPlayerRequest;
+use App\Http\Requests\Api\StoreAvatarRequest;
 use App\Http\Requests\Api\StorePlayerRequest;
 use App\Http\Requests\Api\UpdatePlayerRequest;
 use App\Models\Player;
+use App\Services\Players\PlayerAvatars;
 use App\Services\Players\PlayerRegistry;
 use App\Support\Pseudo3;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Str;
 
 /** Players of the calling cabinet (docs/DECISIONS.md D48). */
@@ -79,6 +82,17 @@ final class PlayersController
         $this->registry->unlink(AuthenticateCabinet::client($request), $this->linkedPlayer($request, $player));
 
         return response()->noContent();
+    }
+
+    /** The avatar of a player of this cabinet (D53). */
+    public function storeAvatar(StoreAvatarRequest $request, PlayerAvatars $avatars, string $player): JsonResponse
+    {
+        $linked = $this->linkedPlayer($request, $player);
+        $file = $request->file('avatar');
+        assert($file instanceof UploadedFile);
+        $avatars->store(AuthenticateCabinet::client($request), $linked, $file);
+
+        return new JsonResponse(['player' => $linked->toApiArray(), 'avatar' => $linked->avatar_hash]);
     }
 
     /** The players of other cabinets do not exist for this one. */

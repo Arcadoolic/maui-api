@@ -6,6 +6,8 @@ use App\Filament\Resources\Games\Pages\ListGames;
 use App\Filament\Resources\Games\Pages\ViewGame;
 use App\Models\Category;
 use App\Models\Game;
+use App\Models\Player;
+use App\Models\Score;
 use App\Models\User;
 
 use function Pest\Livewire\livewire;
@@ -68,4 +70,28 @@ it('is read only', function () {
         ->and(GameResource::canEdit(Game::factory()->create()))->toBeFalse()
         ->and(GameResource::canDelete(Game::factory()->create()))->toBeFalse()
         ->and(array_keys(GameResource::getPages()))->toBe(['index', 'view']);
+});
+
+it('shows the leaderboard of a game, as the cabinets get it (D52)', function () {
+    $game = Game::factory()->create();
+    $public = Player::factory()->create(['pseudo_3' => 'NOB', 'is_public' => true]);
+    $private = Player::factory()->create(['pseudo_3' => 'PRV', 'is_public' => false]);
+    Score::factory()->create(['game_id' => $game->id, 'player_id' => $public->id, 'score' => 19_200]);
+    Score::factory()->create(['game_id' => $game->id, 'player_id' => $private->id, 'score' => 99_999]);
+
+    livewire(ViewGame::class, ['record' => $game->getRouteKey()])
+        ->assertSee('NOB')
+        ->assertSee('19,200')
+        ->assertDontSee('PRV');
+});
+
+it('filters the games with scores', function () {
+    $played = Game::factory()->create();
+    Score::factory()->create(['game_id' => $played->id]);
+    $never = Game::factory()->create();
+
+    livewire(ListGames::class)
+        ->filterTable('scores', true)
+        ->assertCanSeeTableRecords([$played])
+        ->assertCanNotSeeTableRecords([$never]);
 });
