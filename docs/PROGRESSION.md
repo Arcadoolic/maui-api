@@ -41,6 +41,10 @@ For why things are done this way, see `docs/DECISIONS.md`.
   per score, idempotent by `id`), in `docs/openapi.yaml`.
 - Filament: Scores resource (filters by game, player, cabinet, hidden;
   hide and show again, in the audit log).
+- Development data: `php artisan dev:reset-scores` (local and testing
+  only) empties `scores` and the games known from scores only; MAUI's BO
+  (development builds, MAUI > Online) sends the cabinet's existing
+  hiscores of public players through `POST /scores`.
 - MAUI side next: score capture during the game (`PlaySession`), outbox
   flushed with the heartbeats.
 
