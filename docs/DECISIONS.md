@@ -560,4 +560,9 @@ player loses the one it knows. `POST /players/{id}/pin` now answers
 cabinet of their oldest link (data migration). Cabinets get `is_origin`
 with each player, to show or hide the action. Admins still read, issue and
 unlock PINs in Filament (D49), which is the only way left when the origin
-cabinet is gone (`origin_client_id` null) or is not at hand.
+cabinet is gone (`origin_client_id` null) or is not at hand. Admins can
+also move the origin to another cabinet the player is linked to, or leave
+the player without one ("Origin cabinet" on the player page, recorded as
+`player.origin_changed` with the cabinets' names): for a cabinet that is
+gone or sold, or an origin the migration guessed wrong. The cabinets learn
+it at their next player sync.

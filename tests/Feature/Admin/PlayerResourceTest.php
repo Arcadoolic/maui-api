@@ -8,6 +8,7 @@ use App\Filament\Resources\Players\RelationManagers\CabinetsRelationManager;
 use App\Models\Client;
 use App\Models\Player;
 use App\Models\User;
+use App\Services\Players\PlayerAdministration;
 use Spatie\Activitylog\Models\Activity;
 
 use function Pest\Livewire\livewire;
@@ -122,4 +123,54 @@ it('cannot create, edit or delete players', function () {
     expect(PlayerResource::canCreate())->toBeFalse()
         ->and(PlayerResource::canEdit($player))->toBeFalse()
         ->and(PlayerResource::canDelete($player))->toBeFalse();
+});
+
+describe('origin cabinet (D54)', function () {
+    it('lets an admin move the origin to another cabinet of the player', function () {
+        $first = Client::factory()->create(['name' => 'first_cabinet']);
+        $second = Client::factory()->create(['name' => 'second_cabinet']);
+        $player = linkedPlayer($first);
+        $player->clients()->attach($second, ['linked_at' => now()]);
+
+        livewire(ViewPlayer::class, ['record' => $player->getRouteKey()])
+            ->callAction('setOrigin', ['origin_client_id' => $second->id])
+            ->assertHasNoActionErrors();
+
+        $audit = playerAudit($player, 'player.origin_changed');
+        expect($player->refresh()->origin_client_id)->toBe($second->id)
+            ->and($audit?->causer_id)->toBe($this->admin->id)
+            ->and($audit?->properties->all())->toBe(['from' => 'first_cabinet', 'to' => 'second_cabinet']);
+    });
+
+    it('lets an admin leave a player without origin: admins only', function () {
+        $player = linkedPlayer(Client::factory()->create());
+
+        livewire(ViewPlayer::class, ['record' => $player->getRouteKey()])
+            ->callAction('setOrigin', ['origin_client_id' => null]);
+
+        expect($player->refresh()->origin_client_id)->toBeNull();
+    });
+
+    it('refuses a cabinet the player is not linked to', function () {
+        $player = linkedPlayer(Client::factory()->create());
+        $stranger = Client::factory()->create();
+
+        expect(fn () => app(PlayerAdministration::class)->setOrigin($player, $stranger))
+            ->toThrow(InvalidArgumentException::class);
+        expect($player->refresh()->origin_client_id)->not->toBe($stranger->id);
+    });
+
+    it('makes the new origin the cabinet that can issue a PIN', function () {
+        [$first, $firstToken] = cabinetWithToken();
+        [$second, $secondToken] = cabinetWithToken();
+        $player = linkedPlayer($first);
+        $player->clients()->attach($second, ['linked_at' => now()]);
+
+        app(PlayerAdministration::class)->setOrigin($player, $second);
+
+        $this->postJson("/api/v1/players/{$player->uuid}/pin", [], cabinetHeaders($first, $firstToken))
+            ->assertForbidden()
+            ->assertJsonPath('code', 'not_origin_cabinet');
+        $this->postJson("/api/v1/players/{$player->uuid}/pin", [], cabinetHeaders($second, $secondToken))->assertOk();
+    });
 });
