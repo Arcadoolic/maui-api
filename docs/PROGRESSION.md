@@ -38,7 +38,8 @@ For why things are done this way, see `docs/DECISIONS.md`.
 - `players.origin_client_id` (creation; oldest link for existing players),
   `is_origin` in the player answers, `403 not_origin_cabinet` on
   `POST /players/{id}/pin` from another cabinet. Filament shows the origin
-  cabinet; admins still issue and read PINs.
+  cabinet; admins still issue and read PINs, and can move the origin to
+  another cabinet of the player, or to none ("Origin cabinet").
 
 ## Lot 2.4: leaderboards (in progress, D52)
 

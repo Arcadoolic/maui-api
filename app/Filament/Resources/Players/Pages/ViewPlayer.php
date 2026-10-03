@@ -3,9 +3,11 @@
 namespace App\Filament\Resources\Players\Pages;
 
 use App\Filament\Resources\Players\PlayerResource;
+use App\Models\Client;
 use App\Models\Player;
 use App\Services\Players\PlayerAdministration;
 use Filament\Actions\Action;
+use Filament\Forms\Components\Select;
 use Filament\Infolists\Components\TextEntry;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\ViewRecord;
@@ -23,6 +25,7 @@ class ViewPlayer extends ViewRecord
             $this->showPinAction(),
             $this->regeneratePinAction(),
             $this->unlockAction(),
+            $this->setOriginAction(),
             $this->disableAction(),
             $this->enableAction(),
         ];
@@ -87,6 +90,30 @@ class ViewPlayer extends ViewRecord
             ->action(function (): void {
                 app(PlayerAdministration::class)->unlock($this->player());
                 $this->notifyDone(__('Player unlocked'));
+            });
+    }
+
+    /** Which cabinet may issue a new PIN for this player (D54). */
+    public function setOriginAction(): Action
+    {
+        return Action::make('setOrigin')
+            ->label(__('Origin cabinet'))
+            ->icon(Heroicon::OutlinedHome)
+            ->color('gray')
+            ->modalDescription(__('The only cabinet that can issue a new PIN for this player. Without one, only administrators can.'))
+            ->fillForm(fn (): array => ['origin_client_id' => $this->player()->origin_client_id])
+            ->schema([
+                Select::make('origin_client_id')
+                    ->label(__('Cabinet'))
+                    ->options(fn (): array => $this->player()->clients()->orderBy('name')->pluck('clients.name', 'clients.id')->all())
+                    ->placeholder(__('None: administrators only')),
+            ])
+            ->action(function (array $data): void {
+                $origin = filled($data['origin_client_id'] ?? null)
+                    ? Client::query()->whereKey($data['origin_client_id'])->first()
+                    : null;
+                app(PlayerAdministration::class)->setOrigin($this->player(), $origin);
+                $this->notifyDone(__('Origin cabinet changed'));
             });
     }
 

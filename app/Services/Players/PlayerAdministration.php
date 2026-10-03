@@ -2,9 +2,11 @@
 
 namespace App\Services\Players;
 
+use App\Models\Client;
 use App\Models\Player;
 use App\Models\User;
 use Illuminate\Support\Facades\Auth;
+use InvalidArgumentException;
 
 /**
  * Back office operations on players, recorded in the audit log with the
@@ -52,7 +54,28 @@ final class PlayerAdministration
         return $pin;
     }
 
-    private function audit(Player $player, string $event): void
+    /**
+     * The cabinet that may issue a new PIN (D54): one of the cabinets the
+     * player is linked to, or none, which leaves it to admins. For a player
+     * whose origin cabinet is gone, sold, or was guessed wrong by the
+     * migration (oldest link).
+     */
+    public function setOrigin(Player $player, ?Client $origin): void
+    {
+        if ($origin !== null && ! $player->clients()->whereKey($origin->id)->exists()) {
+            throw new InvalidArgumentException('The origin cabinet must be one the player is linked to.');
+        }
+
+        $from = $player->originClient?->name;
+        $player->forceFill(['origin_client_id' => $origin?->id])->save();
+        $player->unsetRelation('originClient');
+        $this->audit($player, 'player.origin_changed', ['from' => $from, 'to' => $origin?->name]);
+    }
+
+    /**
+     * @param  array<string, mixed>  $properties
+     */
+    private function audit(Player $player, string $event, array $properties = []): void
     {
         $admin = Auth::user();
 
@@ -60,6 +83,7 @@ final class PlayerAdministration
             ->performedOn($player)
             ->causedBy($admin instanceof User ? $admin : null)
             ->event($event)
+            ->withProperties($properties)
             ->log($event);
     }
 }
