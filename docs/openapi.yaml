@@ -69,10 +69,12 @@ info:
     | Status | `code` | Meaning for MAUI |
     |--------|--------|------------------|
     | 403 | `pin_invalid` | Wrong PIN, `attempts_left` before the player is locked. |
+    | 403 | `not_origin_cabinet` | New PIN asked from a cabinet the player was not created on (D54). |
+    | 404 | `avatar_not_found` | The player has no avatar (D53). |
     | 403 | `player_disabled` | Player disabled by an admin. |
     | 404 | `player_not_found` | No such initials, or a player not linked to this cabinet. |
     | 409 | `initials_taken` | Initials of another player: offer to link with the PIN. |
-    | 423 | `player_locked` | Too many wrong PINs: a cabinet of this player must issue a new PIN. |
+    | 423 | `player_locked` | Too many wrong PINs: the cabinet the player was created on, or an admin, must issue a new PIN. |
     | 500 | `server_error` | No technical detail is ever exposed. |
 
     Generic codes, not tied to a business rule: `forbidden` (403),
@@ -501,9 +503,10 @@ paths:
       operationId: regeneratePlayerPin
       summary: Issue a new PIN
       description: |
-        Replaces the PIN and unlocks the player. Only from a cabinet the
-        player is linked to; refused for a disabled player. The PIN is
-        returned once.
+        Replaces the PIN and unlocks the player. Only from the cabinet the
+        player was created on (`is_origin`, D54): another cabinet of the
+        player gets `403 not_origin_cabinet`. Refused for a disabled player.
+        The PIN is returned once.
       responses:
         '200':
           description: New PIN.
@@ -1233,7 +1236,7 @@ components:
 
     Player:
       type: object
-      required: [id, pseudo_3, is_public, status, avatar]
+      required: [id, pseudo_3, is_public, status, is_origin, avatar]
       additionalProperties: false
       properties:
         id:
@@ -1247,6 +1250,9 @@ components:
           type: string
           enum: [active, disabled, locked]
           description: '`disabled` by an admin; `locked` after too many wrong PINs.'
+        is_origin:
+          type: boolean
+          description: The player was created on this cabinet, the only one that can issue a new PIN (D54).
         avatar:
           type: [string, 'null']
           description: SHA-256 of the player's avatar (D53), null without one. Send the PNG again when the cabinet's differs.
@@ -1646,6 +1652,8 @@ components:
             - player_disabled
             - player_locked
             - pin_invalid
+            - not_origin_cabinet
+            - avatar_not_found
             - forbidden
             - not_found
             - method_not_allowed
@@ -1758,7 +1766,8 @@ components:
     PlayerForbidden:
       description: |
         Client disabled, token lacking the `players` ability, player disabled
-        by an admin, or wrong PIN (`attempts_left` before the lock).
+        by an admin, wrong PIN (`attempts_left` before the lock), or a new
+        PIN asked from a cabinet that is not the player's origin.
       content:
         application/problem+json:
           schema:
@@ -1783,6 +1792,12 @@ components:
                 status: 403
                 code: pin_invalid
                 attempts_left: 3
+            notOriginCabinet:
+              value:
+                type: about:blank
+                title: Forbidden
+                status: 403
+                code: not_origin_cabinet
 
     PlayerConflict:
       description: Initials of another player, or credentials bound to another cabinet.

@@ -25,9 +25,10 @@ final class PlayersController
 
     public function index(Request $request): JsonResponse
     {
-        $players = AuthenticateCabinet::client($request)->players()->orderBy('pseudo_3')->get();
+        $client = AuthenticateCabinet::client($request);
+        $players = $client->players()->orderBy('pseudo_3')->get();
 
-        return new JsonResponse(['players' => $players->map(fn (Player $player): array => $player->toApiArray())->all()]);
+        return new JsonResponse(['players' => $players->map(fn (Player $player): array => $player->toApiArray($client))->all()]);
     }
 
     public function availability(Request $request): JsonResponse
@@ -45,7 +46,7 @@ final class PlayersController
             $request->boolean('is_public'),
         );
 
-        return new JsonResponse(['player' => $player->toApiArray(), 'pin' => $pin], JsonResponse::HTTP_CREATED);
+        return new JsonResponse(['player' => $player->toApiArray(AuthenticateCabinet::client($request)), 'pin' => $pin], JsonResponse::HTTP_CREATED);
     }
 
     public function link(LinkPlayerRequest $request): JsonResponse
@@ -56,7 +57,7 @@ final class PlayersController
             $request->string('pin')->toString(),
         );
 
-        return new JsonResponse(['player' => $player->toApiArray()]);
+        return new JsonResponse(['player' => $player->toApiArray(AuthenticateCabinet::client($request))]);
     }
 
     public function update(UpdatePlayerRequest $request, string $player): JsonResponse
@@ -67,7 +68,7 @@ final class PlayersController
             $request->boolean('is_public'),
         );
 
-        return new JsonResponse(['player' => $updated->toApiArray()]);
+        return new JsonResponse(['player' => $updated->toApiArray(AuthenticateCabinet::client($request))]);
     }
 
     public function regeneratePin(Request $request, string $player): JsonResponse
@@ -92,7 +93,7 @@ final class PlayersController
         assert($file instanceof UploadedFile);
         $avatars->store(AuthenticateCabinet::client($request), $linked, $file);
 
-        return new JsonResponse(['player' => $linked->toApiArray(), 'avatar' => $linked->avatar_hash]);
+        return new JsonResponse(['player' => $linked->toApiArray(AuthenticateCabinet::client($request)), 'avatar' => $linked->avatar_hash]);
     }
 
     /** The players of other cabinets do not exist for this one. */

@@ -443,7 +443,7 @@ the ability, and records the token's `last_used_at` (D43), shown on the
 service account page of the back office. Own `service` limiter, 120/min
 per key. Games resource in Filament, read only.
 
-**D48: Players linked to cabinets with a 4-digit PIN; no personal data, no `pseudo_2`.** (2026-10-02, PIN storage superseded by D49)
+**D48: Players linked to cabinets with a 4-digit PIN; no personal data, no `pseudo_2`.** (2026-10-02, PIN storage superseded by D49, who issues a new PIN by D54)
 Follows D4 (initials unique across the fleet). A cabinet creates a player
 (`POST /players`, `409 initials_taken` otherwise) and gets its PIN once in
 plain text; the player joins another cabinet with initials + PIN
@@ -547,3 +547,17 @@ does not have yet. `GET /players` gives the hash of each of the cabinet's
 players too: the cabinet sends its PNG again when its own differs, which
 covers creation and every change. No avatar: `404 avatar_not_found`. A change is recorded
 as `player.avatar_changed` with the cabinet as causer.
+
+**D54: A new PIN only from the cabinet the player was created on.** (2026-10-03, narrows D48)
+D48 let any cabinet a player is linked to issue a new PIN, without the old
+one. Requested by the project owner: the owner of any of those cabinets
+could take the PIN away from the player (the new one is shown once, in
+that cabinet's BO) or link the player wherever they want. A new PIN does
+not affect the cabinets already linked, which never use it again, but the
+player loses the one it knows. `POST /players/{id}/pin` now answers
+`403 not_origin_cabinet` unless the cabinet is the player's origin:
+`players.origin_client_id`, set at creation, and for existing players the
+cabinet of their oldest link (data migration). Cabinets get `is_origin`
+with each player, to show or hide the action. Admins still read, issue and
+unlock PINs in Filament (D49), which is the only way left when the origin
+cabinet is gone (`origin_client_id` null) or is not at hand.

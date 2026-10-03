@@ -7,6 +7,7 @@ use Database\Factories\PlayerFactory;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
@@ -22,12 +23,14 @@ use Spatie\Activitylog\Models\Activity;
  * @property string $pseudo_3
  * @property bool $is_public
  * @property PlayerStatus $status
+ * @property int|null $origin_client_id Cabinet the player was created on: the only one that may issue a new PIN (D54).
  * @property string $pin 4 digits, encrypted at rest (D49).
  * @property int $pin_failed_attempts
  * @property Carbon|null $pin_locked_at
  * @property string|null $avatar_hash SHA-256 of the avatar PNG, null without one (D53).
  * @property Carbon $created_at
  * @property Carbon $updated_at
+ * @property-read Client|null $originClient
  */
 class Player extends Model
 {
@@ -72,6 +75,17 @@ class Player extends Model
     public function clients(): BelongsToMany
     {
         return $this->belongsToMany(Client::class)->withPivot('linked_at');
+    }
+
+    /** @return BelongsTo<Client, $this> */
+    public function originClient(): BelongsTo
+    {
+        return $this->belongsTo(Client::class, 'origin_client_id');
+    }
+
+    public function isOrigin(Client $client): bool
+    {
+        return $this->origin_client_id === $client->id;
     }
 
     /** @return HasMany<Score, $this> */
@@ -146,14 +160,20 @@ class Player extends Model
         };
     }
 
-    /** @return array{id: string, pseudo_3: string, is_public: bool, status: string, avatar: string|null} */
-    public function toApiArray(): array
+    /**
+     * The player as a cabinet sees it.
+     *
+     * @return array{id: string, pseudo_3: string, is_public: bool, status: string, is_origin: bool, avatar: string|null}
+     */
+    public function toApiArray(Client $client): array
     {
         return [
             'id' => $this->uuid,
             'pseudo_3' => $this->pseudo_3,
             'is_public' => $this->is_public,
             'status' => $this->apiStatus(),
+            // Created on this cabinet: it may issue a new PIN (D54).
+            'is_origin' => $this->isOrigin($client),
             // SHA-256 of the avatar (D53): the cabinet sends its PNG again when it differs.
             'avatar' => $this->avatar_hash,
         ];

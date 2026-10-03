@@ -87,13 +87,14 @@ function configurationStringFrom(TestResponse $response): string
 }
 
 /**
- * Creates a player linked to a cabinet, with a known PIN.
+ * Creates a player on a cabinet (its origin, D54), linked to it, with a known PIN.
  *
  * @param  array<string, mixed>  $attributes
  */
 function linkedPlayer(Client $client, array $attributes = [], string $pin = '1234'): Player
 {
     $player = Player::factory()->create([...$attributes, 'pin' => $pin]);
+    $player->forceFill(['origin_client_id' => $client->id])->save();
     $player->clients()->attach($client, ['linked_at' => now()]);
 
     return $player;
