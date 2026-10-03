@@ -49,6 +49,9 @@ D48. What the MAUI side has to do:
   a new PIN: `POST /players/{id}/pin`), `player_disabled` (403),
   `player_not_found` (404, also for a player of another cabinet).
 - Sync with `GET /players`: status `disabled` or `locked` per player.
+- A new PIN (`POST /players/{id}/pin`) only where `is_origin` is true, the
+  cabinet the player was created on (D54): hide the action elsewhere,
+  `403 not_origin_cabinet` otherwise.
 - Switching to ONLINE: every active local player must be reserved or
   linked (create, or link with the PIN), or deactivated locally.
 

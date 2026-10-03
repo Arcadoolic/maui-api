@@ -190,9 +190,9 @@ describe('players of the cabinet', function () {
         $this->getJson('/api/v1/players', cabinetHeaders($client, $token))
             ->assertOk()
             ->assertExactJson(['players' => [
-                ['id' => $mine->uuid, 'pseudo_3' => 'ACE', 'is_public' => true, 'status' => 'active', 'avatar' => null],
-                ['id' => $disabled->uuid, 'pseudo_3' => 'BAD', 'is_public' => false, 'status' => 'disabled', 'avatar' => null],
-                ['id' => $locked->uuid, 'pseudo_3' => 'LCK', 'is_public' => false, 'status' => 'locked', 'avatar' => null],
+                ['id' => $mine->uuid, 'pseudo_3' => 'ACE', 'is_public' => true, 'status' => 'active', 'is_origin' => true, 'avatar' => null],
+                ['id' => $disabled->uuid, 'pseudo_3' => 'BAD', 'is_public' => false, 'status' => 'disabled', 'is_origin' => true, 'avatar' => null],
+                ['id' => $locked->uuid, 'pseudo_3' => 'LCK', 'is_public' => false, 'status' => 'locked', 'is_origin' => true, 'avatar' => null],
             ]]);
     });
 
@@ -220,6 +220,31 @@ describe('players of the cabinet', function () {
             ->and($player->pin)->toBe($pin)
             ->and($player->isLocked())->toBeFalse()
             ->and($player->pin_failed_attempts)->toBe(0);
+    });
+
+    it('refuses a new PIN from a cabinet the player was only linked to (D54)', function () {
+        [$origin] = cabinetWithToken();
+        [$other, $otherToken] = cabinetWithToken();
+        $player = linkedPlayer($origin, pin: '1234');
+        $player->clients()->attach($other, ['linked_at' => now()]);
+
+        $this->postJson("/api/v1/players/{$player->uuid}/pin", [], cabinetHeaders($other, $otherToken))
+            ->assertForbidden()
+            ->assertJsonPath('code', 'not_origin_cabinet');
+        $this->getJson('/api/v1/players', cabinetHeaders($other, $otherToken))
+            ->assertJsonPath('players.0.is_origin', false);
+
+        expect($player->refresh()->pin)->toBe('1234');
+    });
+
+    it('makes the cabinet a player is created on its origin', function () {
+        [$client, $token] = cabinetWithToken();
+
+        $this->postJson('/api/v1/players', ['pseudo_3' => 'ACE'], cabinetHeaders($client, $token))
+            ->assertCreated()
+            ->assertJsonPath('player.is_origin', true);
+
+        expect(Player::query()->sole()->origin_client_id)->toBe($client->id);
     });
 
     it('unlinks a player from this cabinet only', function () {
@@ -287,6 +312,25 @@ it('requires the players ability', function () {
     $this->getJson('/api/v1/players', serviceHeaders($client, $token))
         ->assertForbidden()
         ->assertJsonPath('code', 'insufficient_ability');
+});
+
+it('gives the players created before D54 the cabinet of their oldest link as origin', function () {
+    [$first] = cabinetWithToken();
+    [$second] = cabinetWithToken();
+    $player = Player::factory()->create();
+    $player->clients()->attach($second, ['linked_at' => now()]);
+    $player->clients()->attach($first, ['linked_at' => now()->subDay()]);
+    $alone = Player::factory()->create();
+    $kept = linkedPlayer($second);
+    $kept->clients()->attach($first, ['linked_at' => now()->subYear()]);
+
+    $migration = require database_path('migrations/2026_10_03_100001_set_origin_client_of_existing_players.php');
+    $migration->up();
+    $migration->up(); // idempotent
+
+    expect($player->refresh()->origin_client_id)->toBe($first->id)
+        ->and($alone->refresh()->origin_client_id)->toBeNull()
+        ->and($kept->refresh()->origin_client_id)->toBe($second->id);
 });
 
 it('grants players to the cabinet tokens issued before the ability existed', function () {

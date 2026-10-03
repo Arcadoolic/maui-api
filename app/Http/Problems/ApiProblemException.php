@@ -68,7 +68,15 @@ final class ApiProblemException extends RuntimeException
 
     public static function playerLocked(): self
     {
-        return new self(Response::HTTP_LOCKED, 'player_locked', 'Too many wrong PINs: a new PIN must be issued from a cabinet of this player.');
+        return new self(Response::HTTP_LOCKED, 'player_locked', 'Too many wrong PINs: a new PIN must be issued from the cabinet this player was created on, or by an administrator.');
+    }
+
+    public static function notOriginCabinet(): self
+    {
+        return new self(
+            Response::HTTP_FORBIDDEN, 'not_origin_cabinet',
+            'Only the cabinet this player was created on, or an administrator, can issue a new PIN.',
+        );
     }
 
     public static function pinInvalid(int $attemptsLeft): self

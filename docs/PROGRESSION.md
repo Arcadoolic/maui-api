@@ -18,7 +18,7 @@ For why things are done this way, see `docs/DECISIONS.md`.
 
 ## Done
 
-- Delivery plan (`docs/PLAN.md`), decisions D1 to D53 (`docs/DECISIONS.md`).
+- Delivery plan (`docs/PLAN.md`), decisions D1 to D54 (`docs/DECISIONS.md`).
 - Lot 1 OpenAPI 3.1 contract (`docs/openapi.yaml`).
 - Lot 0 skeleton:
   - Docker: FrankenPHP + PHP 8.4 image (`Dockerfile`, `docker/`), Compose
@@ -32,6 +32,13 @@ For why things are done this way, see `docs/DECISIONS.md`.
     push.
 - Releases by semantic-release on every push to `main` (D44): 0.1.0
   published on 2026-09-25.
+
+## Follow-up of Lot 2.2: PIN issued by the origin cabinet only (D54)
+
+- `players.origin_client_id` (creation; oldest link for existing players),
+  `is_origin` in the player answers, `403 not_origin_cabinet` on
+  `POST /players/{id}/pin` from another cabinet. Filament shows the origin
+  cabinet; admins still issue and read PINs.
 
 ## Lot 2.4: leaderboards (in progress, D52)
 

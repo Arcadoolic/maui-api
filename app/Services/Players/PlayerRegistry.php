@@ -43,6 +43,7 @@ final class PlayerRegistry
             $player = DB::transaction(function () use ($client, $pseudo3, $isPublic, $pin): Player {
                 $player = new Player(['pseudo_3' => $pseudo3, 'is_public' => $isPublic]);
                 $player->pin = $pin;
+                $player->origin_client_id = $client->id;
                 $player->save();
                 $player->clients()->attach($client, ['linked_at' => now()]);
 
@@ -124,6 +125,11 @@ final class PlayerRegistry
     public function regeneratePin(Client $client, Player $player): string
     {
         $this->ensureActive($player);
+        // Only the cabinet the player was created on (D54): another one could otherwise take the
+        // PIN away from the player, or link it wherever it wants.
+        if (! $player->isOrigin($client)) {
+            throw ApiProblemException::notOriginCabinet();
+        }
 
         $pin = $player->regeneratePin();
         $this->audit($player, $client, 'player.pin_regenerated');

@@ -26,6 +26,10 @@ class PlayerInfolist
                             ->label(__('PIN locked'))
                             ->dateTime()
                             ->placeholder(fn (Player $record): string => __('No (:count wrong PIN in a row)', ['count' => $record->pin_failed_attempts])),
+                        TextEntry::make('originClient.name')
+                            ->label(__('Created on'))
+                            ->placeholder(__('Unknown: only admins can issue a new PIN'))
+                            ->helperText(__('The only cabinet that can issue a new PIN.')),
                         TextEntry::make('created_at')->dateTime(),
                     ]),
             ]);
