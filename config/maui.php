@@ -21,6 +21,17 @@ return [
     'admin_default_timezone' => env('MAUI_ADMIN_DEFAULT_TIMEZONE', 'Europe/Paris'),
 
     /*
+    | Multi-factor authentication of the back office (docs/DECISIONS.md D55).
+    | `enabled`: false turns it off, outside production only (it stays on in
+    | production whatever this says). `label`: name of the account in the
+    | authenticator app; unset, the application name and the host of APP_URL.
+    */
+    'admin_mfa' => [
+        'enabled' => (bool) env('MAUI_ADMIN_MFA', true),
+        'label' => env('MAUI_ADMIN_MFA_LABEL'),
+    ],
+
+    /*
     | Word lists for generated cabinet names, e.g. "glitchy_pac_man"
     | (docs/PLAN.md 1.1). Lowercase, snake_case words only.
     */

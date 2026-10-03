@@ -6,6 +6,7 @@ use App\Filament\Auth\AppAuthentication;
 use App\Filament\Pages\Auth\EditProfile;
 use App\Filament\Widgets\CabinetsOverview;
 use App\Filament\Widgets\LatestScores;
+use App\Support\AdminMfa;
 use Filament\Http\Middleware\Authenticate;
 use Filament\Http\Middleware\AuthenticateSession;
 use Filament\Http\Middleware\DisableBladeIconComponents;
@@ -33,9 +34,13 @@ class AdminPanelProvider extends PanelProvider
             ->login()
             ->profile(EditProfile::class)
             // No registration: admins are created with `php artisan make:filament-user`.
-            ->multiFactorAuthentication([
-                AppAuthentication::make()->recoverable(),
-            ], isRequired: true)
+            // Required (D35), labelled after the server, and off on demand outside production (D55).
+            ->multiFactorAuthentication(
+                fn (): array => AdminMfa::isEnabled()
+                    ? [AppAuthentication::make()->recoverable()->brandName(AdminMfa::label())]
+                    : [],
+                isRequired: fn (): bool => AdminMfa::isEnabled(),
+            )
             ->colors([
                 'primary' => Color::Amber,
             ])
