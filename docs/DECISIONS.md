@@ -566,3 +566,18 @@ the player without one ("Origin cabinet" on the player page, recorded as
 `player.origin_changed` with the cabinets' names): for a cabinet that is
 gone or sold, or an origin the migration guessed wrong. The cabinets learn
 it at their next player sync.
+
+**D55: MFA labelled after the server, and off on demand outside production.** (2026-10-03, completes D35)
+Requested by the project owner. The authenticator app showed every server
+under the same name ("MAUI-API"): with local, staging and soon production,
+picking the right code among five was guesswork. The account is now
+labelled `APP_NAME (host of APP_URL)`, e.g. "MAUI-API
+(api.maui.staging.afronob.com)" or "MAUI-API (localhost:8080)";
+`MAUI_ADMIN_MFA_LABEL` overrides it. The label is written into the
+authenticator app when it is set up: accounts already set up keep their
+old name until they are renamed there, or MFA is set up again from the
+profile page. `MAUI_ADMIN_MFA=false` turns MFA off altogether (no code
+asked, no setup forced) for development; it is ignored when
+`APP_ENV=production`, which staging runs with too, so a setting copied to
+a real server changes nothing there. Read when the application boots
+(`App\Support\AdminMfa`): a cached config needs `php artisan optimize`.
