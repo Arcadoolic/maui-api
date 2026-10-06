@@ -1,3 +1,19 @@
+## [0.3.0](https://github.com/Arcadoolic/maui-api/compare/0.2.0...0.3.0) (2026-10-06)
+
+### Features
+
+* **admin:** let admins set the origin cabinet of a player (D54) ([93ffe18](https://github.com/Arcadoolic/maui-api/commit/93ffe1810cffd4ac7bdb7d89c357f48d6218ea12))
+* **admin:** MFA labelled after the server, off on demand in development (D55) ([5d1cc89](https://github.com/Arcadoolic/maui-api/commit/5d1cc89d6d703f904518de8d8a57f09e01504506))
+* **catalog:** game catalog pushed by service accounts ([6905b65](https://github.com/Arcadoolic/maui-api/commit/6905b656544fada61a449227ac32134c4964c0f3))
+* **dev:** php artisan dev:reset-scores ([76d8bb1](https://github.com/Arcadoolic/maui-api/commit/76d8bb13103d212b051e72a7358689433f347b18))
+* **leaderboards:** shared leaderboards for the cabinets (Lot 2.4, D52) ([08a4193](https://github.com/Arcadoolic/maui-api/commit/08a4193e6c1e9076ccbd9753a61d36cc860cac88))
+* **players:** a new PIN only from the cabinet the player was created on (D54) ([c7b5dde](https://github.com/Arcadoolic/maui-api/commit/c7b5dde80fd8734872a528a946b4c60ef490541b))
+* **players:** avatars, PNG on disk with its hash as ETag (Lot 2.4, D53) ([acb272f](https://github.com/Arcadoolic/maui-api/commit/acb272fe0f8a81dfdd61d67b0f71c146e721c433))
+* **players:** global players linked to cabinets with a PIN ([96a2143](https://github.com/Arcadoolic/maui-api/commit/96a2143e8cd1a1533e146163d23f727ecf7dc3b8))
+* **players:** no new player with the same letter three times (D51) ([ad0586e](https://github.com/Arcadoolic/maui-api/commit/ad0586e5f607604e04503c17cdd5fc980d5f13ff))
+* **players:** the avatar hash in the players of the cabinet (D53) ([2487bc1](https://github.com/Arcadoolic/maui-api/commit/2487bc1fc416b539929435dbaa7a9f6df10479cb))
+* **scores:** POST /scores, personal bests only (Lot 2.3) ([56b4b0a](https://github.com/Arcadoolic/maui-api/commit/56b4b0a53dc853231210e875de4ba2850837f795))
+
 ## [0.2.0](https://github.com/Arcadoolic/maui-api/compare/0.1.0...0.2.0) (2026-10-01)
 
 ### Features
