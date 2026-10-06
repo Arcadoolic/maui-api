@@ -9,6 +9,7 @@ use Database\Factories\ClientFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Str;
@@ -97,6 +98,16 @@ class Client extends Model
     public function startups(): HasMany
     {
         return $this->hasMany(ClientStartup::class);
+    }
+
+    /**
+     * Players linked to this cabinet (docs/DECISIONS.md D48).
+     *
+     * @return BelongsToMany<Player, $this>
+     */
+    public function players(): BelongsToMany
+    {
+        return $this->belongsToMany(Player::class)->withPivot('linked_at');
     }
 
     /** @return BelongsTo<ClientStartup, $this> */

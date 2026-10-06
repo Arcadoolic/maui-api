@@ -81,6 +81,7 @@ SESSION_SECURE_COOKIE=true
 # HTTP_PORT=8081                         # loopback ports nginx forwards to
 # HTTPS_PORT=8443
 # MAUI_REPOSITORY_URL=https://repo.maui.staging.afronob.com   # announced to the cabinets (D46); empty: no repository
+# MAUI_ADMIN_MFA_LABEL="MAUI-API STG"    # name in the authenticator app (D55); default: APP_NAME (host of APP_URL)
 ```
 
 ```bash

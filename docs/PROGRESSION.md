@@ -4,20 +4,21 @@ Current state of the delivery plan. For the plan itself, see `docs/PLAN.md`.
 For why things are done this way, see `docs/DECISIONS.md`.
 
 **Repository:** `git@github.com:Arcadoolic/maui-api.git` (public), git-flow: `develop` (default) and `main`.
-**Last updated:** 2026-09-27, repository access through the API (D46) deployed on staging, Lot 1 done (API and MAUI), staging deployed on miyamoto (D40).
+**Last updated:** 2026-10-02, Lot 2.4 leaderboards in progress (D52); 2.3 scores merged (D50); 2.2 players merged (D48, D49); 2.1 catalog merged (D47).
 
-## Status: Lot 0 done (staging deployed, production pending), Lot 1 done.
+## Status: Lot 0 done (staging deployed, production pending), Lot 1 done, Lot 2 in progress.
 
 | Lot | What | Status |
 |-----|------|--------|
 | 0 | Foundation: Docker Compose, Laravel 13 skeleton, CI | **Done**; staging deployed (D40, `docs/DEPLOYMENT.md`), production hosting undecided |
 | 1 | MAUI authentication, machine binding, telemetry, Filament BO | **Done**: API (PR #1 to #4, follow-ups #9, #11), MAUI slices 1 to 5 (`Arcadoolic/maui` PRs #88, #92, #93, #96, #97), end-to-end checked, see `docs/MAUI-INTEGRATION.md` |
-| 2 | Hiscores: catalog, players, scores, leaderboards | Design points noted, open questions pending |
+| 2 | Hiscores: catalog, players, scores, leaderboards | **In progress**: 2.1 catalog and 2.2 players merged (not on staging yet), 2.3 scores in progress |
 | 3 | Hiscores front end | Not started |
+| Last | Anti-cheat | Not started, after Lot 3 |
 
 ## Done
 
-- Delivery plan (`docs/PLAN.md`), decisions D1 to D46 (`docs/DECISIONS.md`).
+- Delivery plan (`docs/PLAN.md`), decisions D1 to D55 (`docs/DECISIONS.md`).
 - Lot 1 OpenAPI 3.1 contract (`docs/openapi.yaml`).
 - Lot 0 skeleton:
   - Docker: FrankenPHP + PHP 8.4 image (`Dockerfile`, `docker/`), Compose
@@ -31,6 +32,86 @@ For why things are done this way, see `docs/DECISIONS.md`.
     push.
 - Releases by semantic-release on every push to `main` (D44): 0.1.0
   published on 2026-09-25.
+
+## Follow-up of Lot 2.2: PIN issued by the origin cabinet only (D54)
+
+- `players.origin_client_id` (creation; oldest link for existing players),
+  `is_origin` in the player answers, `403 not_origin_cabinet` on
+  `POST /players/{id}/pin` from another cabinet. Filament shows the origin
+  cabinet; admins still issue and read PINs, and can move the origin to
+  another cabinet of the player, or to none ("Origin cabinet").
+
+## Lot 2.4: leaderboards (in progress, D52)
+
+- `GET /leaderboards/{romname}`, `GET /leaderboards?romnames=...` (100 at
+  most), `GET /players/{id}/bests` (`scores:read`): best visible score of
+  each player, top 9; hidden scores, private or disabled players and
+  disabled cabinets left out. ETag and `304` on these answers.
+- Filament: leaderboard on the game page, "with scores" filter on the
+  games, latest scores on the dashboard.
+- Player avatars (D53): `POST /players/{id}/avatar` (PNG checked, 256 KB,
+  1024 px), `GET /players/{id}/avatar` with the PNG's hash as ETag, the
+  same hash in leaderboard entries.
+- Next: the MAUI side (leaderboards shown in ONLINE mode, cache, avatars).
+
+## Lot 2.3: scores (in progress, D50)
+
+- `scores` table (cabinet-generated `uuid`, player, game, cabinet, nullable
+  startup, table, score, rank on the cabinet, hidden), `Score` model.
+- `POST /api/v1/scores` (batches of 100, personal bests only, one outcome
+  per score, idempotent by `id`), in `docs/openapi.yaml`.
+- Filament: Scores resource (filters by game, player, cabinet, hidden;
+  hide and show again, in the audit log).
+- Development data: `php artisan dev:reset-scores` (local and testing
+  only) empties `scores` and the games known from scores only; MAUI's BO
+  (development builds, MAUI > Online) sends the cabinet's existing
+  hiscores of public players through `POST /scores`.
+- MAUI side next: score capture during the game (`PlaySession`), outbox
+  flushed with the heartbeats.
+
+## Lot 2.2: players (merged, D48, D49)
+
+- `players` (public `uuid`, `pseudo_3`, `is_public`, status, PIN hash and
+  lock) and `client_player` tables; ability `players` for cabinets, data
+  migration for the tokens already issued.
+- Endpoints `GET /players`, `GET /players/availability`, `POST /players`,
+  `POST /players/link` (own `player-link` limiter), `PATCH /players/{id}`,
+  `POST /players/{id}/pin`, `DELETE /players/{id}/link`, in
+  `docs/openapi.yaml`.
+- Filament: Players resource (status, PIN lock, public, cabinets, audit;
+  disable, enable, unlock, show PIN, new PIN). PINs encrypted, not hashed,
+  so admins can read them (D49).
+- MAUI side done locally (`Arcadoolic/maui` branch `feat/online-players`):
+  player sync, registration with the PIN on the cabinet and in the BO, BO
+  MAUI-API column (visibility, new PIN, Go ONLINE), ONLINE refused while an
+  active player is not in the API, scores only for players allowed to
+  receive them.
+- Checked on Bazzite against the local API: player sync, registration
+  from the cabinet (after the renderer `fetch` fix) and from the BO, Go
+  ONLINE for players created locally, the reconciliation refusal and
+  Filament "Show PIN" (2026-10-02). Left: score attribution by hand, and
+  the cases that need two cabinets (taken initials, wrong PIN, lock), on
+  staging.
+- Merged on 2026-10-02: API PR #29, MAUI PR #122. Not on staging yet.
+
+## Lot 2.1: catalog (merged, D47)
+
+- `categories` and `games` tables, `Game` and `Category` models.
+- `PUT /api/v1/catalog/games` (batches of 500, idempotent upsert by
+  `romname`, never deletes), in `docs/openapi.yaml`.
+- `service:<ability>` middleware for service accounts: no machine binding,
+  service type required, token `last_used_at` recorded (D43) and shown on
+  the service account page; own `service` limiter.
+- Filament: read-only Games resource (filters by genre, catver genre or
+  subgenre, players, catalogued or not).
+- maui-repository: `just push-catalog` (`scripts/push-catalog.ts`) sends
+  the games of the packs' manifests with their genre.ini and catver.ini
+  categories, batches of 500, no MAME needed.
+- Checked end to end on 2026-10-01 against the local API: 366 games of the
+  local packs folder created, a second push all unchanged, 401 and
+  unreachable API reported clearly.
+- Merged: API PR #28, maui-repository PR #14. Pending: deploy on staging,
+  then a service account push there.
 
 ## Starting-pack repository access (done, staging, D46)
 
@@ -141,10 +222,10 @@ For why things are done this way, see `docs/DECISIONS.md`.
 
 ## Next
 
-1. Lot 2 design questions (see `docs/PLAN.md`, open questions), to settle
-   with the MAUI side before any code: LOCAL to ONLINE player migration,
-   `pseudo_2` scope, pseudo namespace. Then hiscores. Service account
-   endpoints must update `last_used_at` (D43).
+1. Lot 2.2: the hand checks left (reconciliation refusal, score
+   attribution, Show PIN).
+2. Lot 2.3: score capture (per-play diff, outbox) and `POST /scores`.
+3. Deploy develop on staging (2.1 and 2.2), push the staging catalog.
 
 ## Pending outside the code
 

@@ -163,15 +163,18 @@ Consequences for the integration:
 
 ## Lot 2: Hiscores (design points to anticipate now)
 
-### Catalog
+Detailed plan agreed on 2026-09-30, in four sub-lots delivered in order: 2.1 catalog, 2.2 players, 2.3 score capture and sending, 2.4 leaderboards. No anti-cheat in this lot: see "Last lot" below.
 
-Games and categories are fed by service accounts through an idempotent bulk upsert (`PUT /api/v1/catalog/games`), keyed by MAME `romname`.
+### Catalog (2.1, D47)
 
-### Players (follows D4)
+Games and categories are fed by service accounts through an idempotent bulk upsert (`PUT /api/v1/catalog/games`), keyed by MAME `romname`. maui-repository pushes them from its configuration pack and pack manifests (`just push-catalog`). Read-only Games resource in Filament.
 
-- MAUI already has local players (`User` model, SQLite): `pseudo_3` (1 to 3 chars, required, unique), `pseudo_2` (1 or 2 chars, optional, unique), `realname`, `email`, soft delete. The API model should mirror these names rather than a generic `initials`.
-- Tables: `players` (unique `pseudo_3`, unique nullable `pseudo_2`, `email`) and pivot `client_player`. One player can be allowed on several cabinets once the request is validated by email.
-- `POST /api/v1/players` returns `201`, or `409 initials_taken`, which will trigger the future email flow.
+### Players (2.2, follows D4, D48)
+
+- Tables `players` (unique `pseudo_3`, `is_public`, admin status, 4-digit PIN encrypted so admins can read it (D49), with a lock after 5 wrong PINs) and pivot `client_player`. No name, no email, no `pseudo_2` (a MAUI leftover).
+- Cabinet endpoints under the `players` ability: availability, create (`201` with the PIN once, or `409 initials_taken`), link with the PIN, list, visibility, new PIN, unlink.
+- Filament: Players resource (disable, enable, unlock, show PIN, new PIN, cabinets, audit).
+- MAUI side: sync, registration with the PIN, reconciliation when switching to ONLINE, attribution limited to active players.
 
 ### Scores
 
@@ -189,11 +192,19 @@ MAUI needs a local queue (outbox pattern) for scores to send, and a cache of rem
 
 ### Trust
 
-Any token holder can submit an arbitrary score. Accepted risk, mitigated by moderation in Filament (hide a score, ban a client).
+Any token holder can submit an arbitrary score. Accepted risk, mitigated by moderation in Filament (hide a score, ban a client). Anti-cheat comes in the last lot.
 
 ## Lot 3: Hiscores front end
 
 Consumes the Lot 2 read endpoints. Public read-only endpoints with HTTP caching are enough.
+
+## Last lot: anti-cheat
+
+Hiscores start simple, without anti-cheat. Leads, to rework once hiscores are in use:
+- MAME launched locked down (`-nocheat -nodebug -noconsole`, `cheat` and `cheatfind` plugins excluded);
+- sha256 of the hi and nvram files, recomputed on each MAME exit, to spot a change between two plays;
+- each score tied to a play opened server side (`plays`), with a plausible duration, and a `verified` status;
+- encrypted local score queue.
 
 ## Before production
 
@@ -219,4 +230,4 @@ Decided, to do before the first production deployment (with open question 0).
 0. **Production hosting (Lot 0)**: Docker Compose on the Ubuntu server, or native install? FrankenPHP fits both (Docker image or standalone binary with a systemd unit), so the local choice does not constrain it. To decide with the team before the first deployment.
 1. **LOCAL to ONLINE migration (Lot 2)**: a cabinet switching to ONLINE with existing local players may hit initials conflicts. Who wins, and how is the cabinet informed?
 2. **Initials namespace (Lot 2)**: with 3 letters, popular initials (AAA, ACE...) will be taken fast. To monitor if the fleet grows.
-3. **`pseudo_2` scope (Lot 2)**: is the 2-character pseudo also globally unique, or only local to a cabinet? Global uniqueness on 2 characters leaves very few values.
+3. ~~**`pseudo_2` scope (Lot 2)**~~: settled by D48, `pseudo_2` is a MAUI leftover and is not synced.

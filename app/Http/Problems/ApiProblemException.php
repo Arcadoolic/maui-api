@@ -15,6 +15,8 @@ final class ApiProblemException extends RuntimeException
         public readonly int $status,
         public readonly string $problemCode,
         public readonly ?string $detail = null,
+        /** @var array<string, mixed> Extra problem members, e.g. `attempts_left`. */
+        public readonly array $extra = [],
     ) {
         parent::__construct($problemCode);
     }
@@ -42,5 +44,43 @@ final class ApiProblemException extends RuntimeException
     public static function machineMismatch(): self
     {
         return new self(Response::HTTP_CONFLICT, 'machine_mismatch', 'These credentials are already used on another cabinet.');
+    }
+
+    public static function initialsTaken(): self
+    {
+        return new self(Response::HTTP_CONFLICT, 'initials_taken', 'These initials belong to another player.');
+    }
+
+    public static function playerNotFound(): self
+    {
+        return new self(Response::HTTP_NOT_FOUND, 'player_not_found');
+    }
+
+    public static function avatarNotFound(): self
+    {
+        return new self(Response::HTTP_NOT_FOUND, 'avatar_not_found', 'This player has no avatar.');
+    }
+
+    public static function playerDisabled(): self
+    {
+        return new self(Response::HTTP_FORBIDDEN, 'player_disabled', 'This player has been disabled by an administrator.');
+    }
+
+    public static function playerLocked(): self
+    {
+        return new self(Response::HTTP_LOCKED, 'player_locked', 'Too many wrong PINs: a new PIN must be issued from the cabinet this player was created on, or by an administrator.');
+    }
+
+    public static function notOriginCabinet(): self
+    {
+        return new self(
+            Response::HTTP_FORBIDDEN, 'not_origin_cabinet',
+            'Only the cabinet this player was created on, or an administrator, can issue a new PIN.',
+        );
+    }
+
+    public static function pinInvalid(int $attemptsLeft): self
+    {
+        return new self(Response::HTTP_FORBIDDEN, 'pin_invalid', extra: ['attempts_left' => $attemptsLeft]);
     }
 }

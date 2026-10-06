@@ -31,6 +31,66 @@ Only three things, no hiscores yet (Lot 2):
 Everything else in MAUI keeps working locally. Any API failure must leave MAUI
 fully usable in LOCAL mode.
 
+## 1 bis. Lot 2.2: players
+
+Contract in `docs/openapi.yaml` (tag Players), rules in `docs/DECISIONS.md`
+D48. What the MAUI side has to do:
+
+- Only `pseudo_3` and `is_public` are sent: `realname` and `email` stay
+  local, `pseudo_2` is ignored. Keep the remote `id` (UUID) on the local
+  user.
+- Registration in ONLINE mode is synchronous (D4): `GET
+  /players/availability`, then `POST /players` (show the returned PIN once,
+  never store it on the cabinet; MAUI-API admins can read it back, D49) or,
+  for taken initials, the PIN entry and `POST /players/link`. API
+  unreachable: refuse the registration.
+- Branch on `code`: `initials_taken` (409), `pin_invalid` (403, with
+  `attempts_left`), `player_locked` (423, a cabinet of this player must issue
+  a new PIN: `POST /players/{id}/pin`), `player_disabled` (403),
+  `player_not_found` (404, also for a player of another cabinet).
+- Sync with `GET /players`: status `disabled` or `locked` per player.
+- A new PIN (`POST /players/{id}/pin`) only where `is_origin` is true, the
+  cabinet the player was created on (D54): hide the action elsewhere,
+  `403 not_origin_cabinet` otherwise.
+- Switching to ONLINE: every active local player must be reserved or
+  linked (create, or link with the PIN), or deactivated locally.
+
+Done on the MAUI side in `Arcadoolic/maui` branch `feat/online-players`
+(see its `docs/DECISIONS.md`, section "ONLINE mode (MAUI-API)").
+
+## 1 ter. Lot 2.3: scores
+
+Contract in `docs/openapi.yaml` (tag Scores), rules in `docs/DECISIONS.md`
+D50. What the MAUI side has to do:
+
+- Send only the new scores of a game just played, for players linked to
+  MAUI-API and not disabled: never the startup scan.
+- Generate the `id` (UUID) when the score is recorded, and keep it in the
+  outbox until an answer: resending it is safe.
+- Send `startup_id` when the run had a startup report.
+- For each result: `accepted` and `not_improved` leave the outbox and
+  update the cached `best` of the player on this game and table;
+  `rejected` leaves it too (log the `code`). Network errors, `429` and
+  `5xx` keep the batch for the next try.
+- Send only what beats the cached `best`: the API answers `not_improved`
+  otherwise.
+
+## 1 quater. Lot 2.4: leaderboards
+
+Contract in `docs/openapi.yaml` (tag Leaderboards), rules in
+`docs/DECISIONS.md` D52. What the MAUI side has to do:
+
+- In ONLINE mode, show the API's leaderboards instead of the local ones
+  (hiscores table, champions podium); LOCAL mode does not change.
+- Refresh them with `GET /leaderboards?romnames=...` (100 per call), with
+  `If-None-Match`: `304` means the cached copy is still right. Keep a copy
+  for when the API cannot be reached.
+- Refresh a game's leaderboard after its scores were sent.
+- Avatars (D53): send a player's PNG with `POST /players/{id}/avatar` when
+  it is created or changed. For the players of the leaderboards, download
+  `GET /players/{id}/avatar` only when `player.avatar` (its hash) differs
+  from the cached one.
+
 ## 2. The API in one page
 
 Base URL: the `url` field of the configuration string + `/api/v1`.

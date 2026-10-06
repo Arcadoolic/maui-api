@@ -1,31 +1,9 @@
 <?php
 
 use App\Models\Client;
-use App\Services\ClientTokenIssuer;
 use Illuminate\Support\Facades\DB;
 
 // forward_auth target of the starting-pack repository (docs/DECISIONS.md D46).
-
-/**
- * Creates an active service account with a valid token.
- *
- * @return array{0: Client, 1: string}
- */
-function serviceWithToken(): array
-{
-    $client = Client::factory()->service()->create();
-
-    return [$client, app(ClientTokenIssuer::class)->issue($client)];
-}
-
-/** Service accounts send no machine header. */
-function serviceHeaders(Client $client, string $token): array
-{
-    return [
-        'X-Maui-Key' => $client->public_key,
-        'Authorization' => 'Bearer '.$token,
-    ];
-}
 
 it('authorizes a cabinet and binds it on first use', function () {
     [$client, $token] = cabinetWithToken();

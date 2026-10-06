@@ -416,3 +416,168 @@ put `GET /repository` behind `cabinet:repository:read`, both routes use the
 `repository` middleware: through `cabinet`, a service account would have
 been bound to a machine fingerprint.
 
+
+## Lot 2 implementation
+
+**D47: Catalog pushed by service accounts, upsert without deletion.** (2026-10-01)
+`PUT /api/v1/catalog/games` takes batches of up to 500 games keyed by MAME
+`romname`; maui-repository pushes them from its configuration pack
+(genre.ini, catver.ini, Multiplayer.ini) and its pack manifests. Each push
+describes a game completely, so a field left out becomes `null`, and the
+upsert is idempotent (the response counts created, updated and unchanged
+games). Games missing from a push are never deleted: scores will reference
+them. A batch is validated as a whole (one invalid game, nothing written),
+which keeps the sender's error handling simple. Categories keep the raw
+MAME support files, not MAUI's carousel grouping (`CatverGenres.ts`, a
+display concern): `categories(source, name, parent_id)`, genre.ini on one
+level, catver.ini genre with its subgenre as a child; the sender strips
+the `TTL *` prefix (both files) and catver's `* Mature *` suffix, the
+latter sent as `mature`. `year` stays a string (MAME has `198?`). `parent_romname` is not
+a foreign key, a clone may be catalogued without its parent. A score for an
+unknown `romname` (Lot 2 scores) will create a bare game with
+`catalogued_at = null` instead of being refused; the next push completes
+it. The plan's `extra` jsonb column is left out until a field needs it.
+New `service:<ability>` middleware: same authentication as cabinets, no
+machine binding, refuses any non-service client even if its token carries
+the ability, and records the token's `last_used_at` (D43), shown on the
+service account page of the back office. Own `service` limiter, 120/min
+per key. Games resource in Filament, read only.
+
+**D48: Players linked to cabinets with a 4-digit PIN; no personal data, no `pseudo_2`.** (2026-10-02, PIN storage superseded by D49, who issues a new PIN by D54)
+Follows D4 (initials unique across the fleet). A cabinet creates a player
+(`POST /players`, `409 initials_taken` otherwise) and gets its PIN once in
+plain text; the player joins another cabinet with initials + PIN
+(`POST /players/link`), which replaces the email validation the plan first
+had in mind: no mail is set up, and a PIN typed with the joystick works on
+any cabinet. Only `pseudo_3` and `is_public` reach the API: `realname` and
+`email` stay on the cabinet. MAUI's `pseudo_2` is a leftover nothing reads,
+so it is not synced at all (closes open question 3 of `docs/PLAN.md`).
+Players are private by default; a private player's scores will be hidden
+from the shared leaderboards, and shown again if it becomes public (Lot 2.3,
+2.4). Brute force: a 4-digit PIN is guessable, so 5 wrong PINs in a row lock
+the player (`423 player_locked`), on top of a `player-link` limiter (10/min
+per key); a cabinet of that player issues a new PIN, which unlocks it, or an
+admin unlocks it in Filament (PIN unchanged). The accepted cost: anyone can
+lock someone else's player by guessing on purpose. The lock is a timestamp,
+reported as status `locked`, apart from the admin status (`active`,
+`disabled`). Players are never deleted (scores will reference them);
+unlinking only removes the cabinet. Cabinets only see their own players:
+another cabinet's player answers `404 player_not_found`. `players.id` is a
+bigint and the API exposes a separate `uuid`: the audit log
+(`activity_log.subject_id`) needs integer keys, and every change is logged
+with the cabinet or the admin as causer, never the PIN. New ability
+`players` for cabinets, granted to the tokens already issued by a data
+migration, as in D46.
+
+**D49: PINs encrypted, readable by admins.** (2026-10-02, supersedes the PIN storage of D48)
+Admins help players who lost their PIN, so the PIN is stored encrypted
+with `APP_KEY` (Laravel `encrypted` cast, column `players.pin`) instead of
+hashed with bcrypt. Little is lost: a 4-digit PIN hash falls to 10,000
+guesses offline, so the hash only ever protected it from a casual look at
+the database, which encryption does as well; the real protection stays the
+lock after 5 wrong PINs (D48). Filament: "Show PIN" (confirmation, every
+reading recorded as `player.pin_viewed`, never the PIN) and "New PIN"
+(also unlocks, recorded as `player.pin_regenerated` with the admin as
+causer), both shown once in a modal, as for client secrets (D34). Comparing
+a PIN uses `hash_equals`. Losing `APP_KEY` loses the PINs, as the rest of
+the encrypted data: players then get a new PIN from their cabinet.
+
+**D50: Scores: personal bests only, one outcome per score.** (2026-10-02, Lot 2.3)
+`POST /scores` takes batches of up to 100 scores from a cabinet (ability
+`scores:write`, already in the cabinet tokens). Only personal bests are
+stored: a score not above the player's best on the game and table (hidden
+scores aside) is answered `not_improved` and dropped, which keeps `scores`
+small and makes a leaderboard a plain "best per player". Each score gets
+its own outcome (`accepted`, `not_improved`, `rejected` with a `code`), so
+that one bad score never blocks a cabinet's outbox; a malformed batch is
+still refused as a whole (`422`). The cabinet-generated `id` is the
+idempotency key: a resend answers `accepted` again, the same `id` from
+another cabinet or player `id_conflict`. Each answer carries the player's
+`best`, which the cabinet caches to send only what beats it. A score locks
+its player row for the check and the insert, so two cabinets cannot both
+store a "best". Rejected: players not linked to the cabinet
+(`player_not_found`) and disabled players. Accepted: private players (kept
+out of the shared leaderboards, back if they become public, D48) and
+PIN-locked ones (the lock only blocks linking). An unknown `romname`
+creates a bare game (D47); a `startup_id` of another cabinet is ignored
+(D6). No `cheats` flag: anti-cheat comes in the last lot. Moderation in
+Filament: hide a score, or show it again, recorded in the audit log
+(`score.hidden`, `score.shown`); a hidden score no longer counts as the
+best. Scores of disabled players or cabinets are left as they are and
+filtered out of the leaderboards (Lot 2.4).
+
+**D51: No new player with the same letter three times.** (2026-10-02, Lot 2.2)
+`POST /players` refuses initials made of one letter three times (AAA,
+ZZZ...) with `422`, and MAUI refuses them too, in the BO and on the
+cabinet. Requested by the project owner. The players who already have such
+initials keep them: `GET /players/availability` and `POST /players/link`
+still accept them, so they can be linked with their PIN. Rule in
+`App\Support\Pseudo3::newPlayerRules()`, same as MAUI's `newPseudo3Error()`.
+
+**D52: Leaderboards: best per player, visible scores only, ETag.** (2026-10-02, Lot 2.4)
+A leaderboard is the best score of each player on a game and table
+(`DISTINCT ON (player_id)`), best first, the earliest first at equal
+scores, top 9 (what a cabinet's hiscore screen shows). Only visible scores
+count: not hidden, of a public and active player, sent by an active
+cabinet. Nothing is deleted or rewritten: a private, disabled or banned
+player's scores come back when that is lifted (D48). Cabinets read them
+with `scores:read`: `GET /leaderboards/{romname}`, and
+`GET /leaderboards?romnames=a,b,...` (100 at most) since a cabinet
+refreshes the leaderboards of all its games, a few hundred. An unknown game
+answers an empty leaderboard, not `404`: the cabinet does not need to know
+which games have scores. `GET /players/{id}/bests` lists the visible best of
+a public and active player on each game (`404 player_not_found` otherwise).
+These GET answers carry an ETag (`Cache-Control: private, no-cache`): a
+cabinet sends `If-None-Match` and gets `304` with no body when nothing
+changed. Filament: the leaderboard on the game page, a "with scores"
+filter on the games, and the latest scores on the dashboard.
+
+**D53: Player avatars: PNG on disk, hash as ETag.** (2026-10-02, Lot 2.4)
+A cabinet of the player sends its avatar when it is created or changed:
+`POST /players/{id}/avatar` (ability `players`, multipart field `avatar`),
+not `PUT`, which PHP does not parse as multipart. A real PNG only (content
+checked, not the name), 256 KB and 1024 px at most. Sent as a file rather
+than base64: no 33 % overhead, and HTTP caching works. Stored on the
+`local` disk, `avatars/<uuid>.png` (the `storage` volume on staging), its
+SHA-256 in `players.avatar_hash`. Every cabinet reads it with
+`GET /players/{id}/avatar` (`scores:read`), for public and active players
+only, the hash as ETag (`304` when unchanged); leaderboard entries carry
+the same hash as `player.avatar`, so a cabinet only downloads an avatar it
+does not have yet. `GET /players` gives the hash of each of the cabinet's
+players too: the cabinet sends its PNG again when its own differs, which
+covers creation and every change. No avatar: `404 avatar_not_found`. A change is recorded
+as `player.avatar_changed` with the cabinet as causer.
+
+**D54: A new PIN only from the cabinet the player was created on.** (2026-10-03, narrows D48)
+D48 let any cabinet a player is linked to issue a new PIN, without the old
+one. Requested by the project owner: the owner of any of those cabinets
+could take the PIN away from the player (the new one is shown once, in
+that cabinet's BO) or link the player wherever they want. A new PIN does
+not affect the cabinets already linked, which never use it again, but the
+player loses the one it knows. `POST /players/{id}/pin` now answers
+`403 not_origin_cabinet` unless the cabinet is the player's origin:
+`players.origin_client_id`, set at creation, and for existing players the
+cabinet of their oldest link (data migration). Cabinets get `is_origin`
+with each player, to show or hide the action. Admins still read, issue and
+unlock PINs in Filament (D49), which is the only way left when the origin
+cabinet is gone (`origin_client_id` null) or is not at hand. Admins can
+also move the origin to another cabinet the player is linked to, or leave
+the player without one ("Origin cabinet" on the player page, recorded as
+`player.origin_changed` with the cabinets' names): for a cabinet that is
+gone or sold, or an origin the migration guessed wrong. The cabinets learn
+it at their next player sync.
+
+**D55: MFA labelled after the server, and off on demand outside production.** (2026-10-03, completes D35)
+Requested by the project owner. The authenticator app showed every server
+under the same name ("MAUI-API"): with local, staging and soon production,
+picking the right code among five was guesswork. The account is now
+labelled `APP_NAME (host of APP_URL)`, e.g. "MAUI-API
+(api.maui.staging.afronob.com)" or "MAUI-API (localhost:8080)";
+`MAUI_ADMIN_MFA_LABEL` overrides it. The label is written into the
+authenticator app when it is set up: accounts already set up keep their
+old name until they are renamed there, or MFA is set up again from the
+profile page. `MAUI_ADMIN_MFA=false` turns MFA off altogether (no code
+asked, no setup forced) for development; it is ignored when
+`APP_ENV=production`, which staging runs with too, so a setting copied to
+a real server changes nothing there. Read when the application boots
+(`App\Support\AdminMfa`): a cached config needs `php artisan optimize`.

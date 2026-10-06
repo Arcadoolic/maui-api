@@ -41,7 +41,10 @@ final class ApiProblemRenderer
             $exception instanceof ApiProblemException => self::make(
                 $exception->status,
                 $exception->problemCode,
-                extra: $exception->detail === null ? [] : ['detail' => $exception->detail],
+                extra: [
+                    ...($exception->detail === null ? [] : ['detail' => $exception->detail]),
+                    ...$exception->extra,
+                ],
             ),
             $exception instanceof ValidationException => self::make(
                 Response::HTTP_UNPROCESSABLE_ENTITY,

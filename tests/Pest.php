@@ -2,6 +2,7 @@
 
 use App\Enums\InvitationPurpose;
 use App\Models\Client;
+use App\Models\Player;
 use App\Services\ClientTokenIssuer;
 use App\Services\Invitations\InvitationIssuer;
 use App\Services\Invitations\IssuedInvitation;
@@ -47,6 +48,31 @@ function cabinetWithToken(array $attributes = []): array
     return [$client, app(ClientTokenIssuer::class)->issue($client)];
 }
 
+/**
+ * Creates an active service account with a valid token.
+ *
+ * @return array{0: Client, 1: string}
+ */
+function serviceWithToken(): array
+{
+    $client = Client::factory()->service()->create();
+
+    return [$client, app(ClientTokenIssuer::class)->issue($client)];
+}
+
+/**
+ * Service accounts send no machine header.
+ *
+ * @return array<string, string>
+ */
+function serviceHeaders(Client $client, string $token): array
+{
+    return [
+        'X-Maui-Key' => $client->public_key,
+        'Authorization' => 'Bearer '.$token,
+    ];
+}
+
 function issueInvitation(?Client $client = null, InvitationPurpose $purpose = InvitationPurpose::Initial): IssuedInvitation
 {
     return app(InvitationIssuer::class)->issue($client ?? Client::factory()->create(), $purpose);
@@ -58,4 +84,18 @@ function configurationStringFrom(TestResponse $response): string
     preg_match('/MAUI1\.[A-Za-z0-9_-]+/', $response->getContent(), $matches);
 
     return $matches[0] ?? '';
+}
+
+/**
+ * Creates a player on a cabinet (its origin, D54), linked to it, with a known PIN.
+ *
+ * @param  array<string, mixed>  $attributes
+ */
+function linkedPlayer(Client $client, array $attributes = [], string $pin = '1234'): Player
+{
+    $player = Player::factory()->create([...$attributes, 'pin' => $pin]);
+    $player->forceFill(['origin_client_id' => $client->id])->save();
+    $player->clients()->attach($client, ['linked_at' => now()]);
+
+    return $player;
 }

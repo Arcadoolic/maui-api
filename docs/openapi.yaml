@@ -6,6 +6,7 @@ info:
   summary: Backend for MAUI arcade cabinets running in ONLINE mode.
   description: |
     Lot 1 contract: MAUI client authentication, machine binding and telemetry.
+    Lot 2 (in progress): game catalog, players.
     See `docs/PLAN.md` for the design decisions behind this contract.
 
     ## Authentication
@@ -62,6 +63,18 @@ info:
     | 409 | `machine_mismatch` | Credentials already bound to another cabinet. Fall back to LOCAL. |
     | 422 | `validation_failed` | Invalid body, details in `errors`. |
     | 429 | `rate_limited` | Retry after `Retry-After` seconds. |
+
+    Players (`/players`):
+
+    | Status | `code` | Meaning for MAUI |
+    |--------|--------|------------------|
+    | 403 | `pin_invalid` | Wrong PIN, `attempts_left` before the player is locked. |
+    | 403 | `not_origin_cabinet` | New PIN asked from a cabinet the player was not created on (D54). |
+    | 404 | `avatar_not_found` | The player has no avatar (D53). |
+    | 403 | `player_disabled` | Player disabled by an admin. |
+    | 404 | `player_not_found` | No such initials, or a player not linked to this cabinet. |
+    | 409 | `initials_taken` | Initials of another player: offer to link with the PIN. |
+    | 423 | `player_locked` | Too many wrong PINs: the cabinet the player was created on, or an admin, must issue a new PIN. |
     | 500 | `server_error` | No technical detail is ever exposed. |
 
     Generic codes, not tied to a business rule: `forbidden` (403),
@@ -87,6 +100,23 @@ tags:
     description: |
       Access to the starting-pack repository: its URL, announced by this
       server, and the check its web server runs on every file request.
+  - name: Players
+    description: |
+      Players are global: initials unique across the fleet, linked to each
+      cabinet they play on, at creation or with their 4-digit PIN. No name
+      or email is ever sent. Requires the `players` ability.
+  - name: Scores
+    description: |
+      Scores of the cabinet's players, personal bests only (D50). Requires
+      the `scores:write` ability.
+  - name: Leaderboards
+    description: |
+      Shared leaderboards (D52): the best visible score of each player.
+      Requires the `scores:read` ability. Answers carry an ETag: send
+      `If-None-Match` to get `304` when nothing changed.
+  - name: Catalog
+    description: |
+      Game catalog fed by service accounts (maui-repository's `push-catalog`).
   - name: Invitations
     description: |
       Public web pages (HTML, not JSON) used by a cabinet owner to retrieve
@@ -281,6 +311,579 @@ paths:
         '500':
           $ref: '#/components/responses/ServerError'
 
+  /players:
+    get:
+      tags: [Players]
+      operationId: listPlayers
+      summary: List the players of this cabinet
+      description: |
+        Players linked to the calling cabinet, by initials, with their status:
+        `active`, `disabled` (by an admin) or `locked` (too many wrong PINs).
+        MAUI syncs its local players from it.
+      responses:
+        '200':
+          description: Players linked to this cabinet.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PlayerListResponse'
+        '400':
+          $ref: '#/components/responses/MachineFingerprintMissing'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/MachineMismatch'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/ServerError'
+    post:
+      tags: [Players]
+      operationId: createPlayer
+      summary: Create a player
+      description: |
+        Reserves the initials across the fleet and links the player to this
+        cabinet (D4: synchronous, no player without the API in ONLINE mode).
+        The PIN is returned once, in plain text: show it to the player, never
+        store it on the cabinet (admins can read it in the back office, D49).
+        Players are private unless `is_public` is true. Initials made of
+        one letter three times (AAA, ZZZ...) are refused with `422` (D51).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreatePlayerRequest'
+      responses:
+        '201':
+          description: Player created and linked.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CreatedPlayerResponse'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+        '400':
+          $ref: '#/components/responses/MachineFingerprintMissing'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/PlayerForbidden'
+        '409':
+          $ref: '#/components/responses/PlayerConflict'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /players/availability:
+    get:
+      tags: [Players]
+      operationId: getPlayerAvailability
+      summary: Check whether initials are free
+      parameters:
+        - name: pseudo_3
+          in: query
+          required: true
+          schema:
+            $ref: '#/components/schemas/Pseudo3'
+      responses:
+        '200':
+          description: '`free`, `taken` (link with the PIN) or `disabled` (taken by a disabled player).'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PlayerAvailabilityResponse'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+        '400':
+          $ref: '#/components/responses/MachineFingerprintMissing'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/MachineMismatch'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /players/link:
+    post:
+      tags: [Players]
+      operationId: linkPlayer
+      summary: Link an existing player with its PIN
+      description: |
+        Links the player owning these initials to this cabinet. Idempotent for
+        a player already linked (the PIN is still checked). Each wrong PIN is
+        counted; the fifth in a row locks the player (`423`) until a cabinet
+        of this player issues a new PIN, or an admin unlocks it. Own rate
+        limit: 10 requests per minute per key.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LinkPlayerRequest'
+      responses:
+        '200':
+          description: Player linked.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PlayerResponse'
+        '404':
+          $ref: '#/components/responses/PlayerNotFound'
+        '423':
+          $ref: '#/components/responses/PlayerLocked'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+        '400':
+          $ref: '#/components/responses/MachineFingerprintMissing'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/PlayerForbidden'
+        '409':
+          $ref: '#/components/responses/MachineMismatch'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /players/{playerId}:
+    parameters:
+      - $ref: '#/components/parameters/PlayerId'
+    patch:
+      tags: [Players]
+      operationId: updatePlayer
+      summary: Change the visibility of a player
+      description: |
+        Public players appear in the shared leaderboards; the scores of a
+        private one are hidden, and shown again if it becomes public. Only for
+        a player linked to this cabinet; refused for a disabled player.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdatePlayerRequest'
+      responses:
+        '200':
+          description: Player updated.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PlayerResponse'
+        '404':
+          $ref: '#/components/responses/PlayerNotFound'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+        '400':
+          $ref: '#/components/responses/MachineFingerprintMissing'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/PlayerForbidden'
+        '409':
+          $ref: '#/components/responses/MachineMismatch'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /players/{playerId}/pin:
+    parameters:
+      - $ref: '#/components/parameters/PlayerId'
+    post:
+      tags: [Players]
+      operationId: regeneratePlayerPin
+      summary: Issue a new PIN
+      description: |
+        Replaces the PIN and unlocks the player. Only from the cabinet the
+        player was created on (`is_origin`, D54): another cabinet of the
+        player gets `403 not_origin_cabinet`. Refused for a disabled player.
+        The PIN is returned once.
+      responses:
+        '200':
+          description: New PIN.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PinResponse'
+        '404':
+          $ref: '#/components/responses/PlayerNotFound'
+        '400':
+          $ref: '#/components/responses/MachineFingerprintMissing'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/PlayerForbidden'
+        '409':
+          $ref: '#/components/responses/MachineMismatch'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /players/{playerId}/link:
+    parameters:
+      - $ref: '#/components/parameters/PlayerId'
+    delete:
+      tags: [Players]
+      operationId: unlinkPlayer
+      summary: Unlink a player from this cabinet
+      description: |
+        The player keeps its initials and its other cabinets.
+      responses:
+        '204':
+          description: Unlinked.
+        '404':
+          $ref: '#/components/responses/PlayerNotFound'
+        '400':
+          $ref: '#/components/responses/MachineFingerprintMissing'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/PlayerForbidden'
+        '409':
+          $ref: '#/components/responses/MachineMismatch'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /scores:
+    post:
+      tags: [Scores]
+      operationId: postScores
+      summary: Send a batch of scores
+      description: |
+        Up to 100 scores, each with its own outcome in `results`, in the
+        order sent: one bad score never blocks the rest of the batch.
+
+        - `accepted`: stored, or already stored under this `id` (a resend
+          after a network cut: the `id`, generated by the cabinet, is the
+          idempotency key).
+        - `not_improved`: not above the player's best on this game and
+          table; dropped. Only personal bests are kept.
+        - `rejected`, with a `code`: `player_not_found` (not a player of
+          this cabinet), `player_disabled`, `id_conflict` (this `id` is a
+          score of another cabinet or player). Drop the score.
+
+        `best` is the player's best on the game and table after this score,
+        hidden scores aside: cache it, and only send what beats it. A
+        `romname` outside the catalog creates a bare game. A `startup_id`
+        that is not one of this cabinet's startups is ignored. Private and
+        PIN-locked players' scores are accepted; private ones stay out of
+        the shared leaderboards.
+
+        The batch shape is validated as a whole (`422`, nothing written).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ScoresRequest'
+      responses:
+        '200':
+          description: One result per score.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ScoresResponse'
+        '400':
+          $ref: '#/components/responses/MachineFingerprintMissing'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/MachineMismatch'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /leaderboards:
+    get:
+      tags: [Leaderboards]
+      operationId: getLeaderboards
+      summary: Leaderboards of several games
+      description: |
+        The leaderboards of up to 100 games, sorted by `romname`, duplicates
+        removed. A game without visible scores, or unknown, has no entries.
+      parameters:
+        - name: romnames
+          in: query
+          required: true
+          description: Comma-separated MAME short names, 100 at most.
+          schema:
+            type: string
+          example: dkong,galaga
+        - $ref: '#/components/parameters/ScoreTable'
+        - $ref: '#/components/parameters/IfNoneMatch'
+      responses:
+        '200':
+          description: One leaderboard per game.
+          headers:
+            ETag:
+              $ref: '#/components/headers/ETag'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LeaderboardListResponse'
+        '304':
+          description: Unchanged since the ETag sent in `If-None-Match`.
+        '400':
+          $ref: '#/components/responses/MachineFingerprintMissing'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/MachineMismatch'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /leaderboards/{romname}:
+    parameters:
+      - name: romname
+        in: path
+        required: true
+        schema:
+          type: string
+          pattern: '^[a-z0-9_]{1,32}$'
+    get:
+      tags: [Leaderboards]
+      operationId: getLeaderboard
+      summary: Leaderboard of a game
+      description: |
+        The best visible score of each player on the game and table, best
+        first (the earliest first at equal scores), top 9. Visible: not
+        hidden, of a public and active player, sent by an active cabinet.
+        An unknown game answers an empty leaderboard.
+      parameters:
+        - $ref: '#/components/parameters/ScoreTable'
+        - $ref: '#/components/parameters/IfNoneMatch'
+      responses:
+        '200':
+          description: The leaderboard.
+          headers:
+            ETag:
+              $ref: '#/components/headers/ETag'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Leaderboard'
+        '304':
+          description: Unchanged since the ETag sent in `If-None-Match`.
+        '400':
+          $ref: '#/components/responses/MachineFingerprintMissing'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/MachineMismatch'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /players/{playerId}/bests:
+    parameters:
+      - $ref: '#/components/parameters/PlayerId'
+    get:
+      tags: [Leaderboards]
+      operationId: getPlayerBests
+      summary: Bests of a player
+      description: |
+        The visible best of a public and active player, of any cabinet, on
+        each game and table, by `romname`. A private or disabled player
+        answers `404 player_not_found`.
+      parameters:
+        - $ref: '#/components/parameters/IfNoneMatch'
+      responses:
+        '200':
+          description: The bests.
+          headers:
+            ETag:
+              $ref: '#/components/headers/ETag'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PlayerBestsResponse'
+        '304':
+          description: Unchanged since the ETag sent in `If-None-Match`.
+        '400':
+          $ref: '#/components/responses/MachineFingerprintMissing'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/PlayerNotFound'
+        '409':
+          $ref: '#/components/responses/MachineMismatch'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /players/{playerId}/avatar:
+    parameters:
+      - $ref: '#/components/parameters/PlayerId'
+    post:
+      tags: [Players]
+      operationId: storePlayerAvatar
+      summary: Set the avatar of a player
+      description: |
+        A player linked to this cabinet. A PNG (the content is checked), 256
+        KB and 1024 x 1024 px at most, as multipart field `avatar` (D53).
+        Replaces the previous one.
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [avatar]
+              properties:
+                avatar:
+                  type: string
+                  format: binary
+      responses:
+        '200':
+          description: Avatar stored.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [player, avatar]
+                additionalProperties: false
+                properties:
+                  player:
+                    $ref: '#/components/schemas/Player'
+                  avatar:
+                    type: string
+                    description: SHA-256 of the PNG, as in leaderboard entries.
+        '400':
+          $ref: '#/components/responses/MachineFingerprintMissing'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/PlayerNotFound'
+        '409':
+          $ref: '#/components/responses/MachineMismatch'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/ServerError'
+    get:
+      tags: [Leaderboards]
+      operationId: getPlayerAvatar
+      summary: Avatar of a player
+      description: |
+        The PNG of a public and active player, of any cabinet. The ETag is
+        the SHA-256 of the PNG, as in leaderboard entries (`player.avatar`).
+      parameters:
+        - $ref: '#/components/parameters/IfNoneMatch'
+      responses:
+        '200':
+          description: The PNG.
+          headers:
+            ETag:
+              $ref: '#/components/headers/ETag'
+          content:
+            image/png:
+              schema:
+                type: string
+                format: binary
+        '304':
+          description: Unchanged since the ETag sent in `If-None-Match`.
+        '400':
+          $ref: '#/components/responses/MachineFingerprintMissing'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          description: '`player_not_found` (private, disabled or unknown) or `avatar_not_found`.'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '409':
+          $ref: '#/components/responses/MachineMismatch'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /catalog/games:
+    put:
+      tags: [Catalog]
+      operationId: putCatalogGames
+      summary: Upsert a batch of catalog games
+      description: |
+        Creates or updates up to 500 games, keyed by `romname`. Idempotent:
+        sending the same batch again changes nothing. A game missing from a
+        push is never deleted, since scores may reference it. Each push
+        describes a game completely: a field left out is stored as `null`
+        (`false` for `mature`).
+
+        Categories are created on the fly: `genre` (genre.ini) on one level,
+        `catver_genre` and `catver_subgenre` (catver.ini) as a genre and its
+        child. The sender removes the `TTL *` prefix of both files and
+        catver's `* Mature *` suffix, sent as `mature`.
+
+        The batch is validated as a whole: one invalid game rejects the batch
+        and nothing is written.
+
+        Service accounts only, ability `catalog:write`, no machine header. A
+        cabinet is refused with `403 insufficient_ability`. Records the
+        token's `last_used_at`. Rate limit: 120 requests per minute per key.
+      security:
+        - mauiKey: []
+          bearerToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CatalogGamesRequest'
+      responses:
+        '200':
+          description: Batch applied.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CatalogGamesResponse'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
   /invite/{invitationToken}:
     servers:
       - url: http://localhost:8080
@@ -451,6 +1054,15 @@ components:
       description: Machine fingerprint, 64 lowercase hex characters (SHA-256).
 
   parameters:
+    PlayerId:
+      name: playerId
+      in: path
+      required: true
+      description: Player `id` as returned by the API (UUID).
+      schema:
+        type: string
+        format: uuid
+
     InvitationToken:
       name: invitationToken
       in: path
@@ -460,6 +1072,30 @@ components:
         type: string
         minLength: 32
         maxLength: 128
+
+    ScoreTable:
+      name: table
+      in: query
+      required: false
+      description: mhiex table.
+      schema:
+        type: string
+        pattern: '^[a-z0-9_]{1,32}$'
+        default: default
+
+    IfNoneMatch:
+      name: If-None-Match
+      in: header
+      required: false
+      description: 'ETag of the last answer: `304` if nothing changed.'
+      schema:
+        type: string
+
+  headers:
+    ETag:
+      description: Version of the answer, for `If-None-Match`.
+      schema:
+        type: string
 
   schemas:
     MauiConfiguration:
@@ -592,6 +1228,396 @@ components:
           description: Base URL without trailing slash, or `null` when this server has no repository.
           examples: ['https://repo.maui.staging.afronob.com']
 
+    Pseudo3:
+      type: string
+      pattern: '^[A-Z]{3}$'
+      description: Player initials, 3 uppercase letters (same rule as MAUI's Pseudo3.ts).
+      examples: [ACE]
+
+    Player:
+      type: object
+      required: [id, pseudo_3, is_public, status, is_origin, avatar]
+      additionalProperties: false
+      properties:
+        id:
+          type: string
+          format: uuid
+        pseudo_3:
+          $ref: '#/components/schemas/Pseudo3'
+        is_public:
+          type: boolean
+        status:
+          type: string
+          enum: [active, disabled, locked]
+          description: '`disabled` by an admin; `locked` after too many wrong PINs.'
+        is_origin:
+          type: boolean
+          description: The player was created on this cabinet, the only one that can issue a new PIN (D54).
+        avatar:
+          type: [string, 'null']
+          description: SHA-256 of the player's avatar (D53), null without one. Send the PNG again when the cabinet's differs.
+
+    PlayerResponse:
+      type: object
+      required: [player]
+      additionalProperties: false
+      properties:
+        player:
+          $ref: '#/components/schemas/Player'
+
+    PlayerListResponse:
+      type: object
+      required: [players]
+      additionalProperties: false
+      properties:
+        players:
+          type: array
+          items:
+            $ref: '#/components/schemas/Player'
+
+    Pin:
+      type: string
+      pattern: '^[0-9]{4}$'
+      description: 4-digit PIN, returned once in plain text.
+
+    CreatedPlayerResponse:
+      type: object
+      required: [player, pin]
+      additionalProperties: false
+      properties:
+        player:
+          $ref: '#/components/schemas/Player'
+        pin:
+          $ref: '#/components/schemas/Pin'
+
+    PinResponse:
+      type: object
+      required: [pin]
+      additionalProperties: false
+      properties:
+        pin:
+          $ref: '#/components/schemas/Pin'
+
+    PlayerAvailabilityResponse:
+      type: object
+      required: [pseudo_3, availability]
+      additionalProperties: false
+      properties:
+        pseudo_3:
+          $ref: '#/components/schemas/Pseudo3'
+        availability:
+          type: string
+          enum: [free, taken, disabled]
+
+    CreatePlayerRequest:
+      type: object
+      required: [pseudo_3]
+      additionalProperties: false
+      properties:
+        pseudo_3:
+          $ref: '#/components/schemas/Pseudo3'
+        is_public:
+          type: boolean
+          default: false
+
+    LinkPlayerRequest:
+      type: object
+      required: [pseudo_3, pin]
+      additionalProperties: false
+      properties:
+        pseudo_3:
+          $ref: '#/components/schemas/Pseudo3'
+        pin:
+          $ref: '#/components/schemas/Pin'
+
+    UpdatePlayerRequest:
+      type: object
+      required: [is_public]
+      additionalProperties: false
+      properties:
+        is_public:
+          type: boolean
+
+    ScoreSubmission:
+      type: object
+      required: [id, player_id, romname, score, achieved_at]
+      additionalProperties: false
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Generated by the cabinet, idempotency key. Unique within the batch.
+        player_id:
+          type: string
+          format: uuid
+          description: The player's `id` (Player), linked to this cabinet.
+        romname:
+          type: string
+          pattern: '^[a-z0-9_]{1,32}$'
+        table:
+          type: string
+          pattern: '^[a-z0-9_]{1,32}$'
+          default: default
+          description: mhiex table the score comes from.
+        score:
+          type: integer
+          format: int64
+          minimum: 0
+          maximum: 9007199254740991
+        rank_on_cabinet:
+          type: [integer, 'null']
+          minimum: 1
+          maximum: 999
+        achieved_at:
+          type: string
+          format: date-time
+          description: Cabinet clock; at most 5 minutes ahead of the server.
+        startup_id:
+          type: [string, 'null']
+          format: uuid
+          description: The `id` of the startup report of the run (D6), when there was one.
+
+    ScoresRequest:
+      type: object
+      required: [scores]
+      additionalProperties: false
+      properties:
+        scores:
+          type: array
+          minItems: 1
+          maxItems: 100
+          items:
+            $ref: '#/components/schemas/ScoreSubmission'
+
+    ScoreResult:
+      type: object
+      required: [id, status]
+      additionalProperties: false
+      properties:
+        id:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum: [accepted, not_improved, rejected]
+        code:
+          type: string
+          enum: [player_not_found, player_disabled, id_conflict]
+          description: Only when `rejected`.
+        best:
+          type: [integer, 'null']
+          format: int64
+          description: Player's best on the game and table, when not `rejected`.
+
+    ScoresResponse:
+      type: object
+      required: [results]
+      additionalProperties: false
+      properties:
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/ScoreResult'
+      example:
+        results:
+          - id: 0b9e2f1c-6f1d-4c4e-9a54-3d2f0e1a7b10
+            status: accepted
+            best: 12300
+          - id: 6c1d1d0e-1b2a-4f53-8e1a-7f4a2c9d0e21
+            status: not_improved
+            best: 12300
+          - id: 9a7e0c55-0f3c-4b8e-b0f2-2d1e6a4c8f32
+            status: rejected
+            code: player_not_found
+
+    LeaderboardEntry:
+      type: object
+      required: [rank, player, score, achieved_at, cabinet]
+      additionalProperties: false
+      properties:
+        rank:
+          type: integer
+          minimum: 1
+          maximum: 9
+        player:
+          type: object
+          required: [id, pseudo_3]
+          additionalProperties: false
+          properties:
+            id:
+              type: string
+              format: uuid
+            pseudo_3:
+              type: string
+            avatar:
+              type: [string, 'null']
+              description: SHA-256 of the player's avatar (D53), null without one.
+        score:
+          type: integer
+          format: int64
+        achieved_at:
+          type: string
+          format: date-time
+        cabinet:
+          type: string
+          description: Name of the cabinet the score was made on.
+
+    Leaderboard:
+      type: object
+      required: [romname, table, entries]
+      additionalProperties: false
+      properties:
+        romname:
+          type: string
+        table:
+          type: string
+        entries:
+          type: array
+          maxItems: 9
+          items:
+            $ref: '#/components/schemas/LeaderboardEntry'
+      example:
+        romname: dkong
+        table: default
+        entries:
+          - rank: 1
+            player: {id: 01a0f983-4470-72c9-be2a-81655c62a811, pseudo_3: NOB, avatar: null}
+            score: 19200
+            achieved_at: '2026-10-01T10:00:00+00:00'
+            cabinet: supersonic_sub_zero
+
+    LeaderboardListResponse:
+      type: object
+      required: [leaderboards]
+      additionalProperties: false
+      properties:
+        leaderboards:
+          type: array
+          items:
+            $ref: '#/components/schemas/Leaderboard'
+
+    PlayerBestsResponse:
+      type: object
+      required: [player, bests]
+      additionalProperties: false
+      properties:
+        player:
+          type: object
+          required: [id, pseudo_3]
+          additionalProperties: false
+          properties:
+            id:
+              type: string
+              format: uuid
+            pseudo_3:
+              type: string
+        bests:
+          type: array
+          items:
+            type: object
+            required: [romname, table, score, achieved_at]
+            additionalProperties: false
+            properties:
+              romname:
+                type: string
+              table:
+                type: string
+              score:
+                type: integer
+                format: int64
+              achieved_at:
+                type: string
+                format: date-time
+
+    CatalogGame:
+      type: object
+      required: [romname, description]
+      additionalProperties: false
+      properties:
+        romname:
+          type: string
+          pattern: '^[a-z0-9_]{1,32}$'
+          description: MAME short name, unique key of the game.
+          examples: [dkong]
+        description:
+          type: string
+          maxLength: 255
+          examples: ['Donkey Kong (US set 1)']
+        manufacturer:
+          type: [string, 'null']
+          maxLength: 255
+          examples: ['Nintendo of America']
+        year:
+          type: [string, 'null']
+          pattern: '^[0-9?]{4}$'
+          description: MAME year, not always a number.
+          examples: ['1981', '198?']
+        parent_romname:
+          type: [string, 'null']
+          pattern: '^[a-z0-9_]{1,32}$'
+          description: Parent set of a clone. Need not be catalogued.
+        player_sim:
+          type: [integer, 'null']
+          minimum: 0
+          maximum: 255
+          description: Simultaneous players (Multiplayer.ini).
+        player_alt:
+          type: [integer, 'null']
+          minimum: 0
+          maximum: 255
+          description: Alternating players (Multiplayer.ini).
+        genre:
+          type: [string, 'null']
+          maxLength: 128
+          description: genre.ini section.
+          examples: [Platform]
+        catver_genre:
+          type: [string, 'null']
+          maxLength: 128
+          description: catver.ini genre, required with `catver_subgenre`.
+          examples: [Platform]
+        catver_subgenre:
+          type: [string, 'null']
+          maxLength: 128
+          examples: ['Run Jump']
+        mature:
+          type: boolean
+          default: false
+          description: catver.ini `* Mature *` flag.
+
+    CatalogGamesRequest:
+      type: object
+      required: [games]
+      additionalProperties: false
+      properties:
+        games:
+          type: array
+          minItems: 1
+          maxItems: 500
+          description: Each `romname` at most once per batch.
+          items:
+            $ref: '#/components/schemas/CatalogGame'
+
+    CatalogGamesResponse:
+      type: object
+      required: [received, created, updated, unchanged]
+      additionalProperties: false
+      properties:
+        received:
+          type: integer
+        created:
+          type: integer
+        updated:
+          type: integer
+          description: Changed games, and games known from a score only that are now catalogued.
+        unchanged:
+          type: integer
+      example:
+        received: 500
+        created: 12
+        updated: 3
+        unchanged: 485
+
     Problem:
       type: object
       description: RFC 9457 problem details, with a stable `code` extension.
@@ -607,6 +1633,9 @@ components:
           type: integer
         detail:
           type: string
+        attempts_left:
+          type: integer
+          description: '`pin_invalid` only: wrong PINs left before the player is locked.'
         code:
           type: string
           enum:
@@ -618,6 +1647,13 @@ components:
             - validation_failed
             - rate_limited
             - server_error
+            - initials_taken
+            - player_not_found
+            - player_disabled
+            - player_locked
+            - pin_invalid
+            - not_origin_cabinet
+            - avatar_not_found
             - forbidden
             - not_found
             - method_not_allowed
@@ -726,6 +1762,86 @@ components:
             title: Too Many Requests
             status: 429
             code: rate_limited
+
+    PlayerForbidden:
+      description: |
+        Client disabled, token lacking the `players` ability, player disabled
+        by an admin, wrong PIN (`attempts_left` before the lock), or a new
+        PIN asked from a cabinet that is not the player's origin.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+          examples:
+            clientDisabled:
+              value:
+                type: about:blank
+                title: Forbidden
+                status: 403
+                code: client_disabled
+            playerDisabled:
+              value:
+                type: about:blank
+                title: Forbidden
+                status: 403
+                code: player_disabled
+            pinInvalid:
+              value:
+                type: about:blank
+                title: Forbidden
+                status: 403
+                code: pin_invalid
+                attempts_left: 3
+            notOriginCabinet:
+              value:
+                type: about:blank
+                title: Forbidden
+                status: 403
+                code: not_origin_cabinet
+
+    PlayerConflict:
+      description: Initials of another player, or credentials bound to another cabinet.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+          examples:
+            initialsTaken:
+              value:
+                type: about:blank
+                title: Conflict
+                status: 409
+                code: initials_taken
+            machineMismatch:
+              value:
+                type: about:blank
+                title: Conflict
+                status: 409
+                code: machine_mismatch
+
+    PlayerNotFound:
+      description: No player with these initials, or not linked to this cabinet.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+          example:
+            type: about:blank
+            title: Not Found
+            status: 404
+            code: player_not_found
+
+    PlayerLocked:
+      description: Too many wrong PINs in a row.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+          example:
+            type: about:blank
+            title: Locked
+            status: 423
+            code: player_locked
 
     ServerError:
       description: Unexpected error. No technical detail exposed.
