@@ -1,3 +1,9 @@
+## [0.4.0](https://github.com/Arcadoolic/maui-api/compare/0.3.0...0.4.0) (2026-10-07)
+
+### Features
+
+* **players:** accept an avatar from the cabinet the player was created on only ([c068dff](https://github.com/Arcadoolic/maui-api/commit/c068dff4cac6bdb85627712b4f5d72cdd9992475))
+
 ## [0.3.0](https://github.com/Arcadoolic/maui-api/compare/0.2.0...0.3.0) (2026-10-06)
 
 ### Features
