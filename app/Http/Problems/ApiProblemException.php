@@ -79,6 +79,14 @@ final class ApiProblemException extends RuntimeException
         );
     }
 
+    public static function avatarNotFromOriginCabinet(): self
+    {
+        return new self(
+            Response::HTTP_FORBIDDEN, 'not_origin_cabinet',
+            'Only the cabinet this player was created on can change its avatar.',
+        );
+    }
+
     public static function pinInvalid(int $attemptsLeft): self
     {
         return new self(Response::HTTP_FORBIDDEN, 'pin_invalid', extra: ['attempts_left' => $attemptsLeft]);

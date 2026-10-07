@@ -55,6 +55,19 @@ describe('upload', function () {
         'over 1024 px' => [fn () => avatarPng(1100)],
     ]);
 
+    it('refuses a cabinet the player was only linked to (D56)', function () {
+        [$origin] = cabinetWithToken();
+        [$other, $otherToken] = cabinetWithToken();
+        $player = linkedPlayer($origin);
+        $player->clients()->attach($other, ['linked_at' => now()]);
+
+        $this->post("/api/v1/players/{$player->uuid}/avatar", ['avatar' => avatarPng()], [...cabinetHeaders($other, $otherToken), 'Accept' => 'application/json'])
+            ->assertForbidden()
+            ->assertJsonPath('code', 'not_origin_cabinet');
+        expect($player->refresh()->avatar_hash)->toBeNull();
+        Storage::disk('local')->assertMissing("avatars/{$player->uuid}.png");
+    });
+
     it('refuses a player of another cabinet', function () {
         [$client, $token] = cabinetWithToken();
         $stranger = Player::factory()->create();
@@ -91,6 +104,22 @@ describe('download', function () {
             ->assertNotFound()
             ->assertJsonPath('code', 'avatar_not_found');
         $this->getJson("/api/v1/players/{$private->uuid}/avatar", cabinetHeaders($client, $token))
+            ->assertNotFound()
+            ->assertJsonPath('code', 'player_not_found');
+    });
+
+    it('serves a private player to the cabinets it is linked to only (D56)', function () {
+        [$origin, $originToken] = cabinetWithToken();
+        [$linked, $linkedToken] = cabinetWithToken();
+        [$stranger, $strangerToken] = cabinetWithToken();
+        $player = linkedPlayer($origin, ['is_public' => false]);
+        $player->clients()->attach($linked, ['linked_at' => now()]);
+        $this->post("/api/v1/players/{$player->uuid}/avatar", ['avatar' => avatarPng()], [...cabinetHeaders($origin, $originToken), 'Accept' => 'application/json'])->assertOk();
+
+        $this->get("/api/v1/players/{$player->uuid}/avatar", cabinetHeaders($linked, $linkedToken))
+            ->assertOk()
+            ->assertHeader('Content-Type', 'image/png');
+        $this->getJson("/api/v1/players/{$player->uuid}/avatar", cabinetHeaders($stranger, $strangerToken))
             ->assertNotFound()
             ->assertJsonPath('code', 'player_not_found');
     });

@@ -581,3 +581,16 @@ asked, no setup forced) for development; it is ignored when
 `APP_ENV=production`, which staging runs with too, so a setting copied to
 a real server changes nothing there. Read when the application boots
 (`App\Support\AdminMfa`): a cached config needs `php artisan optimize`.
+
+**D56: An avatar only from the cabinet the player was created on.** (2026-10-07, narrows D53)
+D53 let any cabinet a player is linked to send its avatar. A cabinet the
+player is merely linked to holds a default picture for it, or an older one:
+each would replace the other's on every synchronisation, the last one to
+send winning. `POST /players/{id}/avatar` now answers
+`403 not_origin_cabinet` unless the cabinet is the player's origin (D54),
+like a new PIN. The other cabinets of the player download the picture and
+show it: `GET /players/{id}/avatar` also serves a player of the calling
+cabinet when it is private (it was public and active players only), since
+a cabinet shows its own players their picture outside the leaderboards. A
+player whose origin was set to none by an administrator keeps its avatar
+until an origin is set again.
