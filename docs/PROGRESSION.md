@@ -41,6 +41,12 @@ For why things are done this way, see `docs/DECISIONS.md`.
   cabinet; admins still issue and read PINs, and can move the origin to
   another cabinet of the player, or to none ("Origin cabinet").
 
+## Follow-up of Lot 2.4: avatar sent by the origin cabinet only (D56)
+
+- `403 not_origin_cabinet` on `POST /players/{id}/avatar` from a cabinet the
+  player was only linked to; `GET /players/{id}/avatar` also serves a
+  private player to the cabinets it is linked to.
+
 ## Lot 2.4: leaderboards (in progress, D52)
 
 - `GET /leaderboards/{romname}`, `GET /leaderboards?romnames=...` (100 at
