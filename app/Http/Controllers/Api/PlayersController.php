@@ -85,10 +85,15 @@ final class PlayersController
         return response()->noContent();
     }
 
-    /** The avatar of a player of this cabinet (D53). */
+    /** The avatar of a player created on this cabinet (D53, D56). */
     public function storeAvatar(StoreAvatarRequest $request, PlayerAvatars $avatars, string $player): JsonResponse
     {
         $linked = $this->linkedPlayer($request, $player);
+        // Only the cabinet the player was created on (D56): two cabinets would otherwise keep
+        // replacing each other's picture, the last one to send it winning.
+        if (! $linked->isOrigin(AuthenticateCabinet::client($request))) {
+            throw ApiProblemException::avatarNotFromOriginCabinet();
+        }
         $file = $request->file('avatar');
         assert($file instanceof UploadedFile);
         $avatars->store(AuthenticateCabinet::client($request), $linked, $file);

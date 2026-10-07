@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Http\Middleware\AuthenticateCabinet;
 use App\Http\Problems\ApiProblemException;
 use App\Models\Game;
 use App\Models\Player;
@@ -70,10 +71,13 @@ final class LeaderboardsController
         ]);
     }
 
-    /** The PNG of a public and active player, with its hash as ETag (D53). */
+    /**
+     * The PNG of a public and active player, with its hash as ETag (D53). Also of a player of the
+     * calling cabinet, public or not (D56): a cabinet shows its own players their picture.
+     */
     public function avatar(Request $request, string $player): Response
     {
-        $found = $this->shownPlayer($player);
+        $found = $this->ownPlayer($request, $player) ?? $this->shownPlayer($player);
         if (! PlayerAvatars::exists($found)) {
             throw ApiProblemException::avatarNotFound();
         }
@@ -86,6 +90,16 @@ final class LeaderboardsController
         $response->isNotModified($request);
 
         return $response;
+    }
+
+    /** An active player linked to the calling cabinet, null otherwise. */
+    private function ownPlayer(Request $request, string $id): ?Player
+    {
+        $found = Str::isUuid($id)
+            ? AuthenticateCabinet::client($request)->players()->where('players.uuid', $id)->first()
+            : null;
+
+        return $found !== null && $found->isActive() ? $found : null;
     }
 
     /** Players the shared leaderboards show: public and active. */

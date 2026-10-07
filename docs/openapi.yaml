@@ -69,7 +69,7 @@ info:
     | Status | `code` | Meaning for MAUI |
     |--------|--------|------------------|
     | 403 | `pin_invalid` | Wrong PIN, `attempts_left` before the player is locked. |
-    | 403 | `not_origin_cabinet` | New PIN asked from a cabinet the player was not created on (D54). |
+    | 403 | `not_origin_cabinet` | New PIN asked (D54) or avatar sent (D56) from a cabinet the player was not created on. |
     | 404 | `avatar_not_found` | The player has no avatar (D53). |
     | 403 | `player_disabled` | Player disabled by an admin. |
     | 404 | `player_not_found` | No such initials, or a player not linked to this cabinet. |
@@ -748,9 +748,10 @@ paths:
       operationId: storePlayerAvatar
       summary: Set the avatar of a player
       description: |
-        A player linked to this cabinet. A PNG (the content is checked), 256
-        KB and 1024 x 1024 px at most, as multipart field `avatar` (D53).
-        Replaces the previous one.
+        A player created on this cabinet (`is_origin`): another cabinet the
+        player is linked to gets `403 not_origin_cabinet` (D56). A PNG (the
+        content is checked), 256 KB and 1024 x 1024 px at most, as multipart
+        field `avatar` (D53). Replaces the previous one.
       requestBody:
         required: true
         content:
@@ -798,8 +799,9 @@ paths:
       operationId: getPlayerAvatar
       summary: Avatar of a player
       description: |
-        The PNG of a public and active player, of any cabinet. The ETag is
-        the SHA-256 of the PNG, as in leaderboard entries (`player.avatar`).
+        The PNG of a public and active player, of any cabinet, or of an
+        active player of this cabinet, public or not (D56). The ETag is the
+        SHA-256 of the PNG, as in leaderboard entries (`player.avatar`).
       parameters:
         - $ref: '#/components/parameters/IfNoneMatch'
       responses:
