@@ -611,3 +611,22 @@ leaderboard as a cabinet gets (D52). No ETag: the bot keeps the list a few
 minutes and asks for one leaderboard per command. The leaderboards were
 already shown on every cabinet; the bot shows the same public data
 (initials, scores, cabinet names), only of public and active players.
+
+**D58: Production deployed by hand from a tag, pushed over SSH.** (2026-10-08)
+Production (jumpman) is updated by `deploy.yml`, a `workflow_dispatch`
+taking the tag: semantic-release tags every release (D44), a person decides
+when it goes live. Not on the tag push: a tag created with the
+`GITHUB_TOKEN` triggers no workflow, and an automatic deployment would ship
+every `feat` merged on `main` at once. The organisation is on GitHub Free,
+where private repositories have no environments (no approval gate), and
+maui-repository and the bot are private: the same manual workflow serves
+all three projects. Deploy keys are disabled on the organisation, so the
+server does not pull: the runner sends `git archive <tag>` over SSH to a
+`deploy` user, outside the `docker` group (root equivalent). Each
+repository's key is bound by `authorized_keys` to a forced command naming
+its project (`restrict`), and the only sudo rule of `deploy` is the deploy
+script, which validates the project and the tag, keeps the `.env`, keeps
+the previous tree and rolls back when the containers are not healthy. The
+host key is pinned in a secret. Migrations run after the containers are up
+and are not rolled back.
+
