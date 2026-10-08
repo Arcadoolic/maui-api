@@ -245,8 +245,11 @@ backup schedule. Wipe the database with
 ## 8. Production deployment from the CI (jumpman)
 
 Production runs on jumpman (`/opt/maui-api`, `api.maui.afronob.com`), with
-the same `compose.staging.yaml` and its own `.env`. It is deployed by
-`.github/workflows/deploy.yml`, run by hand (D58):
+the same `compose.staging.yaml` and its own `.env`, but under the Compose
+project name `maui-api`: every manual command needs `-p maui-api`, or Compose
+creates a second, empty `maui-api-staging` project. Everything installed on
+the server for the deployment is in `docs/JUMPMAN-DEPLOYMENT.md`. It is
+deployed by `.github/workflows/deploy.yml`, run by hand (D58):
 
 1. semantic-release tags `X.Y.Z` on `main` (D44).
 2. GitHub > Actions > "Deploy to production" > Run workflow, tag `X.Y.Z`.
