@@ -1,3 +1,9 @@
+## [0.5.0](https://github.com/Arcadoolic/maui-api/compare/0.4.0...0.5.0) (2026-10-08)
+
+### Features
+
+* **leaderboards:** add a bot client type reading the leaderboards ([9cccf87](https://github.com/Arcadoolic/maui-api/commit/9cccf87b758b60255c805cd6f830622a5c38c3f4))
+
 ## [0.4.0](https://github.com/Arcadoolic/maui-api/compare/0.3.0...0.4.0) (2026-10-07)
 
 ### Features
