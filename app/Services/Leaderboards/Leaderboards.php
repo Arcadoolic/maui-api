@@ -87,6 +87,30 @@ final class Leaderboards
     }
 
     /**
+     * Each game and table with at least one visible score, by game
+     * description: what a bot offers to choose from (D57).
+     *
+     * @return list<array{romname: string, description: string, table: string}>
+     */
+    public function available(): array
+    {
+        return array_values(self::visibleScores()
+            ->join('games', 'games.id', '=', 'scores.game_id')
+            ->distinct()
+            ->orderBy('games.description')
+            ->orderBy('games.romname')
+            ->orderBy('scores.table')
+            ->toBase()
+            ->get(['games.romname', 'games.description', 'scores.table'])
+            ->map(fn (object $row): array => [
+                'romname' => (string) $row->romname,
+                'description' => (string) $row->description,
+                'table' => (string) $row->table,
+            ])
+            ->all());
+    }
+
+    /**
      * A leaderboard as the API sends it.
      *
      * @return array{romname: string, table: string, entries: list<array<string, mixed>>}

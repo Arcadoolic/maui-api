@@ -53,6 +53,6 @@ class ClientForm
     {
         $type = $get('type');
 
-        return ($type instanceof ClientType ? $type : ClientType::tryFrom((string) $type)) === ClientType::Service;
+        return ($type instanceof ClientType ? $type : ClientType::tryFrom((string) $type))?->isService() ?? false;
     }
 }

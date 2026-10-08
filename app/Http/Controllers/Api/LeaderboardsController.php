@@ -15,7 +15,7 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Symfony\Component\HttpFoundation\Response;
 
-/** Shared leaderboards, for the cabinets (docs/DECISIONS.md D52). */
+/** Shared leaderboards, for the cabinets (docs/DECISIONS.md D52) and the bots (D57). */
 final class LeaderboardsController
 {
     public const MAX_ROMNAMES = 100;
@@ -45,6 +45,12 @@ final class LeaderboardsController
             fn (string $romname): array => $this->leaderboards->toApiArray($romname, $games->get($romname), $table),
             $romnames,
         )]);
+    }
+
+    /** What a bot offers to choose from: the games and tables with a visible score. */
+    public function available(): JsonResponse
+    {
+        return new JsonResponse(['leaderboards' => $this->leaderboards->available()]);
     }
 
     public function show(Request $request, string $romname): JsonResponse

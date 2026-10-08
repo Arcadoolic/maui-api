@@ -70,7 +70,7 @@ class ViewClient extends ViewRecord
         return Action::make('issueServiceToken')
             ->label(fn (): string => $this->client()->hasCredentials() ? __('Replace token') : __('Issue token'))
             ->icon(Heroicon::OutlinedKey)
-            ->visible(fn (): bool => $this->client()->type === ClientType::Service)
+            ->visible(fn (): bool => $this->client()->type->isService())
             ->requiresConfirmation()
             ->modalDescription(__('Issues a new token. Any previous token of this account stops working immediately.'))
             ->action(fn () => $this->showSecret(

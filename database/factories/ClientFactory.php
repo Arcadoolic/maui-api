@@ -31,6 +31,14 @@ class ClientFactory extends Factory
         ]);
     }
 
+    public function bot(): static
+    {
+        return $this->state(fn () => [
+            'type' => ClientType::Bot,
+            'name' => fake()->unique()->word().'_bot',
+        ]);
+    }
+
     public function disabled(): static
     {
         return $this->state(['status' => ClientStatus::Disabled]);

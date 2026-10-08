@@ -77,6 +77,8 @@ it('only asks for a name when creating a service account', function () {
         ->fillForm(['type' => ClientType::Maui->value])
         ->assertFormFieldHidden('name')
         ->fillForm(['type' => ClientType::Service->value])
+        ->assertFormFieldVisible('name')
+        ->fillForm(['type' => ClientType::Bot->value])
         ->assertFormFieldVisible('name');
 });
 
@@ -184,8 +186,8 @@ describe('cabinet actions', function () {
 });
 
 describe('service account actions', function () {
-    it('issues a token shown once, and no invitation', function () {
-        $client = Client::factory()->service()->create();
+    it('issues a token shown once, and no invitation', function (ClientType $type) {
+        $client = Client::factory()->service()->create(['type' => $type]);
 
         livewire(ViewClient::class, ['record' => $client->getRouteKey()])
             ->assertActionHidden('invite')
@@ -194,7 +196,7 @@ describe('service account actions', function () {
             ->assertActionMounted('showSecret');
 
         expect($client->tokens()->count())->toBe(1);
-    });
+    })->with([ClientType::Service, ClientType::Bot]);
 });
 
 it('shows the readable OS name of the latest startup, or the kernel when unknown', function (?string $osName, string $shown) {
