@@ -54,5 +54,6 @@ describe('ClientTokenIssuer', function () {
     })->with([
         'maui' => [ClientType::Maui, ['session', 'scores:write', 'scores:read', 'repository:read', 'players']],
         'service' => [ClientType::Service, ['catalog:write', 'repository:read']],
+        'bot' => [ClientType::Bot, ['leaderboards:read']],
     ]);
 });

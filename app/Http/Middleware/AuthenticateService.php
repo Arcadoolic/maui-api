@@ -2,7 +2,6 @@
 
 namespace App\Http\Middleware;
 
-use App\Enums\ClientType;
 use App\Http\Problems\ApiProblemException;
 use App\Services\ClientAuthenticator;
 use Closure;
@@ -27,7 +26,7 @@ final class AuthenticateService
 
         // Abilities come from the client type, but a token is a row anyone
         // with database access could edit: check the type as well.
-        if ($client->type !== ClientType::Service) {
+        if (! $client->type->isService()) {
             $this->authenticator->logRejection($request, 'maui.insufficient_ability', $client);
 
             throw ApiProblemException::insufficientAbility();

@@ -2,7 +2,6 @@
 
 namespace App\Services;
 
-use App\Enums\ClientType;
 use App\Enums\InvitationPurpose;
 use App\Models\Client;
 use App\Models\User;
@@ -59,7 +58,7 @@ final class ClientAdministration
      */
     public function issueServiceToken(Client $client): string
     {
-        if ($client->type !== ClientType::Service) {
+        if (! $client->type->isService()) {
             throw new InvalidArgumentException('Cabinets receive their credentials through an invitation.');
         }
 

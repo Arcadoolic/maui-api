@@ -114,6 +114,11 @@ tags:
       Shared leaderboards (D52): the best visible score of each player.
       Requires the `scores:read` ability. Answers carry an ETag: send
       `If-None-Match` to get `304` when nothing changed.
+  - name: Bots
+    description: |
+      The shared leaderboards for chat bots (Discord), D57. Bot accounts
+      only, ability `leaderboards:read`, no machine header. Rate limit: 120
+      requests per minute per key.
   - name: Catalog
     description: |
       Game catalog fed by service accounts (maui-repository's `push-catalog`).
@@ -886,6 +891,79 @@ paths:
         '500':
           $ref: '#/components/responses/ServerError'
 
+  /bot/leaderboards:
+    get:
+      tags: [Bots]
+      operationId: listBotLeaderboards
+      summary: Leaderboards a bot can show
+      description: |
+        Each game and table with at least one visible score (not hidden, of
+        a public and active player, sent by an active cabinet), by game
+        description. What a bot offers to choose from.
+
+        Bot accounts only, ability `leaderboards:read`. A cabinet or a
+        catalog service account is refused with `403 insufficient_ability`.
+        Records the token's `last_used_at`.
+      security:
+        - mauiKey: []
+          bearerToken: []
+      responses:
+        '200':
+          description: The available leaderboards.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BotLeaderboardListResponse'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /bot/leaderboards/{romname}:
+    parameters:
+      - name: romname
+        in: path
+        required: true
+        schema:
+          type: string
+          pattern: '^[a-z0-9_]{1,32}$'
+    get:
+      tags: [Bots]
+      operationId: getBotLeaderboard
+      summary: Leaderboard of a game, for a bot
+      description: |
+        The same leaderboard as `GET /leaderboards/{romname}`: the best
+        visible score of each player on the game and table, top 9. An
+        unknown game answers an empty leaderboard. No ETag.
+
+        Bot accounts only, ability `leaderboards:read`.
+      security:
+        - mauiKey: []
+          bearerToken: []
+      parameters:
+        - $ref: '#/components/parameters/ScoreTable'
+      responses:
+        '200':
+          description: The leaderboard.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Leaderboard'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
   /invite/{invitationToken}:
     servers:
       - url: http://localhost:8080
@@ -1619,6 +1697,34 @@ components:
         created: 12
         updated: 3
         unchanged: 485
+
+    BotLeaderboardListResponse:
+      type: object
+      required: [leaderboards]
+      additionalProperties: false
+      properties:
+        leaderboards:
+          type: array
+          items:
+            type: object
+            required: [romname, description, table]
+            additionalProperties: false
+            properties:
+              romname:
+                type: string
+              description:
+                type: string
+                description: Catalog description; the romname for a game known from a score only.
+              table:
+                type: string
+      example:
+        leaderboards:
+          - romname: dkong
+            description: Donkey Kong (US set 1)
+            table: default
+          - romname: pacman
+            description: Pac-Man (Midway)
+            table: default
 
     Problem:
       type: object

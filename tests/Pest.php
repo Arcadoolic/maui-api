@@ -2,7 +2,9 @@
 
 use App\Enums\InvitationPurpose;
 use App\Models\Client;
+use App\Models\Game;
 use App\Models\Player;
+use App\Models\Score;
 use App\Services\ClientTokenIssuer;
 use App\Services\Invitations\InvitationIssuer;
 use App\Services\Invitations\IssuedInvitation;
@@ -61,6 +63,18 @@ function serviceWithToken(): array
 }
 
 /**
+ * Creates an active bot account (Discord bot) with a valid token.
+ *
+ * @return array{0: Client, 1: string}
+ */
+function botWithToken(): array
+{
+    $client = Client::factory()->bot()->create();
+
+    return [$client, app(ClientTokenIssuer::class)->issue($client)];
+}
+
+/**
  * Service accounts send no machine header.
  *
  * @return array<string, string>
@@ -98,4 +112,25 @@ function linkedPlayer(Client $client, array $attributes = [], string $pin = '123
     $player->clients()->attach($client, ['linked_at' => now()]);
 
     return $player;
+}
+
+/**
+ * A visible score: public player, active cabinet.
+ *
+ * @param  array<string, mixed>  $attributes
+ */
+function leaderboardScore(Game $game, Player $player, int $score, ?Client $client = null, array $attributes = []): Score
+{
+    return Score::factory()->create([
+        'game_id' => $game->id,
+        'player_id' => $player->id,
+        'client_id' => ($client ?? Client::factory()->create())->id,
+        'score' => $score,
+        ...$attributes,
+    ]);
+}
+
+function publicPlayer(string $pseudo3): Player
+{
+    return Player::factory()->create(['pseudo_3' => $pseudo3, 'is_public' => true]);
 }

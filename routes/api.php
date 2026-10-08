@@ -49,6 +49,12 @@ Route::middleware(['throttle:cabinet', 'cabinet:scores:read'])->group(function (
     Route::get('players/{player}/avatar', [LeaderboardsController::class, 'avatar']);
 });
 
+// Bots (Discord): the same leaderboards, without a machine (docs/DECISIONS.md D57).
+Route::middleware(['throttle:service', 'service:leaderboards:read'])->group(function () {
+    Route::get('bot/leaderboards', [LeaderboardsController::class, 'available']);
+    Route::get('bot/leaderboards/{romname}', [LeaderboardsController::class, 'show']);
+});
+
 // Starting-pack repository (docs/DECISIONS.md D46). The URL is looked up once
 // per action; authorize is called by the repository's Caddy (forward_auth) on
 // every request, Range requests of an import included: separate, wider limit.

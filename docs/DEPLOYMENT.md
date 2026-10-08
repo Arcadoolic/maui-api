@@ -241,3 +241,30 @@ Keep the `caddy_data` volume: it holds the certificate and the ACME account
 (Let's Encrypt rate-limits new certificates). Staging data is test data: no
 backup schedule. Wipe the database with
 `docker compose -f compose.staging.yaml down && docker volume rm maui-api-staging_db_data`.
+
+## 8. Production deployment from the CI (jumpman)
+
+Production runs on jumpman (`/opt/maui-api`, `api.maui.afronob.com`), with
+the same `compose.staging.yaml` and its own `.env`. It is deployed by
+`.github/workflows/deploy.yml`, run by hand (D58):
+
+1. semantic-release tags `X.Y.Z` on `main` (D44).
+2. GitHub > Actions > "Deploy to production" > Run workflow, tag `X.Y.Z`.
+
+The workflow checks that the tag is on `main`, then sends `git archive <tag>`
+over SSH to the `deploy` user. This repository's key (secret
+`DEPLOY_SSH_KEY`, host key pinned in `DEPLOY_KNOWN_HOSTS`) can only run
+`/usr/local/bin/maui-deploy-receive api`, which hands the archive to
+`/usr/local/sbin/maui-deploy`, the only command `deploy` may run with sudo:
+
+- extracts the tree next to the current one, keeps the `.env`, writes the
+  tag to `REVISION`;
+- swaps the trees (the previous one stays as `/opt/maui-api.prev`), then
+  `up -d --build --wait`; back to the previous tree if the app is not healthy;
+- then `migrate --force` and `optimize` (section 5). A failed migration is not
+  rolled back: fix it by hand.
+
+The server holds no GitHub credentials and has no git clone after the first
+deployment. Logs: `sudo journalctl -t maui-deploy`. Rolling back the code:
+run the workflow with the previous tag (migrations are not reverted).
+
