@@ -1,3 +1,13 @@
+## [0.6.0](https://github.com/Arcadoolic/maui-api/compare/0.5.0...0.6.0) (2026-10-08)
+
+### Features
+
+* **scores:** record score events and serve them to the bots ([ea9bf97](https://github.com/Arcadoolic/maui-api/commit/ea9bf97bec12ddfc75dd1a7b1b8ad17ad45cb90f))
+
+### Bug Fixes
+
+* **deploy:** give production its own Compose file ([4850003](https://github.com/Arcadoolic/maui-api/commit/4850003ed819d81a2165ec46f74d0d710f40906a))
+
 ## [0.5.0](https://github.com/Arcadoolic/maui-api/compare/0.4.0...0.5.0) (2026-10-08)
 
 ### Features
