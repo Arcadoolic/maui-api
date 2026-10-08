@@ -7,6 +7,7 @@ use App\Http\Controllers\Api\PingController;
 use App\Http\Controllers\Api\PlayersController;
 use App\Http\Controllers\Api\RepositoryAuthorizeController;
 use App\Http\Controllers\Api\RepositoryController;
+use App\Http\Controllers\Api\ScoreEventsController;
 use App\Http\Controllers\Api\ScoresController;
 use App\Http\Controllers\Api\StartupController;
 use Illuminate\Support\Facades\Route;
@@ -53,6 +54,11 @@ Route::middleware(['throttle:cabinet', 'cabinet:scores:read'])->group(function (
 Route::middleware(['throttle:service', 'service:leaderboards:read'])->group(function () {
     Route::get('bot/leaderboards', [LeaderboardsController::class, 'available']);
     Route::get('bot/leaderboards/{romname}', [LeaderboardsController::class, 'show']);
+});
+
+// Bots (Discord): what the scores changed on the leaderboards (docs/DECISIONS.md D60).
+Route::middleware(['throttle:service', 'service:events:read'])->group(function () {
+    Route::get('bot/events', [ScoreEventsController::class, 'index']);
 });
 
 // Starting-pack repository (docs/DECISIONS.md D46). The URL is looked up once
