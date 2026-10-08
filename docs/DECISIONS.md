@@ -594,3 +594,20 @@ cabinet when it is private (it was public and active players only), since
 a cabinet shows its own players their picture outside the leaderboards. A
 player whose origin was set to none by an administrator keeps its avatar
 until an origin is set again.
+
+**D57: A bot client type reading the leaderboards, nothing else.** (2026-10-08, Lot 2.4)
+The Discord bot (`Arcadoolic/maui-discord-bot`) shows a game's leaderboard
+on `/ranking`. Abilities come from the client type (D47), and giving it to
+the `service` type would have handed the bot `catalog:write` and
+`repository:read`, and the catalog importer the scores: a new `bot` type
+holds `leaderboards:read` only (least privilege). It is a service account
+in every other respect (`ClientType::isService()`): descriptive name, token
+issued once in the back office, no machine binding, `last_used_at`, the
+`service` limiter. Its routes sit under `/bot` rather than on
+`/leaderboards`, which needs a bound machine: `GET /bot/leaderboards` lists
+each game and table with a visible score (what the bot offers in its
+autocompletion), `GET /bot/leaderboards/{romname}` answers the same
+leaderboard as a cabinet gets (D52). No ETag: the bot keeps the list a few
+minutes and asks for one leaderboard per command. The leaderboards were
+already shown on every cabinet; the bot shows the same public data
+(initials, scores, cabinet names), only of public and active players.

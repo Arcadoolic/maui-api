@@ -56,7 +56,7 @@ class Client extends Model
 
             // Arcade names are for cabinets; a service account needs a descriptive one (D39).
             // The name is still unset while creating: read the raw attribute.
-            if ($client->getAttribute('name') === null && $client->type === ClientType::Service) {
+            if ($client->getAttribute('name') === null && $client->type->isService()) {
                 throw new InvalidArgumentException('A service account needs an explicit, descriptive name.');
             }
 

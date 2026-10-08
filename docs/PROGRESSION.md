@@ -47,6 +47,15 @@ For why things are done this way, see `docs/DECISIONS.md`.
   player was only linked to; `GET /players/{id}/avatar` also serves a
   private player to the cabinets it is linked to.
 
+## Follow-up of Lot 2.4: leaderboards for the Discord bot (D57)
+
+- `bot` client type with `leaderboards:read` only, created and given its
+  token in the back office like a service account.
+- `GET /bot/leaderboards` (games and tables with a visible score) and
+  `GET /bot/leaderboards/{romname}` (same leaderboard as the cabinets), no
+  machine header, `service` limiter.
+- Next: `/ranking` in maui-discord-bot; create the bot account on staging.
+
 ## Lot 2.4: leaderboards (in progress, D52)
 
 - `GET /leaderboards/{romname}`, `GET /leaderboards?romnames=...` (100 at
@@ -260,7 +269,7 @@ Tracked in `docs/PLAN.md`, section "Open questions".
 | Check | Expected |
 |-------|----------|
 | `just up` then `/up` | 200 |
-| `just ci` | Pint pass, PHPStan no errors, Pest 143 passed |
+| `just ci` | Pint pass, PHPStan no errors, Pest 308 passed |
 | `curl -sD - -o /dev/null http://localhost:8080/invite/<48 chars>` | `Referrer-Policy: no-referrer`, `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff` |
 | `docker run --rm -v "$PWD/docs:/spec" redocly/cli lint /spec/openapi.yaml` | valid, 7 known warnings (no license, localhost server, unused `MauiConfiguration`, no 2xx on the 303-only `/invite/{t}/name`) |
 | `docker run --rm -v "$PWD":/repo -w /repo rhysd/actionlint:latest .github/workflows/ci.yml` | no output |

@@ -29,7 +29,7 @@ class ClientInfolist
                     ]),
                 // Service accounts send no heartbeat: the token is their only "last seen" (D43).
                 Section::make(__('Service account'))
-                    ->visible(fn (Client $record): bool => $record->type === ClientType::Service)
+                    ->visible(fn (Client $record): bool => $record->type->isService())
                     ->schema([
                         TextEntry::make('token_last_used_at')
                             ->label(__('Token last used'))

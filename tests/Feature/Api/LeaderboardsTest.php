@@ -5,30 +5,8 @@ use App\Enums\ClientType;
 use App\Models\Client;
 use App\Models\Game;
 use App\Models\Player;
-use App\Models\Score;
 
 // Shared leaderboards (docs/DECISIONS.md D52).
-
-/**
- * A visible score: public player, active cabinet.
- *
- * @param  array<string, mixed>  $attributes
- */
-function leaderboardScore(Game $game, Player $player, int $score, ?Client $client = null, array $attributes = []): Score
-{
-    return Score::factory()->create([
-        'game_id' => $game->id,
-        'player_id' => $player->id,
-        'client_id' => ($client ?? Client::factory()->create())->id,
-        'score' => $score,
-        ...$attributes,
-    ]);
-}
-
-function publicPlayer(string $pseudo3): Player
-{
-    return Player::factory()->create(['pseudo_3' => $pseudo3, 'is_public' => true]);
-}
 
 describe('one game', function () {
     it('ranks the best score of each player, best first', function () {
