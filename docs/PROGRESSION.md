@@ -235,6 +235,13 @@ For why things are done this way, see `docs/DECISIONS.md`.
 - Not done yet: client IP check behind the PROXY protocol (see "Pending
   outside the code"), automated deploy job.
 
+## Production deployment from the CI (D58)
+
+- `deploy.yml`: run by hand with a tag on `main`, sends `git archive` to
+  jumpman over SSH (`deploy` user, forced command, one sudo rule). Same file
+  in maui-repository and maui-discord-bot. Server side tested with the bot.
+- Next: first run on the API with the next semantic-release tag.
+
 ## Next
 
 1. Lot 2.2: the hand checks left (reconciliation refusal, score

@@ -1,0 +1,77 @@
+name: Deploy to production
+
+# Manual: Actions > Deploy to production > Run workflow, with the tag to
+# deploy. The tagged tree goes to jumpman as a git archive; there, the forced
+# command of this repository's key (/usr/local/bin/maui-deploy-receive) runs
+# /usr/local/sbin/maui-deploy, which rebuilds the project, restarts it and
+# rolls back if its containers are not healthy. Same file in maui-api,
+# maui-repository and maui-discord-bot: the key decides the project.
+#
+# Secrets: DEPLOY_SSH_KEY (private key of the deploy user, this project's
+# key only) and DEPLOY_KNOWN_HOSTS (`ssh-keyscan -t ed25519 jumpman.afronob.com`).
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Tag to deploy (X.Y.Z, on main)
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+# One deployment at a time; a second one waits instead of cancelling the first.
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  deploy:
+    name: Deploy ${{ inputs.tag }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      # The input goes through env, never into the script itself.
+      - name: Check the tag
+        env:
+          TAG: ${{ inputs.tag }}
+        run: |
+          if [[ ! "$TAG" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::Invalid tag '$TAG' (expected X.Y.Z)."
+            exit 1
+          fi
+          if ! git rev-parse -q --verify "refs/tags/$TAG^{commit}" > /dev/null; then
+            echo "::error::Tag $TAG does not exist."
+            exit 1
+          fi
+          if ! git merge-base --is-ancestor "refs/tags/$TAG" origin/main; then
+            echo "::error::Tag $TAG is not on main."
+            exit 1
+          fi
+
+      - name: Deploy
+        env:
+          TAG: ${{ inputs.tag }}
+          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          DEPLOY_KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
+        run: |
+          install -d -m 700 ~/.ssh
+          (umask 077 && printf '%s\n' "$DEPLOY_SSH_KEY" > ~/.ssh/deploy_key)
+          printf '%s\n' "$DEPLOY_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          git archive --format=tar "refs/tags/$TAG" \
+            | ssh -i ~/.ssh/deploy_key -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes \
+                deploy@jumpman.afronob.com "$TAG"
+
+      - name: Remove the key
+        if: always()
+        run: rm -f ~/.ssh/deploy_key
