@@ -18,7 +18,7 @@ For why things are done this way, see `docs/DECISIONS.md`.
 
 ## Done
 
-- Delivery plan (`docs/PLAN.md`), decisions D1 to D55 (`docs/DECISIONS.md`).
+- Delivery plan (`docs/PLAN.md`), decisions D1 to D60 (`docs/DECISIONS.md`).
 - Lot 1 OpenAPI 3.1 contract (`docs/openapi.yaml`).
 - Lot 0 skeleton:
   - Docker: FrankenPHP + PHP 8.4 image (`Dockerfile`, `docker/`), Compose
@@ -46,6 +46,18 @@ For why things are done this way, see `docs/DECISIONS.md`.
 - `403 not_origin_cabinet` on `POST /players/{id}/avatar` from a cabinet the
   player was only linked to; `GET /players/{id}/avatar` also serves a
   private player to the cabinets it is linked to.
+
+## Score events for the Discord bot (D60)
+
+- `score_events`: one event for each stored score of a public player, with
+  a movement, flavors, the facts and an English sentence
+  (`ScoreEventRecorder`, `ScoreSituation`, `ScoreEventMessage`, thresholds
+  in `config/hiscores.php`).
+- `GET /bot/events?after=<id>` for bot accounts, new `events:read` ability
+  (existing bot tokens get it by migration).
+- Not done: events of the scores stored before D60 (no backfill), a
+  Filament view of the events, deleting the Discord message of a hidden
+  score.
 
 ## Follow-up of Lot 2.4: leaderboards for the Discord bot (D57)
 
@@ -240,7 +252,9 @@ For why things are done this way, see `docs/DECISIONS.md`.
 - `deploy.yml`: run by hand with a tag on `main`, sends `git archive` to
   jumpman over SSH (`deploy` user, forced command, one sudo rule). Same file
   in maui-repository and maui-discord-bot. Server side tested with the bot.
-- Next: first run on the API with the next semantic-release tag.
+- First run: 0.5.0 deployed on 2026-10-08 (migration `allow_bot_clients`).
+- `compose.production.yaml` (D59) with `name: maui-api`: no more `-p` by
+  hand. Next: switch the deploy script on jumpman to it.
 
 ## Next
 
@@ -276,7 +290,7 @@ Tracked in `docs/PLAN.md`, section "Open questions".
 | Check | Expected |
 |-------|----------|
 | `just up` then `/up` | 200 |
-| `just ci` | Pint pass, PHPStan no errors, Pest 308 passed |
+| `just ci` | Pint pass, PHPStan no errors, Pest 501 passed |
 | `curl -sD - -o /dev/null http://localhost:8080/invite/<48 chars>` | `Referrer-Policy: no-referrer`, `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff` |
 | `docker run --rm -v "$PWD/docs:/spec" redocly/cli lint /spec/openapi.yaml` | valid, 7 known warnings (no license, localhost server, unused `MauiConfiguration`, no 2xx on the 303-only `/invite/{t}/name`) |
 | `docker run --rm -v "$PWD":/repo -w /repo rhysd/actionlint:latest .github/workflows/ci.yml` | no output |

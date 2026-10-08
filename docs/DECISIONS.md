@@ -630,3 +630,53 @@ the previous tree and rolls back when the containers are not healthy. The
 host key is pinned in a secret. Migrations run after the containers are up
 and are not rolled back.
 
+**D59: Production gets its own Compose file.** (2026-10-08, completes D58)
+Production on jumpman was started from `compose.staging.yaml` with
+`-p maui-api`, the file's `name: maui-api-staging` being overridden by hand:
+any command without the `-p` (a database dump, the first version of the
+deploy script) targeted a second, empty project, with new volumes and ports
+clashing with production. `compose.production.yaml` is the staging file with
+`name: maui-api`, the name production already runs under, so its volumes
+keep their data, and the production domain and repository URL as defaults.
+A copy rather than an override of the staging file: two files, each
+readable alone, and `docker compose -f compose.production.yaml` is the whole
+command. The deploy script uses it once a release ships it.
+
+**D60: Score events: facts, a situation and a sentence, stored by the API.** (2026-10-08)
+The Discord bot announces each new best, and the same events must be shown
+later elsewhere (a "Podium" front): they are stored (`score_events`), one
+for each stored score of a public player, recorded by `ScoreIntake` right
+after the score, in a transaction of its own, so that an event that fails is
+reported and never costs the score. Ranks are those of the shared
+leaderboards (D52), beyond the top 9; a private player records nothing.
+An event holds the facts (ranks before and after, previous best, displaced
+player, gap...), a situation worked out from them, and a sentence. The
+situation is one movement, the first that matches (`opens_board`,
+`debut_first`, `debut_podium`, `debut`, `reclaims_first`, `takes_first`,
+`extends_lead`, `enters_podium`, `climbs`, `improves`), and any number of
+flavors, most remarkable first (`staircase`, `rivalry`, `revenge`,
+`reign_ended`, `photo_finish`, `crushing`, `huge_jump`, `leapfrog`,
+`on_a_roll`, `comeback`, `milestone`, `newcomer`, `multi_crown`,
+`collector`, `away_win`), with thresholds in `config/hiscores.php`. A
+first score is a `debut_podium` only on a leaderboard of more than three
+players, and `on_a_roll` comes every third best of a week, not on each one
+after the third.
+`rivalry` comes before `revenge`: a third exchange of a place is always a
+revenge too, and would never be told otherwise. The sentence is written by
+the API, in English and Markdown, from templates in `ScoreEventMessage`
+(several variants per movement, picked from the event's id, then the
+closing line of the first flavor): every reader shows the same text, and a
+change of wording is one deployment. Templates are not in `lang/`: creating
+that directory would replace the framework's own translations. The facts
+are stored too, for a reader that wants its own sentence. History (who led
+before, who took a place from whom) is read from earlier events: scores
+stored before D60 have none, so a first place taken again from then is told
+as taken, and a reign is counted from the leader's score.
+Noise: several bests of one player on one game in the same batch (a cabinet
+back online) record one event, for the highest, against the leaderboard as
+it was before the batch; a score sent more than 24 hours after it was made
+is recorded but not `announceable`; hiding a score retracts its event.
+`importance` (1 to 3) lets a reader filter. The bot reads
+`GET /bot/events?after=<id>` with a new `events:read` ability of the `bot`
+type (existing tokens get it by migration): it polls, since it has no
+inbound HTTP, and keeps the cursor.

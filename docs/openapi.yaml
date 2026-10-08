@@ -964,6 +964,58 @@ paths:
         '500':
           $ref: '#/components/responses/ServerError'
 
+  /bot/events:
+    get:
+      tags: [Bots]
+      operationId: listBotScoreEvents
+      summary: Score events a bot announces
+      description: |
+        What the scores changed on the shared leaderboards (D60): one event
+        for each stored score of a public player, with a `movement` (what the
+        score did), `flavors` (what makes it remarkable, the most remarkable
+        first) and a `message` already written, in English and Markdown.
+
+        With `after`, the events whose `id` is above it, oldest first.
+        Without it, the latest events, oldest first. `cursor` is the value
+        to send as `after` next time. Left out: the events of scores sent
+        more than 24 hours after they were made, of hidden scores, and of
+        players who are no longer public and active.
+
+        Bot accounts only, ability `events:read`.
+      security:
+        - mauiKey: []
+          bearerToken: []
+      parameters:
+        - name: after
+          in: query
+          schema:
+            type: integer
+            minimum: 0
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 50
+      responses:
+        '200':
+          description: The events.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ScoreEventListResponse'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
   /invite/{invitationToken}:
     servers:
       - url: http://localhost:8080
@@ -1725,6 +1777,99 @@ components:
           - romname: pacman
             description: Pac-Man (Midway)
             table: default
+
+    ScoreEvent:
+      type: object
+      required: [id, uuid, movement, flavors, importance, message, occurred_at, player, game, table, score, rank_before, rank_after, facts]
+      additionalProperties: false
+      properties:
+        id:
+          type: integer
+          description: Grows with each event; the cursor of the readers.
+        uuid:
+          type: string
+          format: uuid
+        movement:
+          type: string
+          enum: [opens_board, debut_first, debut_podium, debut, reclaims_first, takes_first, extends_lead, enters_podium, climbs, improves]
+        flavors:
+          type: array
+          description: The first one gives the message its closing line.
+          items:
+            type: string
+            enum: [staircase, rivalry, revenge, reign_ended, photo_finish, crushing, huge_jump, leapfrog, on_a_roll, comeback, milestone, newcomer, multi_crown, collector, away_win]
+        importance:
+          type: integer
+          minimum: 1
+          maximum: 3
+          description: '3: a first score, a new leader, the podium. 2: the top 9, or any flavor. 1: the rest.'
+        message:
+          type: string
+          description: English, Markdown (`**bold**`, special characters of names escaped with a backslash).
+        occurred_at:
+          type: string
+          format: date-time
+          description: When the score was made.
+        player:
+          type: object
+          required: [id, pseudo_3, avatar]
+          additionalProperties: false
+          properties:
+            id:
+              type: string
+              format: uuid
+            pseudo_3:
+              type: string
+            avatar:
+              type: [string, 'null']
+              description: Hash of the avatar (D53).
+        game:
+          type: object
+          required: [romname, description, manufacturer]
+          additionalProperties: false
+          properties:
+            romname:
+              type: string
+            description:
+              type: string
+            manufacturer:
+              type: [string, 'null']
+        table:
+          type: string
+        score:
+          type: integer
+          format: int64
+        rank_before:
+          type: [integer, 'null']
+          description: Null on the player's first score on the game.
+        rank_after:
+          type: integer
+          minimum: 1
+        facts:
+          type: object
+          description: |
+            What the movement and the flavors were worked out from, for a
+            reader that writes its own sentence: `previous_best`,
+            `board_size`, `displaced`, `ahead` and `previous_leader`
+            (`id`, `pseudo_3`, `score`, `cabinet`), `gap`, `overtaken`,
+            `cabinet`, `pushed_off_podium`, `pushed_out_of_board`, `rounds`,
+            `reign_days`, `streak`, `away_days`, `games`, `crowns`,
+            `milestone`... Keys may be added.
+          additionalProperties: true
+
+    ScoreEventListResponse:
+      type: object
+      required: [events, cursor]
+      additionalProperties: false
+      properties:
+        events:
+          type: array
+          items:
+            $ref: '#/components/schemas/ScoreEvent'
+        cursor:
+          type: integer
+          minimum: 0
+          description: Send it as `after` to read what comes next.
 
     Problem:
       type: object
