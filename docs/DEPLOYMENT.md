@@ -245,7 +245,9 @@ backup schedule. Wipe the database with
 ## 8. Production deployment from the CI (jumpman)
 
 Production runs on jumpman (`/opt/maui-api`, `api.maui.afronob.com`), with
-the same `compose.staging.yaml` and its own `.env`. It is deployed by
+`compose.production.yaml` (D59): the staging model, with the production
+domain and repository URL as defaults and the project name `maui-api`, under
+which its volumes have always lived. Settings in its own `.env`. It is deployed by
 `.github/workflows/deploy.yml`, run by hand (D58):
 
 1. semantic-release tags `X.Y.Z` on `main` (D44).
