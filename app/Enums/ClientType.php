@@ -12,7 +12,7 @@ enum ClientType: string implements HasLabel
     /** A technical account feeding the catalog (Lot 2). */
     case Service = 'service';
 
-    /** A chat bot reading the shared leaderboards (docs/DECISIONS.md D57). */
+    /** A chat bot reading the shared leaderboards and the score events (docs/DECISIONS.md D57, D60). */
     case Bot = 'bot';
 
     /**
@@ -25,7 +25,7 @@ enum ClientType: string implements HasLabel
         return match ($this) {
             self::Maui => ['session', 'scores:write', 'scores:read', 'repository:read', 'players'],
             self::Service => ['catalog:write', 'repository:read'],
-            self::Bot => ['leaderboards:read'],
+            self::Bot => ['leaderboards:read', 'events:read'],
         };
     }
 

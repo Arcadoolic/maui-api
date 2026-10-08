@@ -7,6 +7,7 @@ use App\Models\Game;
 use App\Models\Player;
 use App\Models\Score;
 use Illuminate\Support\Facades\DB;
+use Throwable;
 
 /**
  * Takes in a batch of scores from a cabinet (docs/DECISIONS.md D50). Each
@@ -17,9 +18,15 @@ use Illuminate\Support\Facades\DB;
  *   hidden scores aside; dropped;
  * - `rejected`: with a `code`, the cabinet drops it too.
  * `best` is the player's best after this score, for the cabinet's cache.
+ *
+ * A stored score records a score event (D60). Several bests of one player on
+ * one game in the same batch (a cabinet back online) record one event, for
+ * the highest, compared with the leaderboard as it was before the batch.
  */
 final class ScoreIntake
 {
+    public function __construct(private readonly ScoreEventRecorder $events) {}
+
     /**
      * @param  list<ScoreData>  $scores
      * @return list<array{id: string, status: string, code?: string, best?: int|null}>
@@ -35,21 +42,73 @@ final class ScoreIntake
             ->pluck('id')
             ->all();
 
-        return array_map(function (ScoreData $data) use ($client, $players, $startupIds): array {
-            $player = $players->get($data->playerId);
+        $told = $this->told($scores);
+        $baselines = [];
 
-            return $player instanceof Player
-                ? $this->takeOne($client, $player, $data, in_array($data->startupId, $startupIds, true) ? $data->startupId : null)
-                : ['id' => $data->id, 'status' => 'rejected', 'code' => 'player_not_found'];
-        }, $scores);
+        return array_map(function (ScoreData $data, int $index) use ($client, $players, $startupIds, $told, &$baselines): array {
+            $player = $players->get($data->playerId);
+            if (! $player instanceof Player) {
+                return ['id' => $data->id, 'status' => 'rejected', 'code' => 'player_not_found'];
+            }
+
+            $key = self::board($data);
+            if (! array_key_exists($key, $baselines)) {
+                $game = Game::query()->where('romname', $data->romname)->first();
+                $baselines[$key] = $game === null ? null : $this->events->baseline($player, $game, $data->table);
+            }
+
+            $stored = null;
+            $result = $this->takeOne($client, $player, $data, in_array($data->startupId, $startupIds, true) ? $data->startupId : null, $stored);
+            if ($stored instanceof Score && $told[$key] === $index) {
+                $this->tell($stored, $baselines[$key]);
+            }
+
+            return $result;
+        }, $scores, array_keys($scores));
     }
 
     /**
+     * The score of each player, game and table that records an event: the
+     * highest of the batch.
+     *
+     * @param  list<ScoreData>  $scores
+     * @return array<string, int> Index in the batch, by leaderboard row.
+     */
+    private function told(array $scores): array
+    {
+        $told = [];
+        foreach ($scores as $index => $data) {
+            $key = self::board($data);
+            if (! isset($told[$key]) || $data->score > $scores[$told[$key]]->score) {
+                $told[$key] = $index;
+            }
+        }
+
+        return $told;
+    }
+
+    private static function board(ScoreData $data): string
+    {
+        return $data->playerId.'/'.$data->romname.'/'.$data->table;
+    }
+
+    /** An event that cannot be recorded is reported, and never costs the score. */
+    private function tell(Score $score, ?Score $baseline): void
+    {
+        try {
+            DB::transaction(fn () => $this->events->record($score, $baseline));
+        } catch (Throwable $exception) {
+            report($exception);
+        }
+    }
+
+    /**
+     * @param  Score|null  $stored  Set to the score when this call stores it.
      * @return array{id: string, status: string, code?: string, best?: int|null}
      */
-    private function takeOne(Client $client, Player $player, ScoreData $data, ?string $startupId): array
+    private function takeOne(Client $client, Player $player, ScoreData $data, ?string $startupId, ?Score &$stored): array
     {
-        return DB::transaction(function () use ($client, $player, $data, $startupId): array {
+        return DB::transaction(function () use ($client, $player, $data, $startupId, &$stored): array {
             // Serializes the scores of one player: two cabinets, or two resends
             // of one score, must not both store a "best".
             Player::query()->whereKey($player->id)->lockForUpdate()->first();
@@ -82,6 +141,7 @@ final class ScoreIntake
                 'achieved_at' => $data->achievedAt,
                 'received_at' => now(),
             ])->save();
+            $stored = $score;
 
             return ['id' => $data->id, 'status' => 'accepted', 'best' => $data->score];
         });

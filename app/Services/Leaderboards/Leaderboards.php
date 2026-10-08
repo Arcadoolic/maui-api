@@ -44,6 +44,42 @@ final class Leaderboards
      */
     public function top(Game $game, string $table = Score::DEFAULT_TABLE, int $limit = self::SIZE): Collection
     {
+        return $this->ranked($game, $table)->limit($limit)->with(['player', 'client'])->get();
+    }
+
+    /**
+     * The whole leaderboard, beyond the rows a cabinet shows: where a score
+     * event reads the ranks (D60).
+     *
+     * @return Collection<int, Score>
+     */
+    public function board(Game $game, string $table = Score::DEFAULT_TABLE): Collection
+    {
+        return $this->ranked($game, $table)->with(['player', 'client'])->get();
+    }
+
+    /**
+     * Leaderboards a player leads, all games and tables together.
+     */
+    public function crowns(Player $player): int
+    {
+        $leaders = self::visibleScores()
+            ->select('scores.*')
+            ->distinct(['scores.game_id', 'scores.table'])
+            ->orderBy('scores.game_id')
+            ->orderBy('scores.table')
+            ->orderByDesc('scores.score')
+            ->orderBy('scores.achieved_at')
+            ->orderBy('scores.id');
+
+        return Score::query()->fromSub($leaders, 'scores')->where('player_id', $player->id)->count();
+    }
+
+    /**
+     * @return Builder<Score>
+     */
+    private function ranked(Game $game, string $table): Builder
+    {
         $bestPerPlayer = self::visibleScores()
             ->where('scores.game_id', $game->id)
             ->where('scores.table', $table)
@@ -57,10 +93,7 @@ final class Leaderboards
             ->fromSub($bestPerPlayer, 'scores')
             ->orderByDesc('score')
             ->orderBy('achieved_at')
-            ->orderBy('id')
-            ->limit($limit)
-            ->with(['player', 'client'])
-            ->get();
+            ->orderBy('id');
     }
 
     /**

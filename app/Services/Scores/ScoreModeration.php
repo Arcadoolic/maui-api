@@ -3,13 +3,15 @@
 namespace App\Services\Scores;
 
 use App\Models\Score;
+use App\Models\ScoreEvent;
 use App\Models\User;
 use Illuminate\Support\Facades\Auth;
 
 /**
  * Back office moderation of scores, recorded in the audit log with the admin
  * as causer (docs/DECISIONS.md D50). A hidden score leaves the leaderboards
- * and the player's best: the player can beat a lower score again.
+ * and the player's best: the player can beat a lower score again. Its score
+ * event is retracted with it (D60).
  */
 final class ScoreModeration
 {
@@ -18,12 +20,14 @@ final class ScoreModeration
     public function hide(Score $score): void
     {
         $score->hide();
+        ScoreEvent::query()->where('score_id', $score->id)->update(['retracted_at' => now()]);
         $this->audit($score, 'score.hidden');
     }
 
     public function unhide(Score $score): void
     {
         $score->unhide();
+        ScoreEvent::query()->where('score_id', $score->id)->update(['retracted_at' => null]);
         $this->audit($score, 'score.shown');
     }
 
