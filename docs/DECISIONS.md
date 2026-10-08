@@ -630,3 +630,15 @@ the previous tree and rolls back when the containers are not healthy. The
 host key is pinned in a secret. Migrations run after the containers are up
 and are not rolled back.
 
+**D59: Production gets its own Compose file.** (2026-10-08, completes D58)
+Production on jumpman was started from `compose.staging.yaml` with
+`-p maui-api`, the file's `name: maui-api-staging` being overridden by hand:
+any command without the `-p` (a database dump, the first version of the
+deploy script) targeted a second, empty project, with new volumes and ports
+clashing with production. `compose.production.yaml` is the staging file with
+`name: maui-api`, the name production already runs under, so its volumes
+keep their data, and the production domain and repository URL as defaults.
+A copy rather than an override of the staging file: two files, each
+readable alone, and `docker compose -f compose.production.yaml` is the whole
+command. The deploy script uses it once a release ships it.
+

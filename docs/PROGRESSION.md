@@ -240,7 +240,9 @@ For why things are done this way, see `docs/DECISIONS.md`.
 - `deploy.yml`: run by hand with a tag on `main`, sends `git archive` to
   jumpman over SSH (`deploy` user, forced command, one sudo rule). Same file
   in maui-repository and maui-discord-bot. Server side tested with the bot.
-- Next: first run on the API with the next semantic-release tag.
+- First run: 0.5.0 deployed on 2026-10-08 (migration `allow_bot_clients`).
+- `compose.production.yaml` (D59) with `name: maui-api`: no more `-p` by
+  hand. Next: switch the deploy script on jumpman to it.
 
 ## Next
 
