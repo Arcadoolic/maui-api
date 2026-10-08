@@ -138,6 +138,7 @@ final class ScoreIntake
                 'table' => $data->table,
                 'score' => $data->score,
                 'rank_on_cabinet' => $data->rankOnCabinet,
+                'attribution' => $data->attribution,
                 'achieved_at' => $data->achievedAt,
                 'received_at' => now(),
             ])->save();

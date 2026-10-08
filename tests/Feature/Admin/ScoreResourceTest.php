@@ -31,6 +31,17 @@ it('filters hidden scores', function () {
         ->assertCanNotSeeTableRecords([$shown]);
 });
 
+it('filters the scores declared on a cabinet', function () {
+    $declared = Score::factory()->declared()->create();
+    $read = Score::factory()->create();
+
+    livewire(ListScores::class)
+        ->assertTableColumnExists('attribution')
+        ->filterTable('attribution', 'declared')
+        ->assertCanSeeTableRecords([$declared])
+        ->assertCanNotSeeTableRecords([$read]);
+});
+
 it('hides a score and shows it again, with the admin in the audit log', function () {
     $score = Score::factory()->create();
 

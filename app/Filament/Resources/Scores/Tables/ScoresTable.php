@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Scores\Tables;
 
+use App\Enums\ScoreAttribution;
 use App\Models\Score;
 use App\Services\Scores\ScoreModeration;
 use Filament\Actions\Action;
@@ -29,6 +30,10 @@ class ScoresTable
                 TextColumn::make('table')->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('rank_on_cabinet')->label(__('Rank'))->placeholder('-')->toggleable(),
                 TextColumn::make('client.name')->label(__('Cabinet'))->searchable(),
+                // Declared on the cabinet, for a game that writes no name (D61).
+                TextColumn::make('attribution')->label(__('Player from'))->badge()
+                    ->color(fn (ScoreAttribution $state): string => $state === ScoreAttribution::Declared ? 'warning' : 'gray')
+                    ->toggleable(),
                 TextColumn::make('achieved_at')->dateTime()->sortable()->toggleable(isToggledHiddenByDefault: true),
                 IconColumn::make('hidden')
                     ->label(__('Hidden'))
@@ -41,6 +46,7 @@ class ScoresTable
                 SelectFilter::make('game')->relationship('game', 'romname')->searchable(),
                 SelectFilter::make('player')->relationship('player', 'pseudo_3')->searchable(),
                 SelectFilter::make('client')->label(__('Cabinet'))->relationship('client', 'name')->searchable(),
+                SelectFilter::make('attribution')->label(__('Player from'))->options(ScoreAttribution::class),
                 TernaryFilter::make('hidden')
                     ->label(__('Hidden'))
                     ->nullable()

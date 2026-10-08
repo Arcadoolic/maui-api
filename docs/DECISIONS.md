@@ -680,3 +680,17 @@ is recorded but not `announceable`; hiding a score retracts its event.
 `GET /bot/events?after=<id>` with a new `events:read` ability of the `bot`
 type (existing tokens get it by migration): it polls, since it has no
 inbound HTTP, and keeps the cursor.
+
+**D61: A score without initials is declared on the cabinet, and marked.** (2026-10-09)
+Some games write their scores without any name (`route16`, `scobra`, and
+the games keeping a single top score): the cabinet cannot read whose score
+it is. MAUI asks it when the game is quit, among the cabinet's active public
+players, and gives the score to the only one when there is only one.
+`POST /scores` already takes a `player_id`, so nothing changes in the
+intake: such a score is a personal best like any other, on the same
+leaderboards and with the same events (D50, D52, D60). It only carries
+`attribution: declared` (`initials` by default, which is also what a cabinet
+older than this decision sends by leaving the field out), stored in
+`scores.attribution` and shown in the back office with a filter: a declared
+score rests on what was answered on the cabinet, which moderation, and
+later the anti-cheat lot, must be able to tell apart.
