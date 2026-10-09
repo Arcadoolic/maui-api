@@ -1,3 +1,9 @@
+## [0.7.1](https://github.com/Arcadoolic/maui-api/compare/0.7.0...0.7.1) (2026-10-09)
+
+### Bug Fixes
+
+* **deploy:** no web health check on the scheduler container ([50f76a3](https://github.com/Arcadoolic/maui-api/commit/50f76a3475054d40d3fff8407eded7fd21da2227))
+
 ## [0.7.0](https://github.com/Arcadoolic/maui-api/compare/0.6.0...0.7.0) (2026-10-09)
 
 ### Features
