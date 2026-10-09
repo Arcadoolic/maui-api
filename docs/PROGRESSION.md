@@ -33,6 +33,15 @@ For why things are done this way, see `docs/DECISIONS.md`.
 - Releases by semantic-release on every push to `main` (D44): 0.1.0
   published on 2026-09-25.
 
+## Lot 3.6: deployment (in progress, D72)
+
+- `scheduler` container in both Compose files, `catalog:scrape` every night
+  (`routes/console.php`).
+- The front's container, Caddy configuration, CI, release and deploy
+  workflows are in `afronob/maui-hifront`.
+- To do on jumpman, by hand: DNS of `hiscores.maui.afronob.com`, nginx route,
+  the `hifront` project for `maui-deploy`, the settings above in `.env`.
+
 ## Lot 3.5: global podium (in progress, D70)
 
 - `GlobalRanking`: points by rank times a competition factor, the 15 best

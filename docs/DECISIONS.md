@@ -910,3 +910,23 @@ only reader, and nothing of Lot 3 is released yet. The rest of D66 stands:
 initials and PIN, the lock, the audit. On the front, "my players" becomes
 "my player", and the lists highlight that one player.
 
+**D72: A scheduler container runs the periodic commands; the front is deployed like the other projects.** (2026-10-09, Lot 3.6)
+Nothing ran `catalog:scrape` (D68): the containers had no scheduler. A
+`scheduler` service is added to the staging and production Compose files:
+the app's image and settings, no port, `php artisan schedule:work`, the
+storage volume shared with the app, since the commands keep their files
+there (the game pictures). In a container rather than in the host's cron:
+it is deployed, restarted and rolled back with the code, on both servers,
+with nothing to install on the host. The schedule is in `routes/console.php`,
+times in UTC: `catalog:scrape` every night at 04:15, skipped when
+ScreenScraper is not configured. The daily snapshot of the global podium
+(D70) will join it. The front (`afronob/maui-hifront`) goes to production as
+maui-repository does (D58, D59): its own container ending its TLS behind
+nginx's SNI routing, `hiscores.maui.afronob.com`, a tag sent by its
+`deploy.yml`. Its Caddy serves the built files and passes
+`/api/v1/front/*` on to `https://api.maui.afronob.com`, by the public name:
+no shared Docker network between two projects deployed apart, at the price
+of one more TLS hop on the same host. Nothing else of the API is passed on.
+Production settings on the API's side: `FRONT_URL`, the Discord application
+(its redirect URI on the front's name), the ScreenScraper credentials.
+
