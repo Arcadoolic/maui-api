@@ -719,3 +719,65 @@ Being irreversible, the confirmation modal tells what goes and asks for the
 client name to be typed. The leaderboards change at once (their ETag is a
 hash of the content, D52); a Discord message already posted for a deleted
 score stays, as for a hidden one (D60).
+
+**D64: The hiscores front has members with a session, logged in with Discord.** (2026-10-09, Lot 3.1, completes D2)
+The front (`afronob/maui-hifront`, a Vue SPA) is closed: nothing is
+shown without a login. Its users are `members`, a table of their own: `users`
+only holds admins (D2), and a member has no password, Discord authenticates
+it (OAuth2 authorization code, scope `identify`: id, name and avatar, no
+email). The two calls are made with the HTTP client, without Socialite: one
+provider, and a fake in the tests. D2 kept sessions for humans and Sanctum
+for machines: members are humans, so they get a session (guard `member`),
+not a token a script of the page could read. The routes sit under
+`/api/v1/front`, the only API routes with the cookie and session middleware
+(group `front`). The browser never calls the API from another origin: the
+front's server passes `/api/v1/front/*` on to it (Vite's proxy in
+development), so the cookie belongs to the front's host, no CORS is opened,
+and the same setup works whatever the two domain names are. `FRONT_URL` is
+that public URL: invitation links, the Discord redirect URI
+(`<FRONT_URL>/api/v1/front/auth/discord/callback`) and the redirects after
+a login are built from it. The session has a cookie of its own
+(`maui-front-session`): with the back office's, a member logging out would
+end the admin's session wherever one host serves both (`localhost` in
+development: cookies ignore the port). CSRF: the cookie is `SameSite=Lax`, and
+`VerifyFrontOrigin` refuses any request that changes something without the
+front's `Origin` (`403 origin_not_allowed`), which a page of another site
+cannot forge; no token to fetch first. The login is two pages the browser
+is sent to: they always answer a redirect to the front, with
+`/login?error=<code>` when it failed. The `state` and the invitation wait in
+the session while the visitor is on Discord. A member is remembered (remember
+cookie) rather than logged out after two idle hours. An admin disables a
+member in the back office: refused at the login, and logged out at its next
+request (`403 member_disabled`). Since every request comes from the front's
+server, logged-in members are rate limited one by one (`front`, 240/min),
+the login routes by IP (`front-auth`, 30/min).
+
+**D65: Front invitations: a link for one or several Discord accounts.** (2026-10-09, Lot 3.1)
+A Discord account becomes a member with an invitation link created by an
+admin ("Front invitations" in the back office): a label to remember who it
+was given to, a number of accounts (one by default, empty for no limit, e.g.
+a link posted on the Discord server), a validity in days (empty: until it is
+revoked). A table of its own (`member_invitations`): the cabinet invitations
+(`invitations`, D15) belong to a client and are single-use. Only the hash of
+the token is stored, so the link is shown once, when it is created. It
+points to the front (`/invite/<token>`), which checks it
+(`GET /front/invitations/{token}`, `valid` or `404`) and sends the visitor
+to Discord with it. A use is counted when the member is created, with the
+invitation row locked: two accounts cannot both take the last one. A member
+that comes back needs no invitation, and revoking one keeps the members it
+let in: to remove a member, disable it. Each member keeps the invitation it
+came with.
+
+**D66: A member links its players with initials and PIN.** (2026-10-09, Lot 3.1)
+The front must know which players are the member's ("my progress"). The
+member types the initials and the 4-digit PIN, as when joining a cabinet
+(D48): same check, same count of wrong PINs and same lock after five, on top
+of a `front-player-link` limiter (10/min per member). `PlayerRegistry` runs
+one PIN check for both. Nothing changes on the cabinets of the player. A
+member may link several players (a family sharing one Discord account, or a
+player with two sets of initials); a player has one member at most
+(`409 player_already_linked`), told only once the PIN is right, so that
+guessing initials tells nothing. Unlinking removes the link only. Both are
+recorded in the player's audit log (`player.member_linked`,
+`player.member_unlinked`) with the member as causer.
+

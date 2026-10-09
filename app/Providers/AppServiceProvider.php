@@ -3,6 +3,7 @@
 namespace App\Providers;
 
 use App\Http\Middleware\AuthenticateCabinet;
+use App\Http\Middleware\AuthenticateMember;
 use App\Models\User;
 use Filament\Support\Facades\FilamentTimezone;
 use Illuminate\Cache\RateLimiting\Limit;
@@ -82,5 +83,20 @@ class AppServiceProvider extends ServiceProvider
         // only slows down scanning (docs/PLAN.md 1.2). High enough for an owner
         // drawing several cabinet names (two requests per draw).
         RateLimiter::for('invitations', fn (Request $request): Limit => Limit::perMinute(30)->by($request->ip()));
+
+        // Hiscores front (docs/DECISIONS.md D64). Its requests come through the
+        // front's server: logged-in members are counted one by one, the login
+        // pages by IP.
+        RateLimiter::for('front-auth', fn (Request $request): Limit => Limit::perMinute(30)->by($request->ip()));
+        RateLimiter::for('front', fn (Request $request): Limit => Limit::perMinute(240)->by(self::memberKey($request)));
+        // PIN attempts, as `player-link` for the cabinets (docs/DECISIONS.md D66).
+        RateLimiter::for('front-player-link', fn (Request $request): Limit => Limit::perMinute(10)->by(self::memberKey($request)));
+    }
+
+    private static function memberKey(Request $request): string
+    {
+        $id = Auth::guard(AuthenticateMember::GUARD)->id();
+
+        return $id === null ? 'ip:'.$request->ip() : 'member:'.$id;
     }
 }

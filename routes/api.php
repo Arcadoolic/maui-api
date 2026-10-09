@@ -10,6 +10,9 @@ use App\Http\Controllers\Api\RepositoryController;
 use App\Http\Controllers\Api\ScoreEventsController;
 use App\Http\Controllers\Api\ScoresController;
 use App\Http\Controllers\Api\StartupController;
+use App\Http\Controllers\Front\AuthController;
+use App\Http\Controllers\Front\MeController;
+use App\Services\Members\MemberInvitationIssuer;
 use Illuminate\Support\Facades\Route;
 
 // MAUI machine API, served under /api/v1 (see bootstrap/app.php).
@@ -72,4 +75,24 @@ Route::middleware('repository')->group(function () {
 // Service accounts: game catalog pushed by maui-repository (docs/DECISIONS.md D47).
 Route::middleware(['throttle:service', 'service:catalog:write'])->group(function () {
     Route::put('catalog/games', CatalogGamesController::class);
+});
+
+// Hiscores front (maui-hifront): members logged in with Discord, a session
+// instead of a token (docs/DECISIONS.md D64). Reached through the front's own
+// server, never from another origin.
+Route::prefix('front')->middleware('front')->group(function () {
+    Route::middleware('throttle:front-auth')->group(function () {
+        Route::get('auth/discord', [AuthController::class, 'redirect']);
+        Route::get('auth/discord/callback', [AuthController::class, 'callback']);
+        Route::get('invitations/{token}', [AuthController::class, 'invitation'])
+            ->where('token', '[A-Za-z0-9]{'.MemberInvitationIssuer::TOKEN_LENGTH.'}');
+    });
+
+    Route::middleware(['member', 'throttle:front'])->group(function () {
+        Route::get('me', [MeController::class, 'show']);
+        Route::post('logout', [AuthController::class, 'logout']);
+        // Players of the member, linked with initials + PIN (docs/DECISIONS.md D66).
+        Route::post('me/players', [MeController::class, 'linkPlayer'])->middleware('throttle:front-player-link');
+        Route::delete('me/players/{player}', [MeController::class, 'unlinkPlayer']);
+    });
 });

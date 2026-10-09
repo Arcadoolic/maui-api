@@ -122,6 +122,16 @@ tags:
   - name: Catalog
     description: |
       Game catalog fed by service accounts (maui-repository's `push-catalog`).
+  - name: Front
+    description: |
+      The hiscores front (maui-hifront), D64 to D66. Its members log in
+      with Discord, on invitation, and are known by a session cookie, not by
+      a token: no `X-Maui-*` header. The front's own server passes
+      `/api/v1/front/*` on to this API, so the browser never calls it from
+      another origin; a request that changes something must carry the
+      front's `Origin` (`403 origin_not_allowed` otherwise). Rate limit: 240
+      requests per minute per member, 30 per minute per IP on the login
+      routes.
   - name: Invitations
     description: |
       Public web pages (HTML, not JSON) used by a cabinet owner to retrieve
@@ -1016,6 +1026,241 @@ paths:
         '500':
           $ref: '#/components/responses/ServerError'
 
+  /front/auth/discord:
+    get:
+      tags: [Front]
+      operationId: frontDiscordRedirect
+      summary: Send the browser to the Discord login
+      description: |
+        A page the browser is sent to, not a call of the front. Keeps a
+        `state` and the invitation in the session, then redirects to Discord
+        (OAuth2 authorization code, scope `identify`). Without a Discord
+        application configured on the server, redirects to the front's
+        `/login?error=discord_unavailable`.
+      security: []
+      parameters:
+        - name: invitation
+          in: query
+          required: false
+          description: Invitation token, needed by a Discord account that is not a member yet.
+          schema:
+            type: string
+      responses:
+        '302':
+          description: Redirect to Discord, or back to the front's login page.
+        '429':
+          $ref: '#/components/responses/RateLimited'
+
+  /front/auth/discord/callback:
+    get:
+      tags: [Front]
+      operationId: frontDiscordCallback
+      summary: Come back from Discord
+      description: |
+        Where Discord sends the browser back. Always answers a redirect to
+        the front: `/` once the member is logged in, or `/login?error=<code>`:
+
+        - `discord_denied`: the login was cancelled on Discord;
+        - `discord_failed`: unknown `state`, or Discord did not answer as expected;
+        - `invitation_required`: the Discord account is not a member and came without an invitation;
+        - `invitation_unavailable`: the invitation does not exist, expired, was revoked or is used up;
+        - `member_disabled`: the member was disabled by an admin.
+
+        A member that comes back needs no invitation; its Discord name and
+        avatar are brought up to date at each login.
+      security: []
+      parameters:
+        - name: code
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: state
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: error
+          in: query
+          required: false
+          description: Set by Discord when the login was cancelled.
+          schema:
+            type: string
+      responses:
+        '302':
+          description: Redirect to the front.
+        '429':
+          $ref: '#/components/responses/RateLimited'
+
+  /front/invitations/{memberInvitationToken}:
+    parameters:
+      - name: memberInvitationToken
+        in: path
+        required: true
+        description: Token of an invitation to the front, 48 alphanumeric characters.
+        schema:
+          type: string
+          pattern: '^[A-Za-z0-9]{48}$'
+    get:
+      tags: [Front]
+      operationId: frontCheckInvitation
+      summary: Tell whether an invitation can still be used
+      description: |
+        Lets the invitation page of the front tell a dead link before the
+        visitor goes to Discord. Says nothing else about the invitation.
+      security: []
+      responses:
+        '200':
+          description: The invitation can be used.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [status]
+                additionalProperties: false
+                properties:
+                  status:
+                    type: string
+                    enum: [valid]
+        '404':
+          description: Unknown, expired, revoked or used up.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+              example:
+                type: about:blank
+                title: Not Found
+                status: 404
+                code: invitation_unavailable
+        '429':
+          $ref: '#/components/responses/RateLimited'
+
+  /front/me:
+    get:
+      tags: [Front]
+      operationId: frontMe
+      summary: The logged-in member and its players
+      security:
+        - frontSession: []
+      responses:
+        '200':
+          description: The member.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FrontMeResponse'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/FrontForbidden'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /front/logout:
+    post:
+      tags: [Front]
+      operationId: frontLogout
+      summary: End the session
+      security:
+        - frontSession: []
+      responses:
+        '204':
+          description: Logged out.
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/FrontForbidden'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /front/me/players:
+    post:
+      tags: [Front]
+      operationId: frontLinkPlayer
+      summary: Link a player to the member with its PIN
+      description: |
+        Same initials, PIN and lock as `POST /players/link` on a cabinet
+        (D66): each wrong PIN is counted, the fifth in a row locks the
+        player. The cabinets of the player are unchanged. A player has one
+        member at most: `409 player_already_linked`, told only once the PIN
+        is right. Idempotent for a player the member already linked. A member
+        can link several players. Own rate limit: 10 requests per minute per
+        member.
+      security:
+        - frontSession: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LinkPlayerRequest'
+      responses:
+        '200':
+          description: Player linked.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [player]
+                additionalProperties: false
+                properties:
+                  player:
+                    $ref: '#/components/schemas/FrontPlayer'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/FrontForbidden'
+        '404':
+          $ref: '#/components/responses/PlayerNotFound'
+        '409':
+          description: The player is linked to another member.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+              example:
+                type: about:blank
+                title: Conflict
+                status: 409
+                code: player_already_linked
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+        '423':
+          $ref: '#/components/responses/PlayerLocked'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /front/me/players/{playerId}:
+    parameters:
+      - $ref: '#/components/parameters/PlayerId'
+    delete:
+      tags: [Front]
+      operationId: frontUnlinkPlayer
+      summary: Unlink a player from the member
+      description: The player stays as it is on its cabinets, with its scores.
+      security:
+        - frontSession: []
+      responses:
+        '204':
+          description: Player unlinked.
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/FrontForbidden'
+        '404':
+          $ref: '#/components/responses/PlayerNotFound'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
   /invite/{invitationToken}:
     servers:
       - url: http://localhost:8080
@@ -1184,6 +1429,13 @@ components:
       in: header
       name: X-Maui-Machine
       description: Machine fingerprint, 64 lowercase hex characters (SHA-256).
+    frontSession:
+      type: apiKey
+      in: cookie
+      name: maui-front-session
+      description: |
+        Session of a member of the hiscores front, set by the Discord login
+        (D64). A cookie of its own, apart from the back office's.
 
   parameters:
     PlayerId:
@@ -1903,6 +2155,58 @@ components:
           minimum: 0
           description: Send it as `after` to read what comes next.
 
+    FrontMember:
+      type: object
+      required: [id, username, display_name, avatar]
+      additionalProperties: false
+      properties:
+        id:
+          type: string
+          format: uuid
+        username:
+          type: string
+          description: Discord user name.
+        display_name:
+          type: [string, 'null']
+          description: Discord display name, null when the account has none.
+        avatar:
+          type: [string, 'null']
+          format: uri
+          description: URL of the Discord avatar, null without one.
+
+    FrontPlayer:
+      type: object
+      required: [id, pseudo_3, is_public, status, avatar]
+      additionalProperties: false
+      properties:
+        id:
+          type: string
+          format: uuid
+        pseudo_3:
+          $ref: '#/components/schemas/Pseudo3'
+        is_public:
+          type: boolean
+          description: A private player is only shown to its own member.
+        status:
+          type: string
+          enum: [active, disabled, locked]
+        avatar:
+          type: [string, 'null']
+          description: SHA-256 of the player's avatar (D53), null without one.
+
+    FrontMeResponse:
+      type: object
+      required: [member, players]
+      additionalProperties: false
+      properties:
+        member:
+          $ref: '#/components/schemas/FrontMember'
+        players:
+          type: array
+          description: Players the member linked, by initials.
+          items:
+            $ref: '#/components/schemas/FrontPlayer'
+
     Problem:
       type: object
       description: RFC 9457 problem details, with a stable `code` extension.
@@ -1939,6 +2243,10 @@ components:
             - pin_invalid
             - not_origin_cabinet
             - avatar_not_found
+            - origin_not_allowed
+            - member_disabled
+            - invitation_unavailable
+            - player_already_linked
             - forbidden
             - not_found
             - method_not_allowed
@@ -2103,6 +2411,36 @@ components:
                 title: Conflict
                 status: 409
                 code: machine_mismatch
+
+    FrontForbidden:
+      description: |
+        Member disabled by an admin (its session is ended), request that
+        changes something without the front's `Origin`, or, when linking a
+        player: player disabled, wrong PIN (`attempts_left` before the lock).
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+          examples:
+            memberDisabled:
+              value:
+                type: about:blank
+                title: Forbidden
+                status: 403
+                code: member_disabled
+            originNotAllowed:
+              value:
+                type: about:blank
+                title: Forbidden
+                status: 403
+                code: origin_not_allowed
+            pinInvalid:
+              value:
+                type: about:blank
+                title: Forbidden
+                status: 403
+                code: pin_invalid
+                attempts_left: 4
 
     PlayerNotFound:
       description: No player with these initials, or not linked to this cabinet.

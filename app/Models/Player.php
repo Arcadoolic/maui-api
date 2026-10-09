@@ -77,6 +77,16 @@ class Player extends Model
         return $this->belongsToMany(Client::class)->withPivot('linked_at');
     }
 
+    /**
+     * The member of the hiscores front that linked this player: one at most (D66).
+     *
+     * @return BelongsToMany<Member, $this>
+     */
+    public function members(): BelongsToMany
+    {
+        return $this->belongsToMany(Member::class)->withPivot('linked_at');
+    }
+
     /** @return BelongsTo<Client, $this> */
     public function originClient(): BelongsTo
     {
@@ -175,6 +185,22 @@ class Player extends Model
             // Created on this cabinet: it may issue a new PIN (D54).
             'is_origin' => $this->isOrigin($client),
             // SHA-256 of the avatar (D53): the cabinet sends its PNG again when it differs.
+            'avatar' => $this->avatar_hash,
+        ];
+    }
+
+    /**
+     * The player as its member sees it on the hiscores front.
+     *
+     * @return array{id: string, pseudo_3: string, is_public: bool, status: string, avatar: string|null}
+     */
+    public function toFrontArray(): array
+    {
+        return [
+            'id' => $this->uuid,
+            'pseudo_3' => $this->pseudo_3,
+            'is_public' => $this->is_public,
+            'status' => $this->apiStatus(),
             'avatar' => $this->avatar_hash,
         ];
     }

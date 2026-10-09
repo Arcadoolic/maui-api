@@ -51,7 +51,7 @@ it('hides a score and shows it again, with the admin in the audit log', function
     livewire(ListScores::class)->callTableAction('show', $score);
     expect($score->refresh()->isHidden())->toBeFalse();
 
-    $events = Activity::query()->whereMorphedTo('subject', $score)->where('causer_id', $this->admin->id)->pluck('event')->all();
+    $events = Activity::query()->whereMorphedTo('subject', $score)->where('causer_id', $this->admin->id)->orderBy('id')->pluck('event')->all();
     expect($events)->toBe(['score.hidden', 'score.shown']);
 });
 
