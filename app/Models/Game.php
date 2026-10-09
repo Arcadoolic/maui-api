@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Support\Carbon;
 
 /**
@@ -63,6 +64,22 @@ class Game extends Model
     public function catverCategory(): BelongsTo
     {
         return $this->belongsTo(Category::class, 'catver_category_id');
+    }
+
+    /**
+     * What ScreenScraper knows of the game, null until it has been asked (D68).
+     *
+     * @return HasOne<GameDetail, $this>
+     */
+    public function detail(): HasOne
+    {
+        return $this->hasOne(GameDetail::class);
+    }
+
+    /** @return HasMany<GameMedia, $this> */
+    public function media(): HasMany
+    {
+        return $this->hasMany(GameMedia::class);
     }
 
     /** @return HasMany<Score, $this> */

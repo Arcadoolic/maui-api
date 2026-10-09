@@ -11,6 +11,13 @@ return [
     'url' => env('FRONT_URL', 'http://localhost:5180'),
 
     /*
+    | Days a member stays logged in on a browser without going through Discord
+    | again (the "remember me" cookie). The session itself ends after
+    | SESSION_LIFETIME minutes without a request, as the back office's does.
+    */
+    'remember_days' => (int) env('FRONT_REMEMBER_DAYS', 60),
+
+    /*
     | The Discord application members log in with (OAuth2, scope `identify`).
     | Its redirect URI is <url>/api/v1/front/auth/discord/callback. Unset:
     | nobody can log in to the front.

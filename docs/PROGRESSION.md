@@ -13,7 +13,7 @@ For why things are done this way, see `docs/DECISIONS.md`.
 | 0 | Foundation: Docker Compose, Laravel 13 skeleton, CI | **Done**; staging deployed (D40, `docs/DEPLOYMENT.md`), production hosting undecided |
 | 1 | MAUI authentication, machine binding, telemetry, Filament BO | **Done**: API (PR #1 to #4, follow-ups #9, #11), MAUI slices 1 to 5 (`Arcadoolic/maui` PRs #88, #92, #93, #96, #97), end-to-end checked, see `docs/MAUI-INTEGRATION.md` |
 | 2 | Hiscores: catalog, players, scores, leaderboards | **In progress**: 2.1 catalog and 2.2 players merged (not on staging yet), 2.3 scores in progress |
-| 3 | Hiscores front end (`afronob/maui-hifront`) | **In progress**: 3.1 accounts, API side done (D64 to D66) |
+| 3 | Hiscores front end (`afronob/maui-hifront`) | **In progress**: 3.1 accounts done (D64 to D66, PR #55), 3.2 reading in progress (D67) |
 | Last | Anti-cheat | Not started, after Lot 3 |
 
 ## Done
@@ -33,6 +33,56 @@ For why things are done this way, see `docs/DECISIONS.md`.
 - Releases by semantic-release on every push to `main` (D44): 0.1.0
   published on 2026-09-25.
 
+## Lot 3.6: deployment (in progress, D72)
+
+- `scheduler` container in both Compose files, `catalog:scrape` every night
+  (`routes/console.php`).
+- The front's container, Caddy configuration, CI, release and deploy
+  workflows are in `afronob/maui-hifront`.
+- To do on jumpman, by hand: DNS of `hiscores.maui.afronob.com`, nginx route,
+  the `hifront` project for `maui-deploy`, the settings above in `.env`.
+
+## Lot 3.5: global podium (in progress, D70)
+
+- `GlobalRanking`: points by rank times a competition factor, the 15 best
+  results of each player, one per game; values in `config/hiscores.php`.
+- `GET /front/ranking` (podium and its rule); `points`, `global_rank` and,
+  per best, `points` and `counted` on `GET /front/players/{id}`.
+- `hiscores:ranking [--best=] [--full=]`: the podium next to the former
+  500/300/50 rule, to tune the values on real data.
+- Not done: the daily snapshot (points and rank over time), with Lot 3.6.
+
+## Lot 3.4: player stats (in progress, D69)
+
+- `Rankings` rows say who is just above and just below.
+- `GET /front/players/{id}`: `above` and `below` on each best, `activity`
+  (days with a personal best).
+- `GET /front/players/{id}/games/{romname}`: the bests of the player on the
+  game over time, with the leader's score and the rank above.
+- Next: Lot 3.5 (global podium).
+
+## Lot 3.3: complete game pages (in progress, D68)
+
+- `game_details` and `game_media`; `ScreenScraperClient`, `GameScraper`,
+  `catalog:scrape [romname...] [--limit=50] [--force]`.
+- `GET /front/games/{romname}` gains `details` and `media`;
+  `GET /front/games/{romname}/media/{type}` serves a picture.
+- Written against faked answers: to check with real ones once
+  `SCREENSCRAPER_DEV_ID`, `SCREENSCRAPER_DEV_PASSWORD`, `SCREENSCRAPER_USER`
+  and `SCREENSCRAPER_PASSWORD` are set.
+- Nothing runs the command yet (no scheduler): by hand until Lot 3.6.
+
+## Lot 3.2: front reading (in progress, D67)
+
+- `Rankings`: every shared leaderboard in one query, rank and number of
+  ranked players on each row.
+- `GET /front/games` (filters, sorts, pages), `GET /front/games/filters`,
+  `GET /front/games/{romname}` (whole leaderboards, stats, latest events).
+- `GET /front/players`, `GET /front/players/{id}` (bests with their rank; a
+  member's own private player without ranks), `GET /front/players/{id}/avatar`.
+- `GET /front/events` (history, latest first, `before` cursor).
+- Next: Lot 3.3 (ScreenScraper, MAME fields).
+
 ## Lot 3.1: front members (in progress, D64, D65, D66)
 
 - Lot 3 is detailed in `docs/PLAN.md` (3.1 to 3.6).
@@ -44,8 +94,8 @@ For why things are done this way, see `docs/DECISIONS.md`.
   decides who enters (a member comes back freely, a new account needs a
   usable invitation).
 - `GET /front/invitations/{token}`, `GET /front/me`, `POST /front/logout`,
-  `POST /front/me/players` (initials + PIN, same lock as on a cabinet),
-  `DELETE /front/me/players/{id}`.
+  `POST /front/me/player` (initials + PIN, same lock as on a cabinet, one
+  player per member, D71), `DELETE /front/me/player`.
 - Back office: "Front invitations" (create, link shown once, revoke) and
   "Front members" (players, invitation, disable, enable), audited.
 - To set on a server: `FRONT_URL`, `FRONT_DISCORD_CLIENT_ID`,

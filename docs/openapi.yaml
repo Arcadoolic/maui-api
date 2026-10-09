@@ -1140,7 +1140,7 @@ paths:
     get:
       tags: [Front]
       operationId: frontMe
-      summary: The logged-in member and its players
+      summary: The logged-in member and its player
       security:
         - frontSession: []
       responses:
@@ -1178,19 +1178,21 @@ paths:
         '500':
           $ref: '#/components/responses/ServerError'
 
-  /front/me/players:
+  /front/me/player:
     post:
       tags: [Front]
       operationId: frontLinkPlayer
-      summary: Link a player to the member with its PIN
+      summary: Link the member's player with its PIN
       description: |
         Same initials, PIN and lock as `POST /players/link` on a cabinet
         (D66): each wrong PIN is counted, the fifth in a row locks the
-        player. The cabinets of the player are unchanged. A player has one
-        member at most: `409 player_already_linked`, told only once the PIN
-        is right. Idempotent for a player the member already linked. A member
-        can link several players. Own rate limit: 10 requests per minute per
-        member.
+        player. The cabinets of the player are unchanged. A member has one
+        player and a player one member (D71): `409 member_has_player` when
+        the member already has another one (to unlink first),
+        `409 player_already_linked` when the player belongs to another
+        member; both are told only once the PIN is right. Idempotent for the
+        player the member already has. Own rate limit: 10 requests per minute
+        per member.
       security:
         - frontSession: []
       requestBody:
@@ -1218,16 +1220,24 @@ paths:
         '404':
           $ref: '#/components/responses/PlayerNotFound'
         '409':
-          description: The player is linked to another member.
+          description: The member already has a player, or the player is linked to another member.
           content:
             application/problem+json:
               schema:
                 $ref: '#/components/schemas/Problem'
-              example:
-                type: about:blank
-                title: Conflict
-                status: 409
-                code: player_already_linked
+              examples:
+                memberHasPlayer:
+                  value:
+                    type: about:blank
+                    title: Conflict
+                    status: 409
+                    code: member_has_player
+                playerAlreadyLinked:
+                  value:
+                    type: about:blank
+                    title: Conflict
+                    status: 409
+                    code: player_already_linked
         '422':
           $ref: '#/components/responses/ValidationFailed'
         '423':
@@ -1236,14 +1246,10 @@ paths:
           $ref: '#/components/responses/RateLimited'
         '500':
           $ref: '#/components/responses/ServerError'
-
-  /front/me/players/{playerId}:
-    parameters:
-      - $ref: '#/components/parameters/PlayerId'
     delete:
       tags: [Front]
       operationId: frontUnlinkPlayer
-      summary: Unlink a player from the member
+      summary: Unlink the member's player
       description: The player stays as it is on its cabinets, with its scores.
       security:
         - frontSession: []
@@ -1255,7 +1261,380 @@ paths:
         '403':
           $ref: '#/components/responses/FrontForbidden'
         '404':
+          description: The member has no player.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+              example:
+                type: about:blank
+                title: Not Found
+                status: 404
+                code: player_not_found
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /front/games:
+    get:
+      tags: [Front]
+      operationId: frontListGames
+      summary: List the games
+      description: |
+        Catalogued games, and the games only known from a visible score, by
+        name. Each one with the number of ranked players, its latest best and
+        the leader of its default table (D67).
+      security:
+        - frontSession: []
+      parameters:
+        - {name: q, in: query, schema: {type: string, maxLength: 100}, description: Part of the name or of the romname.}
+        - {name: genre, in: query, schema: {type: string}, description: 'A catver genre, with its subgenres.'}
+        - {name: manufacturer, in: query, schema: {type: string}}
+        - {name: year, in: query, schema: {type: string, maxLength: 4}}
+        - {name: players, in: query, schema: {type: integer, minimum: 1, maximum: 8}, description: 'Simultaneous players, at least.'}
+        - name: scores
+          in: query
+          description: '`with`: a visible score; `mine`: the member''s player is ranked; `unranked`: scores, but not the member''s player.'
+          schema: {type: string, enum: [with, mine, unranked]}
+        - name: sort
+          in: query
+          description: '`name` (default), `year`, `players` (most ranked players first), `activity` (latest best first).'
+          schema: {type: string, enum: [name, year, players, activity]}
+        - {name: page, in: query, schema: {type: integer, minimum: 1, default: 1}}
+        - {name: per_page, in: query, schema: {type: integer, minimum: 1, maximum: 100, default: 24}}
+      responses:
+        '200':
+          description: A page of games.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FrontGameListResponse'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/FrontForbidden'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /front/games/filters:
+    get:
+      tags: [Front]
+      operationId: frontGameFilters
+      summary: What the game list can be filtered by
+      description: Only values that catalogued games have.
+      security:
+        - frontSession: []
+      responses:
+        '200':
+          description: Genres, manufacturers and years.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FrontGameFiltersResponse'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/FrontForbidden'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /front/games/{romname}:
+    parameters:
+      - name: romname
+        in: path
+        required: true
+        schema: {type: string, pattern: '^[a-z0-9_]{1,32}$'}
+    get:
+      tags: [Front]
+      operationId: frontShowGame
+      summary: A game's page
+      description: |
+        The catalog entry, its parent and clones, the whole leaderboard of
+        each table (not the top 9 a cabinet shows), a few figures and the
+        latest events of the game.
+      security:
+        - frontSession: []
+      responses:
+        '200':
+          description: The game.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FrontGamePageResponse'
+        '404':
+          description: No game with this romname.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+              example:
+                type: about:blank
+                title: Not Found
+                status: 404
+                code: game_not_found
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/FrontForbidden'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /front/games/{romname}/media/{type}:
+    parameters:
+      - name: romname
+        in: path
+        required: true
+        schema: {type: string, pattern: '^[a-z0-9_]{1,32}$'}
+      - name: type
+        in: path
+        required: true
+        schema: {type: string, enum: [screenshot, title, logo, marquee, flyer]}
+    get:
+      tags: [Front]
+      operationId: frontGameMedia
+      summary: A picture of a game
+      description: Downloaded from ScreenScraper (D68), with its hash as ETag.
+      security:
+        - frontSession: []
+      parameters:
+        - $ref: '#/components/parameters/IfNoneMatch'
+      responses:
+        '200':
+          description: The picture.
+          headers:
+            ETag:
+              $ref: '#/components/headers/ETag'
+          content:
+            image/png: {schema: {type: string, format: binary}}
+            image/jpeg: {schema: {type: string, format: binary}}
+        '304':
+          description: Not modified.
+        '404':
+          description: No such picture for this game.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+              example:
+                type: about:blank
+                title: Not Found
+                status: 404
+                code: media_not_found
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/FrontForbidden'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /front/players:
+    get:
+      tags: [Front]
+      operationId: frontListPlayers
+      summary: List the ranked players
+      description: |
+        Public and active players with a visible score, most crowns first,
+        then podiums, then games.
+      security:
+        - frontSession: []
+      parameters:
+        - {name: q, in: query, schema: {type: string, maxLength: 3}, description: Beginning of the initials.}
+      responses:
+        '200':
+          description: The players.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FrontPlayerListResponse'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/FrontForbidden'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /front/players/{playerId}:
+    parameters:
+      - $ref: '#/components/parameters/PlayerId'
+    get:
+      tags: [Front]
+      operationId: frontShowPlayer
+      summary: A player's page
+      description: |
+        A public and active player, or one of the member's own players even
+        when it is private: its bests are then listed without a rank, since
+        it is on no leaderboard.
+      security:
+        - frontSession: []
+      responses:
+        '200':
+          description: The player.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FrontPlayerPageResponse'
+        '404':
           $ref: '#/components/responses/PlayerNotFound'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/FrontForbidden'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /front/players/{playerId}/avatar:
+    parameters:
+      - $ref: '#/components/parameters/PlayerId'
+    get:
+      tags: [Front]
+      operationId: frontPlayerAvatar
+      summary: A player's avatar
+      description: The PNG of a player the member may see, with its hash as ETag (D53).
+      security:
+        - frontSession: []
+      parameters:
+        - $ref: '#/components/parameters/IfNoneMatch'
+      responses:
+        '200':
+          description: The avatar.
+          headers:
+            ETag:
+              $ref: '#/components/headers/ETag'
+          content:
+            image/png:
+              schema:
+                type: string
+                format: binary
+        '304':
+          description: Not modified.
+        '404':
+          description: Unknown or hidden player (`player_not_found`), or no avatar (`avatar_not_found`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/FrontForbidden'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /front/players/{playerId}/games/{romname}:
+    parameters:
+      - $ref: '#/components/parameters/PlayerId'
+      - name: romname
+        in: path
+        required: true
+        schema: {type: string, pattern: '^[a-z0-9_]{1,32}$'}
+    get:
+      tags: [Front]
+      operationId: frontPlayerGameHistory
+      summary: The progress of a player on a game
+      description: |
+        Each personal best of the player on the game, oldest first (D50
+        keeps them all), with the scores to reach: the leader's and the rank
+        just above (D69).
+      security:
+        - frontSession: []
+      parameters:
+        - $ref: '#/components/parameters/ScoreTable'
+      responses:
+        '200':
+          description: The history.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FrontPlayerGameHistoryResponse'
+        '404':
+          description: Unknown or hidden player (`player_not_found`), or unknown game (`game_not_found`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/FrontForbidden'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /front/ranking:
+    get:
+      tags: [Front]
+      operationId: frontRanking
+      summary: The global podium
+      description: |
+        Points for the rank on each game, times a competition factor
+        (`min(1, (ranked players - 1) / (full_competition_players - 1))`:
+        alone on a game, nothing), and only the best results of each player
+        counted, one per game (D70). Ties: crowns, then podiums, then the
+        oldest best.
+      security:
+        - frontSession: []
+      responses:
+        '200':
+          description: The podium and its rule.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FrontRankingResponse'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/FrontForbidden'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /front/events:
+    get:
+      tags: [Front]
+      operationId: frontListEvents
+      summary: The feed of score events
+      description: |
+        What the scores changed on the leaderboards (D60), latest first. A
+        history, unlike the bots' feed: events too old to be announced are
+        part of it. Not retracted, of players still public and active.
+      security:
+        - frontSession: []
+      parameters:
+        - {name: before, in: query, schema: {type: integer, minimum: 1}, description: 'The `cursor` of the previous page: older events.'}
+        - {name: limit, in: query, schema: {type: integer, minimum: 1, maximum: 100, default: 30}}
+        - {name: player, in: query, schema: {type: string, format: uuid}, description: Events of this player only.}
+      responses:
+        '200':
+          description: A page of events.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FrontEventListResponse'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/FrontForbidden'
         '429':
           $ref: '#/components/responses/RateLimited'
         '500':
@@ -2196,16 +2575,346 @@ components:
 
     FrontMeResponse:
       type: object
-      required: [member, players]
+      required: [member, player]
       additionalProperties: false
       properties:
         member:
           $ref: '#/components/schemas/FrontMember'
+        player:
+          description: The player the member linked, null until it has (D71).
+          oneOf:
+            - type: 'null'
+            - $ref: '#/components/schemas/FrontPlayer'
+
+    FrontPlayerRef:
+      type: object
+      required: [id, pseudo_3, avatar]
+      properties:
+        id: {type: string, format: uuid}
+        pseudo_3:
+          $ref: '#/components/schemas/Pseudo3'
+        avatar:
+          type: [string, 'null']
+          description: SHA-256 of the avatar (D53), null without one.
+
+    FrontGame:
+      type: object
+      required: [romname, description, manufacturer, year, genre, subgenre, players]
+      properties:
+        romname: {type: string}
+        description: {type: string}
+        manufacturer: {type: [string, 'null']}
+        year: {type: [string, 'null']}
+        genre: {type: [string, 'null'], description: Catver genre.}
+        subgenre: {type: [string, 'null']}
+        players: {type: [integer, 'null'], description: Simultaneous players.}
+
+    FrontGameListItem:
+      allOf:
+        - $ref: '#/components/schemas/FrontGame'
+        - type: object
+          required: [ranked_players, last_score_at, leader]
+          properties:
+            ranked_players: {type: integer}
+            last_score_at: {type: [string, 'null'], format: date-time}
+            leader:
+              description: First of the default table, null without a score.
+              oneOf:
+                - type: 'null'
+                - type: object
+                  required: [player, score]
+                  properties:
+                    player:
+                      $ref: '#/components/schemas/FrontPlayerRef'
+                    score: {type: integer}
+
+    FrontGameListResponse:
+      type: object
+      required: [games, meta]
+      properties:
+        games:
+          type: array
+          items:
+            $ref: '#/components/schemas/FrontGameListItem'
+        meta:
+          type: object
+          required: [page, per_page, total]
+          properties:
+            page: {type: integer}
+            per_page: {type: integer}
+            total: {type: integer}
+
+    FrontGameFiltersResponse:
+      type: object
+      required: [genres, manufacturers, years]
+      properties:
+        genres: {type: array, items: {type: string}}
+        manufacturers: {type: array, items: {type: string}}
+        years: {type: array, items: {type: string}}
+
+    FrontGameRef:
+      type: object
+      required: [romname, description]
+      properties:
+        romname: {type: string}
+        description: {type: string}
+
+    FrontLeaderboardEntry:
+      type: object
+      required: [rank, player, score, achieved_at, cabinet, attribution]
+      properties:
+        rank: {type: integer}
+        player:
+          $ref: '#/components/schemas/FrontPlayerRef'
+        score: {type: integer}
+        achieved_at: {type: string, format: date-time}
+        cabinet: {type: string, description: Name of the cabinet the score was made on.}
+        attribution: {type: string, enum: [initials, declared], description: See D61.}
+
+    FrontGamePageResponse:
+      type: object
+      required: [game, details, media, leaderboards, stats, events]
+      properties:
+        details:
+          description: What ScreenScraper knows of the game (D68); null until it was asked, or when it does not know the game.
+          oneOf:
+            - type: 'null'
+            - $ref: '#/components/schemas/FrontGameDetails'
+        media:
+          type: object
+          description: |
+            The pictures of the game, by type, with the SHA-256 of each:
+            `GET /front/games/{romname}/media/{type}`. Empty without any.
+          propertyNames:
+            enum: [screenshot, title, logo, marquee, flyer]
+          additionalProperties:
+            type: string
+        game:
+          allOf:
+            - $ref: '#/components/schemas/FrontGame'
+            - type: object
+              required: [players_alt, mature, catalogued, parent, clones]
+              properties:
+                players_alt: {type: [integer, 'null'], description: Players taking turns.}
+                mature: {type: boolean}
+                catalogued: {type: boolean, description: False for a game only known from a score.}
+                parent:
+                  oneOf:
+                    - type: 'null'
+                    - $ref: '#/components/schemas/FrontGameRef'
+                clones:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/FrontGameRef'
+        leaderboards:
+          type: array
+          description: One per table with a visible score.
+          items:
+            type: object
+            required: [table, entries]
+            properties:
+              table: {type: string}
+              entries:
+                type: array
+                items:
+                  $ref: '#/components/schemas/FrontLeaderboardEntry'
+        stats:
+          type: object
+          required: [ranked_players, scores, first_score_at, last_score_at]
+          properties:
+            ranked_players: {type: integer}
+            scores: {type: integer, description: Personal bests stored for the game (D50).}
+            first_score_at: {type: [string, 'null'], format: date-time}
+            last_score_at: {type: [string, 'null'], format: date-time}
+        events:
+          type: array
+          description: The 10 latest events of the game.
+          items:
+            $ref: '#/components/schemas/ScoreEvent'
+
+    FrontGameDetails:
+      type: object
+      required: [synopsis, developer, publisher, rating, players, rotation, resolution, controls, genres]
+      properties:
+        synopsis:
+          type: object
+          required: [fr, en]
+          properties:
+            fr: {type: [string, 'null']}
+            en: {type: [string, 'null']}
+        developer: {type: [string, 'null']}
+        publisher: {type: [string, 'null']}
+        rating: {type: [integer, 'null'], minimum: 0, maximum: 20, description: Out of 20.}
+        players: {type: [string, 'null'], description: 'As ScreenScraper writes it, e.g. `1-2`.'}
+        rotation: {type: [integer, 'null'], description: 'Degrees: 0 for a horizontal screen, 90 or 270 for a vertical one.'}
+        resolution: {type: [string, 'null']}
+        controls:
+          description: The first player's panel, null when ScreenScraper does not list it.
+          oneOf:
+            - type: 'null'
+            - type: object
+              required: [joystick, buttons]
+              properties:
+                joystick: {type: boolean}
+                buttons: {type: integer}
+        genres: {type: array, items: {type: string}}
+
+    FrontPlayerTotals:
+      type: object
+      required: [games, crowns, podiums, beaten, last_score_at]
+      properties:
+        games: {type: integer, description: Games the player is ranked on.}
+        crowns: {type: integer, description: Leaderboards led.}
+        podiums: {type: integer, description: 'Leaderboards in the first three, crowns included.'}
+        beaten: {type: integer, description: 'Players ranked below, all leaderboards together.'}
+        last_score_at: {type: [string, 'null'], format: date-time}
+
+    FrontPlayerListResponse:
+      type: object
+      required: [players]
+      properties:
         players:
           type: array
-          description: Players the member linked, by initials.
           items:
-            $ref: '#/components/schemas/FrontPlayer'
+            allOf:
+              - $ref: '#/components/schemas/FrontPlayerRef'
+              - $ref: '#/components/schemas/FrontPlayerTotals'
+
+    FrontPlayerPageResponse:
+      type: object
+      required: [player, stats, bests, activity]
+      properties:
+        activity:
+          type: array
+          description: Days (UTC) with at least one personal best, oldest first.
+          items:
+            type: object
+            required: [date, bests]
+            properties:
+              date: {type: string, format: date}
+              bests: {type: integer}
+        player:
+          allOf:
+            - $ref: '#/components/schemas/FrontPlayerRef'
+            - type: object
+              required: [is_public, is_mine]
+              properties:
+                is_public: {type: boolean}
+                is_mine: {type: boolean, description: Linked to the member.}
+        stats:
+          allOf:
+            - $ref: '#/components/schemas/FrontPlayerTotals'
+            - type: object
+              required: [points, global_rank]
+              properties:
+                points: {type: integer, description: Points on the global podium (D70).}
+                global_rank: {type: [integer, 'null'], description: 'Rank on the global podium, null for a private player or without a score.'}
+        bests:
+          type: array
+          description: The best of the player on each game and table, by game name.
+          items:
+            type: object
+            required: [game, table, score, rank, players, achieved_at, scores, points, counted, above, below]
+            properties:
+              scores: {type: integer, description: 'Personal bests stored for the player on this leaderboard (D50): with two at least, there is a progress to show.'}
+              points: {type: [integer, 'null'], description: 'Points of this leaderboard on the global podium (D70), null for a private player.'}
+              counted: {type: boolean, description: Among the best results that make the player's total.}
+              above:
+                description: The rank just above, null for the leader and for a private player.
+                oneOf:
+                  - type: 'null'
+                  - $ref: '#/components/schemas/FrontScoreToReach'
+              below:
+                description: The rank just below, null for the last and for a private player.
+                oneOf:
+                  - type: 'null'
+                  - $ref: '#/components/schemas/FrontScoreToReach'
+              game:
+                $ref: '#/components/schemas/FrontGameRef'
+              table: {type: string}
+              score: {type: integer}
+              rank: {type: [integer, 'null'], description: Null for a private player.}
+              players: {type: [integer, 'null'], description: 'Players ranked on this leaderboard, null for a private player.'}
+              achieved_at: {type: string, format: date-time}
+
+    FrontScoreToReach:
+      type: object
+      required: [player, score]
+      properties:
+        player:
+          $ref: '#/components/schemas/FrontPlayerRef'
+        score: {type: integer}
+
+    FrontPlayerGameHistoryResponse:
+      type: object
+      required: [game, table, rank, players, history, leader, above]
+      properties:
+        game:
+          $ref: '#/components/schemas/FrontGameRef'
+        table: {type: string}
+        rank: {type: [integer, 'null'], description: Null for a private player.}
+        players: {type: [integer, 'null']}
+        history:
+          type: array
+          description: The personal bests of the player on the game, oldest first.
+          items:
+            type: object
+            required: [score, achieved_at]
+            properties:
+              score: {type: integer}
+              achieved_at: {type: string, format: date-time}
+        leader:
+          description: First of the leaderboard, null without a visible score.
+          oneOf:
+            - type: 'null'
+            - $ref: '#/components/schemas/FrontScoreToReach'
+        above:
+          description: The rank just above the player's, null for the leader and for a private player.
+          oneOf:
+            - type: 'null'
+            - $ref: '#/components/schemas/FrontScoreToReach'
+
+    FrontRankingResponse:
+      type: object
+      required: [rules, ranking]
+      properties:
+        rules:
+          type: object
+          description: The rule the points follow (D70), for the front to explain it.
+          required: [base, step, floor, full_competition_players, best_results]
+          properties:
+            base: {type: array, items: {type: integer}, description: Points of the first ranks.}
+            step: {type: integer, description: Points less per rank beyond `base`.}
+            floor: {type: integer, description: Points of a rank at least.}
+            full_competition_players: {type: integer, description: Ranked players from which a leaderboard gives its full points.}
+            best_results: {type: integer, description: 'Results counted per player, one per game.'}
+        ranking:
+          type: array
+          description: Every ranked player, first to last.
+          items:
+            type: object
+            required: [rank, player, points, counted, games, crowns, podiums]
+            properties:
+              rank: {type: integer}
+              player:
+                $ref: '#/components/schemas/FrontPlayerRef'
+              points: {type: integer}
+              counted: {type: integer, description: Results that make the total.}
+              games: {type: integer, description: Games the player is ranked on.}
+              crowns: {type: integer}
+              podiums: {type: integer}
+
+    FrontEventListResponse:
+      type: object
+      required: [events, cursor]
+      properties:
+        events:
+          type: array
+          items:
+            $ref: '#/components/schemas/ScoreEvent'
+        cursor:
+          type: [integer, 'null']
+          description: To send as `before` for the next page; null once the oldest event has been sent.
 
     Problem:
       type: object
@@ -2243,10 +2952,13 @@ components:
             - pin_invalid
             - not_origin_cabinet
             - avatar_not_found
+            - game_not_found
+            - media_not_found
             - origin_not_allowed
             - member_disabled
             - invitation_unavailable
             - player_already_linked
+            - member_has_player
             - forbidden
             - not_found
             - method_not_allowed

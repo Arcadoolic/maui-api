@@ -270,3 +270,35 @@ The server holds no GitHub credentials and has no git clone after the first
 deployment. Logs: `sudo journalctl -t maui-deploy`. Rolling back the code:
 run the workflow with the previous tag (migrations are not reverted).
 
+### Scheduler (D72)
+
+Both Compose files start a `scheduler` container next to the app: the same
+image and `.env`, `php artisan schedule:work`. It runs what
+`routes/console.php` schedules (UTC): `catalog:scrape` at 04:15. To see what
+is planned and what ran:
+
+```bash
+docker compose -f compose.production.yaml exec scheduler php artisan schedule:list
+docker compose -f compose.production.yaml logs --tail=50 scheduler
+```
+
+### Hiscores front (D64, D72)
+
+The front (`afronob/maui-hifront`, `hiscores.maui.afronob.com`) is its own
+project on jumpman, deployed from its repository the same way. This API
+needs, in `/opt/maui-api/.env`:
+
+```bash
+FRONT_URL=https://hiscores.maui.afronob.com
+FRONT_DISCORD_CLIENT_ID=...
+FRONT_DISCORD_CLIENT_SECRET=...        # OAuth2 > Client Secret, not the public key
+SCREENSCRAPER_DEV_ID=...
+SCREENSCRAPER_DEV_PASSWORD=...
+SCREENSCRAPER_USER=...
+SCREENSCRAPER_PASSWORD=...
+```
+
+and `https://hiscores.maui.afronob.com/api/v1/front/auth/discord/callback`
+among the redirects of the Discord application. After changing `.env`:
+`up -d` to recreate the containers, then `php artisan optimize`.
+

@@ -67,29 +67,33 @@ final class PlayerRegistry
      */
     public function link(Client $client, string $pseudo3, string $pin): Player
     {
-        return $this->linkWithPin($client, $pseudo3, $pin, 'player.linked', function (Player $player) use ($client): bool {
+        return $this->linkWithPin($client, $pseudo3, $pin, 'player.linked', function (Player $player) use ($client): string {
             $player->clients()->syncWithoutDetaching([$client->id => ['linked_at' => now()]]);
 
-            return true;
+            return 'linked';
         });
     }
 
     /**
      * Links an existing player to a member of the hiscores front, with the
-     * same PIN and the same lock as on a cabinet (D66). A player has one
-     * member at most: the PIN is checked first, so that only its holder
-     * learns the player is taken.
+     * same PIN and the same lock as on a cabinet (D66). One player per member
+     * and one member per player (D71): the PIN is checked first, so that only
+     * its holder learns the player is taken.
      */
     public function linkMember(Member $member, string $pseudo3, string $pin): Player
     {
-        return $this->linkWithPin($member, $pseudo3, $pin, 'player.member_linked', function (Player $player) use ($member): bool {
+        return $this->linkWithPin($member, $pseudo3, $pin, 'player.member_linked', function (Player $player) use ($member): string {
             $holder = $player->members()->first();
             if ($holder !== null) {
-                return $holder->is($member);
+                return $holder->is($member) ? 'linked' : 'taken';
+            }
+            // Locked with the player's row: two requests of the member cannot both pass.
+            if (Member::query()->whereKey($member->id)->lockForUpdate()->firstOrFail()->players()->exists()) {
+                return 'member_has_player';
             }
             $player->members()->attach($member, ['linked_at' => now()]);
 
-            return true;
+            return 'linked';
         });
     }
 
@@ -101,7 +105,7 @@ final class PlayerRegistry
     }
 
     /**
-     * @param  Closure(Player): bool  $attach  Links the player once the PIN is right; false when it cannot be.
+     * @param  Closure(Player): string  $attach  Links the player once the PIN is right: `linked`, or why it cannot be.
      */
     private function linkWithPin(Client|Member $causer, string $pseudo3, string $pin, string $event, Closure $attach): Player
     {
@@ -130,7 +134,7 @@ final class PlayerRegistry
 
             $player->forceFill(['pin_failed_attempts' => 0])->save();
 
-            return [$player, $attach($player) ? 'linked' : 'taken'];
+            return [$player, $attach($player)];
         });
 
         if ($outcome === 'now_locked' && $player instanceof Player) {
@@ -146,6 +150,7 @@ final class PlayerRegistry
             'locked', 'now_locked' => throw ApiProblemException::playerLocked(),
             'pin_invalid' => throw ApiProblemException::pinInvalid(Player::MAX_PIN_ATTEMPTS - ($player->pin_failed_attempts ?? 0)),
             'taken' => throw ApiProblemException::playerAlreadyLinked(),
+            'member_has_player' => throw ApiProblemException::memberHasPlayer(),
             default => $player ?? throw ApiProblemException::playerNotFound(),
         };
     }

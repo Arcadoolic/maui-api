@@ -42,30 +42,7 @@ final class ScoreEventsController
             : $query->where('id', '>', $after)->orderBy('id')->get();
 
         return new JsonResponse([
-            'events' => $events->map(fn (ScoreEvent $event): array => [
-                'id' => $event->id,
-                'uuid' => $event->uuid,
-                'movement' => $event->movement,
-                'flavors' => $event->flavors,
-                'importance' => $event->importance,
-                'message' => $event->message,
-                'occurred_at' => $event->occurred_at->toIso8601String(),
-                'player' => [
-                    'id' => $event->player->uuid,
-                    'pseudo_3' => $event->player->pseudo_3,
-                    'avatar' => $event->player->avatar_hash,
-                ],
-                'game' => [
-                    'romname' => $event->game->romname,
-                    'description' => $event->game->description,
-                    'manufacturer' => $event->game->manufacturer,
-                ],
-                'table' => $event->table,
-                'score' => $event->score,
-                'rank_before' => $event->rank_before,
-                'rank_after' => $event->rank_after,
-                'facts' => $event->facts,
-            ])->all(),
+            'events' => $events->map(fn (ScoreEvent $event): array => $event->toApiArray())->all(),
             // Where to read from next time: the last event sent, else the
             // cursor received, else the latest event there is.
             'cursor' => $events->last()->id ?? $after ?? (int) ScoreEvent::query()->max('id'),

@@ -93,6 +93,40 @@ describe('callback', function () {
             && $request['redirect_uri'] === 'https://hiscores.test/api/v1/front/auth/discord/callback');
     });
 
+    it('remembers the member once its session has ended', function () {
+        fakeDiscord(['id' => '42', 'username' => 'blinky']);
+        $state = startDiscordLogin(issueMemberInvitation()->plainToken);
+        $response = $this->get("/api/v1/front/auth/discord/callback?code=c&state={$state}");
+        $recaller = Auth::guard('member')->getRecallerName();
+        $cookie = $response->getCookie($recaller, decrypt: true, unserialize: false);
+        expect($cookie)->not->toBeNull()
+            // About 60 days, not Laravel's 400.
+            ->and($cookie->getExpiresTime())->toBeGreaterThan(now()->addDays(59)->getTimestamp())
+            ->and($cookie->getExpiresTime())->toBeLessThan(now()->addDays(61)->getTimestamp());
+
+        // Two hours later: the session is gone, the browser only has the remember cookie.
+        $this->flushSession();
+        Auth::forgetGuards();
+        $this->getJson('/api/v1/front/me')->assertUnauthorized();
+        Auth::forgetGuards();
+
+        // getJson() sends no cookie unless told to.
+        $this->withCredentials()->withCookie($recaller, $cookie->getValue())->getJson('/api/v1/front/me')
+            ->assertOk()
+            ->assertJsonPath('member.username', 'blinky');
+    });
+
+    it('forgets the browser of a member who logs out', function () {
+        $member = Member::factory()->create();
+        Auth::guard('member')->login($member, remember: true);
+        $token = $member->getRememberToken();
+
+        $this->postJson('/api/v1/front/logout', [], ['Origin' => 'https://hiscores.test'])->assertNoContent();
+
+        // The token of the remember cookie is renewed: a copy of the old cookie is worth nothing.
+        expect($member->refresh()->getRememberToken())->not->toBe($token);
+    });
+
     it('logs a known member in without an invitation, and refreshes its Discord profile', function () {
         $member = Member::factory()->create(['discord_id' => '42', 'username' => 'old']);
         fakeDiscord(['id' => '42', 'username' => 'new', 'global_name' => null, 'avatar' => null]);

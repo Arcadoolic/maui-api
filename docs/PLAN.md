@@ -208,12 +208,12 @@ maze-blue frames, ghost colours, a pixel font for titles and scores only.
 - `members`, `member_invitations`, `member_player`; guard `member`.
 - Discord login: `GET /front/auth/discord`, `.../callback`,
   `GET /front/invitations/{token}`, `GET /front/me`, `POST /front/logout`.
-- Players of the member: `POST /front/me/players` (initials + PIN),
-  `DELETE /front/me/players/{id}`.
+- The player of the member, one at most (D71): `POST /front/me/player`
+  (initials + PIN), `DELETE /front/me/player`.
 - Back office: front invitations (create, link shown once, revoke), front
   members (disable, enable).
 - Front: skeleton, design tokens and base components, login, invitation
-  page, "my players".
+  page, "my player".
 
 ### 3.2 Reading
 
@@ -225,22 +225,22 @@ maze-blue frames, ghost colours, a pixel font for titles and scores only.
 - `GET /front/players`, `GET /front/players/{id}` (bests with their rank),
   `GET /front/events` (cursor, as `GET /bot/events`), avatars.
 - Visibility: public and active players only, as on the shared leaderboards
-  (D52); a member also sees its own linked players when they are private.
+  (D52); a member also sees its own player when it is private.
 - Front: game list and page, player list and page, event feed.
 
 ### 3.3 Complete game pages
 
-- ScreenScraper, on the API side (one place, one quota): an artisan command
-  run by the scheduler, rate limited, games with scores first. Synopsis
-  (French, English), developer, publisher, rating, genres; media: in-game
-  screenshot, title screen, logo, marquee, flyer, stored as WebP on the
-  `local` disk like the avatars. Field and media names to be read from a
-  real answer first, as MAUI did (`ScreenScraperClient.class.ts`).
-- From MAME, through `push-catalog` (optional fields of
-  `PUT /catalog/games`): screen orientation, resolution, controls and
-  buttons, emulation status.
-- Worked out by the API: ranked players, first and latest best, length of
-  the current reign, cabinets the game is played on.
+- ScreenScraper, on the API side (D68: one place, one quota):
+  `catalog:scrape`, a few games at a time, rate limited, games with scores
+  first. Synopsis (French, English), developer, publisher, rating, genres,
+  players, screen rotation, resolution, controls; pictures: in-game
+  screenshot, title screen, logo, marquee, flyer, on the `local` disk like
+  the avatars, kept as downloaded.
+- Not from MAME through `push-catalog`, as first planned: the pack
+  manifests do not hold the screen and controls, ScreenScraper does.
+- Worked out by the API: ranked players, first and latest best (3.2); later,
+  length of the current reign, cabinets the game is played on.
+- To do with the deployment (3.6): run the command every day.
 
 ### 3.4 Player stats
 
@@ -260,7 +260,7 @@ real data before it is frozen:
 ```
 points(game) = base(rank) x competition(N)     N = players ranked on the game
 base         : 100, 80, 65, 55, 45, 38, 32, 26, 20, then -2 per rank, 5 at least
-competition  : min(1, (N - 1) / 6)             alone = 0, 7 players and more = 1
+competition  : min(1, (N - 1) / 4)             alone = 0, 5 players and more = 1
 total        = sum of the player's 15 best points(game)
 ```
 

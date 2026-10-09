@@ -76,4 +76,38 @@ class ScoreEvent extends Model
     {
         return $this->belongsTo(Game::class);
     }
+
+    /**
+     * The event as its readers get it: the bots (D60) and the hiscores front.
+     *
+     * @return array<string, mixed>
+     */
+    public function toApiArray(): array
+    {
+        return [
+            'id' => $this->id,
+            'uuid' => $this->uuid,
+            'movement' => $this->movement,
+            'flavors' => $this->flavors,
+            'importance' => $this->importance,
+            'message' => $this->message,
+            'occurred_at' => $this->occurred_at->toIso8601String(),
+            'player' => [
+                'id' => $this->player->uuid,
+                'pseudo_3' => $this->player->pseudo_3,
+                'avatar' => $this->player->avatar_hash,
+            ],
+            'game' => [
+                'romname' => $this->game->romname,
+                'description' => $this->game->description,
+                'manufacturer' => $this->game->manufacturer,
+            ],
+            // Not `$this->table`: that is the model's own table name.
+            'table' => $this->getAttribute('table'),
+            'score' => $this->score,
+            'rank_before' => $this->rank_before,
+            'rank_after' => $this->rank_after,
+            'facts' => $this->facts,
+        ];
+    }
 }

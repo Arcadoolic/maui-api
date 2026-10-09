@@ -58,6 +58,27 @@ services:
       db:
         condition: service_healthy
 
+  # Runs the scheduled commands (routes/console.php, D72): same image and
+  # settings as the app, no port. It shares the storage volume, where the
+  # commands keep their files (game pictures).
+  scheduler:
+    build:
+      context: .
+      target: release
+    image: maui-api:release
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      DB_CONNECTION: pgsql
+      DB_HOST: db
+      DB_PORT: "5432"
+    command: ["php", "artisan", "schedule:work"]
+    volumes:
+      - storage:/app/storage
+    depends_on:
+      db:
+        condition: service_healthy
+
   db:
     image: postgres:16-alpine
     restart: unless-stopped
