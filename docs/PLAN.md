@@ -230,17 +230,17 @@ maze-blue frames, ghost colours, a pixel font for titles and scores only.
 
 ### 3.3 Complete game pages
 
-- ScreenScraper, on the API side (one place, one quota): an artisan command
-  run by the scheduler, rate limited, games with scores first. Synopsis
-  (French, English), developer, publisher, rating, genres; media: in-game
-  screenshot, title screen, logo, marquee, flyer, stored as WebP on the
-  `local` disk like the avatars. Field and media names to be read from a
-  real answer first, as MAUI did (`ScreenScraperClient.class.ts`).
-- From MAME, through `push-catalog` (optional fields of
-  `PUT /catalog/games`): screen orientation, resolution, controls and
-  buttons, emulation status.
-- Worked out by the API: ranked players, first and latest best, length of
-  the current reign, cabinets the game is played on.
+- ScreenScraper, on the API side (D68: one place, one quota):
+  `catalog:scrape`, a few games at a time, rate limited, games with scores
+  first. Synopsis (French, English), developer, publisher, rating, genres,
+  players, screen rotation, resolution, controls; pictures: in-game
+  screenshot, title screen, logo, marquee, flyer, on the `local` disk like
+  the avatars, kept as downloaded.
+- Not from MAME through `push-catalog`, as first planned: the pack
+  manifests do not hold the screen and controls, ScreenScraper does.
+- Worked out by the API: ranked players, first and latest best (3.2); later,
+  length of the current reign, cabinets the game is played on.
+- To do with the deployment (3.6): run the command every day.
 
 ### 3.4 Player stats
 

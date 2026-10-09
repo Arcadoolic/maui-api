@@ -1373,6 +1373,56 @@ paths:
         '500':
           $ref: '#/components/responses/ServerError'
 
+  /front/games/{romname}/media/{type}:
+    parameters:
+      - name: romname
+        in: path
+        required: true
+        schema: {type: string, pattern: '^[a-z0-9_]{1,32}$'}
+      - name: type
+        in: path
+        required: true
+        schema: {type: string, enum: [screenshot, title, logo, marquee, flyer]}
+    get:
+      tags: [Front]
+      operationId: frontGameMedia
+      summary: A picture of a game
+      description: Downloaded from ScreenScraper (D68), with its hash as ETag.
+      security:
+        - frontSession: []
+      parameters:
+        - $ref: '#/components/parameters/IfNoneMatch'
+      responses:
+        '200':
+          description: The picture.
+          headers:
+            ETag:
+              $ref: '#/components/headers/ETag'
+          content:
+            image/png: {schema: {type: string, format: binary}}
+            image/jpeg: {schema: {type: string, format: binary}}
+        '304':
+          description: Not modified.
+        '404':
+          description: No such picture for this game.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+              example:
+                type: about:blank
+                title: Not Found
+                status: 404
+                code: media_not_found
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/FrontForbidden'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
   /front/players:
     get:
       tags: [Front]
@@ -2538,8 +2588,22 @@ components:
 
     FrontGamePageResponse:
       type: object
-      required: [game, leaderboards, stats, events]
+      required: [game, details, media, leaderboards, stats, events]
       properties:
+        details:
+          description: What ScreenScraper knows of the game (D68); null until it was asked, or when it does not know the game.
+          oneOf:
+            - type: 'null'
+            - $ref: '#/components/schemas/FrontGameDetails'
+        media:
+          type: object
+          description: |
+            The pictures of the game, by type, with the SHA-256 of each:
+            `GET /front/games/{romname}/media/{type}`. Empty without any.
+          propertyNames:
+            enum: [screenshot, title, logo, marquee, flyer]
+          additionalProperties:
+            type: string
         game:
           allOf:
             - $ref: '#/components/schemas/FrontGame'
@@ -2582,6 +2646,33 @@ components:
           description: The 10 latest events of the game.
           items:
             $ref: '#/components/schemas/ScoreEvent'
+
+    FrontGameDetails:
+      type: object
+      required: [synopsis, developer, publisher, rating, players, rotation, resolution, controls, genres]
+      properties:
+        synopsis:
+          type: object
+          required: [fr, en]
+          properties:
+            fr: {type: [string, 'null']}
+            en: {type: [string, 'null']}
+        developer: {type: [string, 'null']}
+        publisher: {type: [string, 'null']}
+        rating: {type: [integer, 'null'], minimum: 0, maximum: 20, description: Out of 20.}
+        players: {type: [string, 'null'], description: 'As ScreenScraper writes it, e.g. `1-2`.'}
+        rotation: {type: [integer, 'null'], description: 'Degrees: 0 for a horizontal screen, 90 or 270 for a vertical one.'}
+        resolution: {type: [string, 'null']}
+        controls:
+          description: The first player's panel, null when ScreenScraper does not list it.
+          oneOf:
+            - type: 'null'
+            - type: object
+              required: [joystick, buttons]
+              properties:
+                joystick: {type: boolean}
+                buttons: {type: integer}
+        genres: {type: array, items: {type: string}}
 
     FrontPlayerTotals:
       type: object
@@ -2682,6 +2773,7 @@ components:
             - not_origin_cabinet
             - avatar_not_found
             - game_not_found
+            - media_not_found
             - origin_not_allowed
             - member_disabled
             - invitation_unavailable

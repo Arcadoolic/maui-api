@@ -61,6 +61,11 @@ final class ApiProblemException extends RuntimeException
         return new self(Response::HTTP_NOT_FOUND, 'game_not_found');
     }
 
+    public static function mediaNotFound(): self
+    {
+        return new self(Response::HTTP_NOT_FOUND, 'media_not_found', 'This game has no such picture.');
+    }
+
     public static function avatarNotFound(): self
     {
         return new self(Response::HTTP_NOT_FOUND, 'avatar_not_found', 'This player has no avatar.');

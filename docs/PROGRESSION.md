@@ -33,6 +33,17 @@ For why things are done this way, see `docs/DECISIONS.md`.
 - Releases by semantic-release on every push to `main` (D44): 0.1.0
   published on 2026-09-25.
 
+## Lot 3.3: complete game pages (in progress, D68)
+
+- `game_details` and `game_media`; `ScreenScraperClient`, `GameScraper`,
+  `catalog:scrape [romname...] [--limit=50] [--force]`.
+- `GET /front/games/{romname}` gains `details` and `media`;
+  `GET /front/games/{romname}/media/{type}` serves a picture.
+- Written against faked answers: to check with real ones once
+  `SCREENSCRAPER_DEV_ID`, `SCREENSCRAPER_DEV_PASSWORD`, `SCREENSCRAPER_USER`
+  and `SCREENSCRAPER_PASSWORD` are set.
+- Nothing runs the command yet (no scheduler): by hand until Lot 3.6.
+
 ## Lot 3.2: front reading (in progress, D67)
 
 - `Rankings`: every shared leaderboard in one query, rank and number of

@@ -6,6 +6,8 @@ use App\Http\Middleware\AuthenticateMember;
 use App\Http\Problems\ApiProblemException;
 use App\Models\Category;
 use App\Models\Game;
+use App\Models\GameDetail;
+use App\Models\GameMedia;
 use App\Models\Player;
 use App\Models\ScoreEvent;
 use App\Services\Leaderboards\Leaderboards;
@@ -15,7 +17,9 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
+use Symfony\Component\HttpFoundation\Response;
 
 /** Games of the hiscores front: the list with its filters, and a game's page (docs/DECISIONS.md D67). */
 final class GamesController
@@ -98,7 +102,7 @@ final class GamesController
     public function show(string $romname): JsonResponse
     {
         $game = preg_match(self::ROMNAME, $romname) === 1
-            ? Game::query()->where('romname', $romname)->with(['catverCategory.parent'])->first()
+            ? Game::query()->where('romname', $romname)->with(['catverCategory.parent', 'detail', 'media'])->first()
             : null;
         if ($game === null) {
             throw ApiProblemException::gameNotFound();
@@ -137,6 +141,9 @@ final class GamesController
                 'clones' => Game::query()->where('parent_romname', $game->romname)->orderBy('description')->get()
                     ->map(fn (Game $clone): array => ['romname' => $clone->romname, 'description' => $clone->description])->all(),
             ],
+            'details' => self::details($game->detail),
+            // By type, the hash of each picture: GET /front/games/{romname}/media/{type}.
+            'media' => (object) $game->media->pluck('hash', 'type')->all(),
             'leaderboards' => $leaderboards->all(),
             'stats' => [
                 'ranked_players' => $rows->pluck('player_id')->unique()->count(),
@@ -153,6 +160,46 @@ final class GamesController
                 ->map(fn (ScoreEvent $event): array => $event->toApiArray())
                 ->all(),
         ]);
+    }
+
+    /** A picture of the game, with its hash as ETag (D68). */
+    public function media(Request $request, string $romname, string $type): Response
+    {
+        $media = preg_match(self::ROMNAME, $romname) === 1 && isset(GameMedia::TYPES[$type])
+            ? GameMedia::query()->where('type', $type)->whereHas('game', fn (Builder $game) => $game->where('romname', $romname))->first()
+            : null;
+        if ($media === null || ! Storage::disk(GameMedia::DISK)->exists($media->path)) {
+            throw ApiProblemException::mediaNotFound();
+        }
+
+        $response = Storage::disk(GameMedia::DISK)->response($media->path, null, [
+            'Content-Type' => $media->mime,
+            'Cache-Control' => 'private, no-cache',
+        ]);
+        $response->setEtag($media->hash);
+        $response->isNotModified($request);
+
+        return $response;
+    }
+
+    /**
+     * What ScreenScraper knows of the game: null until it was asked, or when it does not know it.
+     *
+     * @return array<string, mixed>|null
+     */
+    private static function details(?GameDetail $detail): ?array
+    {
+        return $detail === null || ! $detail->found ? null : [
+            'synopsis' => ['fr' => $detail->synopsis_fr, 'en' => $detail->synopsis_en],
+            'developer' => $detail->developer,
+            'publisher' => $detail->publisher,
+            'rating' => $detail->rating,
+            'players' => $detail->players,
+            'rotation' => $detail->rotation,
+            'resolution' => $detail->resolution,
+            'controls' => $detail->buttons === null ? null : ['joystick' => (bool) $detail->joystick, 'buttons' => $detail->buttons],
+            'genres' => $detail->genres ?? [],
+        ];
     }
 
     /**

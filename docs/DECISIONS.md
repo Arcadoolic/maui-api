@@ -804,3 +804,36 @@ is a history, latest first, with a `before` cursor: it includes the events
 too old to be announced (`announceable`, D60), which the bots' feed leaves
 out. Events are sent as the bots get them (`ScoreEvent::toApiArray()`).
 
+**D68: Game pages completed with ScreenScraper, on the API side.** (2026-10-09, Lot 3.3)
+The catalog (D47) says little of a game: name, manufacturer, year, players,
+genre. The front's game pages take the rest from ScreenScraper, which MAUI
+already uses for its own pictures: synopsis (French and English), developer,
+publisher, rating out of 20, players, screen rotation, resolution, the first
+player's controls (a joystick or not, the number of buttons), genres, and
+five pictures (in-game screenshot, title screen, logo, marquee,
+flyer; the world region first, then the West, then Japan: MAUI takes
+Japan second, but a logo in Japanese says little on these pages). On the API side
+rather than in each cabinet or in the front: one account, one quota, one
+copy of each picture. `catalog:scrape` asks for a few games at a time
+(`--limit`, 50 by default), those with a visible score first, then those
+never asked, then the answers older than 30 days; it waits between two
+calls (1.5 s) and stops as soon as ScreenScraper refuses more (quota,
+threads). A game ScreenScraper does not know is remembered, not to be asked
+again the next day. Texts go to `game_details`, apart from `games`, which
+each catalog push rewrites completely; pictures to the `local` disk
+(`game-media/<romname>/<type>.<ext>`), their SHA-256 in `game_media`, served
+by `GET /front/games/{romname}/media/{type}` with that hash as ETag, like
+the avatars (D53). They are kept as downloaded: the image has no GD nor
+Imagick to convert them, a file over 4 MB or that is not an image is left
+out. Screen rotation, resolution and controls were first meant to come from
+MAME through `push-catalog`: the pack manifests it reads do not hold them,
+and ScreenScraper gives them without touching the packs. Nothing runs the
+command yet: no scheduler in the containers, to set up with the deployment
+(Lot 3.6); until then it is run by hand. Credentials: a developer account
+and a user account (`SCREENSCRAPER_*`); without them the command refuses to
+run and the game pages show the catalog only. Checked against real answers:
+there is no field for the controls, they are read from the colours of the
+panel (`couleurs`, one entry per control: `P1_JOYSTICK`, `P1_BUTTON1`...);
+some medias have no region; and each media URL of an answer carries the
+credentials of the request, so these URLs are downloaded at once and never
+stored nor logged.
