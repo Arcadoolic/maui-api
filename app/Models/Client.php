@@ -100,6 +100,12 @@ class Client extends Model
         return $this->hasMany(ClientStartup::class);
     }
 
+    /** @return HasMany<Score, $this> */
+    public function scores(): HasMany
+    {
+        return $this->hasMany(Score::class);
+    }
+
     /**
      * Players linked to this cabinet (docs/DECISIONS.md D48).
      *

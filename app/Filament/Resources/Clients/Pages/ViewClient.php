@@ -8,6 +8,7 @@ use App\Models\Client;
 use App\Services\ClientAdministration;
 use Filament\Actions\Action;
 use Filament\Actions\EditAction;
+use Filament\Forms\Components\TextInput;
 use Filament\Infolists\Components\TextEntry;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\ViewRecord;
@@ -32,6 +33,7 @@ class ViewClient extends ViewRecord
             $this->disableAction(),
             $this->enableAction(),
             EditAction::make(),
+            $this->deleteAction(),
         ];
     }
 
@@ -121,6 +123,37 @@ class ViewClient extends ViewRecord
             ->action(function (): void {
                 app(ClientAdministration::class)->enable($this->client());
                 $this->notifyDone(__('Client enabled'));
+            });
+    }
+
+    /**
+     * Irreversible, unlike Disable (D63): the admin types the client name to
+     * confirm, after reading what goes with it.
+     */
+    public function deleteAction(): Action
+    {
+        return Action::make('delete')
+            ->label(__('Delete'))
+            ->icon(Heroicon::OutlinedTrash)
+            ->color('danger')
+            ->requiresConfirmation()
+            ->modalHeading(fn (): string => __('Delete :name', ['name' => $this->client()->name]))
+            ->modalDescription(fn (): string => __('Permanently deletes this client, its credentials, invitations, startup history and its :scores scores. Its :players linked players are kept, only unlinked. This cannot be undone: to only stop the client, disable it.', [
+                'scores' => $this->client()->scores()->count(),
+                'players' => $this->client()->players()->count(),
+            ]))
+            ->schema([
+                TextInput::make('name_confirmation')
+                    ->label(fn (): string => __('Type :name to confirm', ['name' => $this->client()->name]))
+                    ->required()
+                    ->in(fn (): array => [$this->client()->name])
+                    ->validationMessages(['in' => __('The name does not match.')]),
+            ])
+            ->modalSubmitActionLabel(__('Delete permanently'))
+            ->action(function (): void {
+                app(ClientAdministration::class)->delete($this->client());
+                Notification::make()->title(__('Client deleted'))->success()->send();
+                $this->redirect(ClientResource::getUrl('index'));
             });
     }
 

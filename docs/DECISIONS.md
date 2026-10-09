@@ -205,7 +205,7 @@ raised from 10 to 30 per minute per IP, since each draw costs two requests.
 
 ## Lot 1 back office
 
-**D31: No client deletion in the back office.** (2026-09-24)
+**D31: No client deletion in the back office.** (2026-09-24, superseded by D63)
 Disabling (D12) is the way to stop a client. Deleting would drop its audit
 trail and, from Lot 2, orphan its scores. The generated Filament resource
 came with delete actions: removed.
@@ -703,3 +703,19 @@ sends every time it starts, answers `client.name` and `environment`
 (`APP_ENV`); `GET /ping` already gave the name and now gives `environment`
 too. MAUI leaves the environment out when it is `production`. A cabinet
 older than this decision ignores both.
+
+**D63: Clients can be deleted in the back office, with their scores.** (2026-10-09, supersedes D31)
+A test cabinet or a dead one should not stay in the list forever, nor keep
+its scores in the leaderboards. Disabling (D12) remains the way to stop a
+client; deleting is for removing it for good. "Delete" on the client page
+removes the client, its tokens, invitations, startup history, player links
+and its scores, whose events (D60) cascade, in one transaction. Players are
+kept, as D48 says: a player can be linked to other cabinets and have scores
+there; it is only unlinked, and its `origin_client_id` set to null. The
+audit trail is kept (`activity_log` has no foreign key) and the deletion is
+recorded as `client.deleted`, with the admin as causer, the name, type and
+the number of scores and players, instead of the automatic `deleted` entry.
+Being irreversible, the confirmation modal tells what goes and asks for the
+client name to be typed. The leaderboards change at once (their ETag is a
+hash of the content, D52); a Discord message already posted for a deleted
+score stays, as for a hidden one (D60).
