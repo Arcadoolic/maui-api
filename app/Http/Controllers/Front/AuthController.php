@@ -10,7 +10,6 @@ use App\Services\Members\DiscordUnavailable;
 use App\Services\Members\MemberAccess;
 use App\Services\Members\MemberAccessDenied;
 use App\Support\Front;
-use Illuminate\Auth\SessionGuard;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -75,9 +74,7 @@ final class AuthController
         // Remembered: players come back for weeks without going through Discord again, long
         // after the session has ended.
         $guard = Auth::guard(AuthenticateMember::GUARD);
-        if ($guard instanceof SessionGuard) {
-            $guard->setRememberDuration(max(1, (int) config('front.remember_days')) * 24 * 60);
-        }
+        $guard->setRememberDuration(max(1, (int) config('front.remember_days')) * 24 * 60);
         $guard->login($member, remember: true);
         $request->session()->regenerate();
 
