@@ -73,6 +73,10 @@ services:
       DB_HOST: db
       DB_PORT: "5432"
     command: ["php", "artisan", "schedule:work"]
+    # The image's health check asks the web server, which does not run here:
+    # without this, the container is unhealthy and `up --wait` fails the deployment.
+    healthcheck:
+      disable: true
     volumes:
       - storage:/app/storage
     depends_on:

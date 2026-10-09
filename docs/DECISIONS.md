@@ -915,7 +915,9 @@ Nothing ran `catalog:scrape` (D68): the containers had no scheduler. A
 `scheduler` service is added to the staging and production Compose files:
 the app's image and settings, no port, `php artisan schedule:work`, the
 storage volume shared with the app, since the commands keep their files
-there (the game pictures). In a container rather than in the host's cron:
+there (the game pictures). Its health check is disabled: the image's asks
+the web server, which does not run in it, and an unhealthy container fails
+`up --wait`, so the whole deployment (0.7.0 was rolled back for that). In a container rather than in the host's cron:
 it is deployed, restarted and rolled back with the code, on both servers,
 with nothing to install on the host. The schedule is in `routes/console.php`,
 times in UTC: `catalog:scrape` every night at 04:15, skipped when
