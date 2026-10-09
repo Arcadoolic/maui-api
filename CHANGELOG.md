@@ -1,3 +1,26 @@
+## [0.7.0](https://github.com/Arcadoolic/maui-api/compare/0.6.0...0.7.0) (2026-10-09)
+
+### Features
+
+* **admin:** delete a client with its scores ([c6edec9](https://github.com/Arcadoolic/maui-api/commit/c6edec90f887a15485e1043269f4bb6fa5e64c71))
+* **api:** tell the cabinet its name and the server's environment ([0ffa4c6](https://github.com/Arcadoolic/maui-api/commit/0ffa4c63a52db467be43c60333b8bb1c95592c99))
+* **deploy:** a scheduler container, and the nightly catalog scrape ([f153219](https://github.com/Arcadoolic/maui-api/commit/f15321919fae06452f2ceb2dc1fabeb907a78571))
+* **front:** complete the game pages with ScreenScraper ([c486a92](https://github.com/Arcadoolic/maui-api/commit/c486a9296649a73e25d2c494f9c9a3c46f84346d))
+* **front:** games, players and events for the hiscores front ([58f008d](https://github.com/Arcadoolic/maui-api/commit/58f008d27864707f56fdb0a5affdd512c3ae209c))
+* **front:** global podium weighted by the competition ([9966dd9](https://github.com/Arcadoolic/maui-api/commit/9966dd9f24f441e2e032aa9190233fa8001106e1))
+* **front:** members logged in with Discord, on invitation ([787f434](https://github.com/Arcadoolic/maui-api/commit/787f434b8515b46b3c6152a0cc1bf7bf7c1f5ec1))
+* **front:** one player per member, and a remember cookie that works ([c3d986e](https://github.com/Arcadoolic/maui-api/commit/c3d986ea9f4f51870ea03946c6871ae7938479fb))
+* **front:** player stats from what is already stored ([59b5245](https://github.com/Arcadoolic/maui-api/commit/59b5245f68cd32c46a8f244287645dc05dcc88cc))
+* **scores:** mark the scores declared on the cabinet ([518239e](https://github.com/Arcadoolic/maui-api/commit/518239e8313c399bb55b9fb6e443bc9ae20d2834))
+* **web:** draw Pac-Man and the ghost as pixel sprites ([f9821b5](https://github.com/Arcadoolic/maui-api/commit/f9821b518faa0e4bf7ef0949f9c67c1d21cf8f88))
+* **web:** pixel font and endless pellets on the home page ([caee982](https://github.com/Arcadoolic/maui-api/commit/caee9825cdb9a84f7a5442a5748609d72d2f1d1b))
+* **web:** replace Laravel welcome page with a Pac-Man chase animation ([582084c](https://github.com/Arcadoolic/maui-api/commit/582084c053c74fb35538bd301a89055aa7a53f75))
+
+### Bug Fixes
+
+* **front:** genres in English and synopses as plain text ([9159e9b](https://github.com/Arcadoolic/maui-api/commit/9159e9bf7817d47a71d9f3c7e61ecb973fb74a12))
+* **front:** no needless instanceof on the member guard ([7e92c0c](https://github.com/Arcadoolic/maui-api/commit/7e92c0c0e7d50211ce3220406136bdfabb303ab5))
+
 ## [0.6.0](https://github.com/Arcadoolic/maui-api/compare/0.5.0...0.6.0) (2026-10-08)
 
 ### Features
