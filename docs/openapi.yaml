@@ -2613,10 +2613,15 @@ components:
       allOf:
         - $ref: '#/components/schemas/FrontGame'
         - type: object
-          required: [ranked_players, last_score_at, leader]
+          required: [ranked_players, last_score_at, leader, screenshot]
           properties:
             ranked_players: {type: integer}
             last_score_at: {type: [string, 'null'], format: date-time}
+            screenshot:
+              type: [string, 'null']
+              description: >-
+                SHA-256 of the game's in-game screenshot, null without one:
+                `GET /front/games/{romname}/media/screenshot`.
             leader:
               description: First of the default table, null without a score.
               oneOf:

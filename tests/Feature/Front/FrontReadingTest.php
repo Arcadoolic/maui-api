@@ -5,6 +5,7 @@ use App\Enums\ScoreAttribution;
 use App\Models\Category;
 use App\Models\Client;
 use App\Models\Game;
+use App\Models\GameMedia;
 use App\Models\Member;
 use App\Models\Player;
 use App\Models\ScoreEvent;
@@ -73,6 +74,21 @@ describe('game list', function () {
             ])
             ->and($response->json('games.1.leader.player.pseudo_3'))->toBe('BOB')
             ->and($response->json('games.1.leader.score'))->toBe(9000);
+    });
+
+    it('gives the hash of each game\'s screenshot, and of no other picture', function () {
+        $pacman = Game::factory()->create(['romname' => 'pacman', 'description' => 'Pac-Man']);
+        Game::factory()->create(['romname' => 'galaga', 'description' => 'Galaga']);
+        foreach (['screenshot' => 'a', 'logo' => 'b'] as $type => $letter) {
+            GameMedia::query()->create([
+                'game_id' => $pacman->id, 'type' => $type, 'path' => "game-media/pacman/{$type}.png",
+                'mime' => 'image/png', 'hash' => str_repeat($letter, 64),
+            ]);
+        }
+
+        $this->getJson('/api/v1/front/games')->assertOk()
+            ->assertJsonPath('games.0.screenshot', null)
+            ->assertJsonPath('games.1.screenshot', str_repeat('a', 64));
     });
 
     it('leaves out an uncatalogued game without a visible score', function () {
