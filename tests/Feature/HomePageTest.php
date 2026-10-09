@@ -41,3 +41,9 @@ it('refills the pellets a while after the ghost has passed', function () {
         ->assertOk()
         ->assertSee('class="refill"', false);
 });
+
+it('draws Pac-Man and the ghost as pixel sprites with several frames', function () {
+    $html = $this->get('/')->assertOk()->getContent();
+
+    expect(substr_count($html, 'class="frame"'))->toBe(6);
+});

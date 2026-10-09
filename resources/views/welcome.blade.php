@@ -49,7 +49,8 @@
             .refill {
                 position: absolute;
                 inset: 0;
-                background: radial-gradient(circle, var(--pellet) 4px, transparent 5px) 0 50% / 32px 100% repeat-x;
+                /* 2x2 sprite pixels every 8 sprite pixels. */
+                background: repeating-linear-gradient(90deg, var(--pellet) 0 8px, transparent 8px 32px) 12px 50% / 100% 8px no-repeat;
             }
 
             /* Covers every pellet left of Pac-Man's mouth. */
@@ -62,8 +63,13 @@
                 animation: eat var(--duration) linear infinite;
             }
 
-            /* Puts the pellets back up to where the ghost's centre was 1.5s ago. */
-            .refill { animation: refill var(--duration) linear infinite; }
+            /* Puts the pellets back up to where the ghost's centre was 1.5s ago. Starts
+               off screen so its width stays positive; the background is shifted back. */
+            .refill {
+                inset: 0 auto 0 calc(-1 * var(--gap) - var(--size));
+                background-position-x: calc(12px + var(--gap) + var(--size));
+                animation: refill var(--duration) linear infinite;
+            }
 
             .runner {
                 position: absolute;
@@ -74,69 +80,32 @@
 
             .pacman { animation: run var(--duration) linear infinite; }
 
-            .pacman::before,
-            .pacman::after {
-                content: "";
+            .ghost { animation: chase var(--duration) linear infinite; }
+
+            /* Sprite frames are stacked; each one is shown in turn, the first one alone without motion. */
+            .frame {
                 position: absolute;
-                left: 0;
+                inset: 0;
                 width: 100%;
-                height: 50%;
-                background: var(--pacman);
+                height: 100%;
+                visibility: hidden;
             }
 
-            .pacman::before {
-                top: 0;
-                border-radius: var(--size) var(--size) 0 0;
-                transform-origin: 50% 100%;
-                animation: chomp-top .25s ease-in-out infinite alternate;
-            }
+            .frame:first-child { visibility: visible; }
 
-            .pacman::after {
-                bottom: 0;
-                border-radius: 0 0 var(--size) var(--size);
-                transform-origin: 50% 0;
-                animation: chomp-bottom .25s ease-in-out infinite alternate;
-            }
+            .pacman .frame { animation: show-quarter .4s linear infinite; }
+            .pacman .frame:nth-child(2) { animation-delay: -.3s; }
+            .pacman .frame:nth-child(3) { animation-delay: -.2s; }
+            .pacman .frame:nth-child(4) { animation-delay: -.1s; }
 
-            .ghost {
-                background: var(--ghost);
-                border-radius: var(--size) var(--size) 0 0;
-                animation: chase var(--duration) linear infinite, float .3s ease-in-out infinite alternate;
-            }
+            .ghost .frame { animation: show-half .3s linear infinite; }
+            .ghost .frame:nth-child(2) { animation-delay: -.15s; }
 
-            /* Wavy skirt: the background colour bites three notches out of the bottom. */
-            .ghost::after {
-                content: "";
-                position: absolute;
-                left: 0;
-                bottom: -1px;
-                width: 100%;
-                height: 8px;
-                background: radial-gradient(circle at 50% 100%, var(--bg) 4px, transparent 5px) 0 0 / 16px 8px repeat-x;
-            }
-
-            .eye {
-                position: absolute;
-                top: 12px;
-                width: 14px;
-                height: 16px;
-                background: #fff;
-                border-radius: 50%;
-            }
-
-            .eye::after {
-                content: "";
-                position: absolute;
-                top: 5px;
-                right: 1px;
-                width: 7px;
-                height: 7px;
-                background: var(--maze);
-                border-radius: 50%;
-            }
-
-            .eye.left { left: 8px; }
-            .eye.right { left: 26px; }
+            .pacman .skin { fill: var(--pacman); }
+            .pacman .eye { fill: var(--bg); }
+            .ghost .skin { fill: var(--ghost); }
+            .ghost .eye-white { fill: #fff; }
+            .ghost .pupil { fill: var(--maze); }
 
             .insert-coin {
                 margin-top: 3rem;
@@ -163,25 +132,20 @@
                 80%, to { left: calc(100% + var(--gap) + 1.5 * var(--size)); }
             }
 
-            /* Ghost's centre (chase + size / 2), 20% late; the right inset is 100% minus it. */
+            /* Ghost's centre (chase + size / 2), 20% late, minus the refill's left offset. */
             @keyframes refill {
-                from, 20% { clip-path: inset(0 calc(100% + var(--gap) + 0.5 * var(--size)) 0 0); }
-                to { clip-path: inset(0 calc(-1.5 * var(--size)) 0 0); }
+                from, 20% { width: calc(0.5 * var(--size)); }
+                to { width: calc(100% + var(--gap) + 2.5 * var(--size)); }
             }
 
-            @keyframes chomp-top {
-                from { transform: rotate(0); }
-                to { transform: rotate(-40deg); }
+            @keyframes show-quarter {
+                from { visibility: visible; }
+                25%, to { visibility: hidden; }
             }
 
-            @keyframes chomp-bottom {
-                from { transform: rotate(0); }
-                to { transform: rotate(40deg); }
-            }
-
-            @keyframes float {
-                from { transform: translateY(0); }
-                to { transform: translateY(-3px); }
+            @keyframes show-half {
+                from { visibility: visible; }
+                50%, to { visibility: hidden; }
             }
 
             @keyframes blink {
@@ -198,12 +162,78 @@
     </head>
     <body>
         <main>
+            @php
+                // Original sprites (12x12, scaled x4), a nod to the arcade ones, not a copy.
+                $pacman = ['#' => 'skin', 'o' => 'eye'];
+                $pacmanHalfOpen = [
+                    '....####....',
+                    '..########..',
+                    '.#####o####.',
+                    '.#########..',
+                    '#########...',
+                    '#######.....',
+                    '#######.....',
+                    '#########...',
+                    '.#########..',
+                    '.##########.',
+                    '..########..',
+                    '....####....',
+                ];
+                $ghost = ['#' => 'skin', 'w' => 'eye-white', 'p' => 'pupil'];
+                $ghostBody = [
+                    '....####....',
+                    '..########..',
+                    '.##########.',
+                    '.#www##www#.',
+                    '##wpp##wpp##',
+                    '##wpp##wpp##',
+                    '##www##www##',
+                    '############',
+                    '############',
+                    '############',
+                    '############',
+                ];
+            @endphp
             <div class="corridor" aria-hidden="true">
                 <div class="pellets"></div>
                 <div class="eaten"></div>
                 <div class="refill"></div>
-                <div class="runner ghost"><span class="eye left"></span><span class="eye right"></span></div>
-                <div class="runner pacman"></div>
+                <div class="runner ghost">
+                    <x-pixel-sprite :rows="[...$ghostBody, '##..##..##..']" :palette="$ghost" />
+                    <x-pixel-sprite :rows="[...$ghostBody, '..##..##..##']" :palette="$ghost" />
+                </div>
+                <div class="runner pacman">
+                    <x-pixel-sprite :rows="[
+                        '....####....',
+                        '..#######...',
+                        '.#####o#....',
+                        '.######.....',
+                        '######......',
+                        '#####.......',
+                        '#####.......',
+                        '######......',
+                        '.######.....',
+                        '.#######....',
+                        '..#######...',
+                        '....####....',
+                    ]" :palette="$pacman" />
+                    <x-pixel-sprite :rows="$pacmanHalfOpen" :palette="$pacman" />
+                    <x-pixel-sprite :rows="[
+                        '....####....',
+                        '..########..',
+                        '.#####o####.',
+                        '.##########.',
+                        '############',
+                        '############',
+                        '############',
+                        '############',
+                        '.##########.',
+                        '.##########.',
+                        '..########..',
+                        '....####....',
+                    ]" :palette="$pacman" />
+                    <x-pixel-sprite :rows="$pacmanHalfOpen" :palette="$pacman" />
+                </div>
             </div>
             <p class="insert-coin">INSERT COIN</p>
         </main>
