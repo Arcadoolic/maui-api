@@ -95,9 +95,9 @@ Route::prefix('front')->middleware('front')->group(function () {
     Route::middleware(['member', 'throttle:front'])->group(function () {
         Route::get('me', [MeController::class, 'show']);
         Route::post('logout', [AuthController::class, 'logout']);
-        // Players of the member, linked with initials + PIN (docs/DECISIONS.md D66).
-        Route::post('me/players', [MeController::class, 'linkPlayer'])->middleware('throttle:front-player-link');
-        Route::delete('me/players/{player}', [MeController::class, 'unlinkPlayer']);
+        // The player of the member, linked with initials + PIN (docs/DECISIONS.md D66, D71).
+        Route::post('me/player', [MeController::class, 'linkPlayer'])->middleware('throttle:front-player-link');
+        Route::delete('me/player', [MeController::class, 'unlinkPlayer']);
 
         // Reading: games, players and the event feed (docs/DECISIONS.md D67).
         Route::get('games', [GamesController::class, 'index']);

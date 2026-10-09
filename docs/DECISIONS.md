@@ -745,8 +745,13 @@ front's `Origin` (`403 origin_not_allowed`), which a page of another site
 cannot forge; no token to fetch first. The login is two pages the browser
 is sent to: they always answer a redirect to the front, with
 `/login?error=<code>` when it failed. The `state` and the invitation wait in
-the session while the visitor is on Discord. A member is remembered (remember
-cookie) rather than logged out after two idle hours. An admin disables a
+the session while the visitor is on Discord. A member is remembered for 60
+days (`FRONT_REMEMBER_DAYS`) rather than logged out after two idle hours,
+when its session ends. Laravel only honours a remember cookie for a user
+with a password, and signs the cookie with it: a member has none, so
+`Member::getAuthPassword()` gives a fixed value in its place. The cookie is
+worth its random `remember_token`, renewed at each logout. (First shipped
+without it: the cookie was set and silently ignored.) An admin disables a
 member in the back office: refused at the login, and logged out at its next
 request (`403 member_disabled`). Since every request comes from the front's
 server, logged-in members are rate limited one by one (`front`, 240/min),
@@ -809,8 +814,8 @@ The catalog (D47) says little of a game: name, manufacturer, year, players,
 genre. The front's game pages take the rest from ScreenScraper, which MAUI
 already uses for its own pictures: synopsis (French and English), developer,
 publisher, rating out of 20, players, screen rotation, resolution, the first
-player's controls (a joystick or not, the number of buttons), genres, and
-five pictures (in-game screenshot, title screen, logo, marquee,
+player's controls (a joystick or not, the number of buttons), genres (their
+English names, the front being in English), and five pictures (in-game screenshot, title screen, logo, marquee,
 flyer; the world region first, then the West, then Japan: MAUI takes
 Japan second, but a logo in Japanese says little on these pages). On the API side
 rather than in each cabinet or in the front: one account, one quota, one
@@ -843,7 +848,9 @@ The player page of the front shows a player's progress with four views,
 none of which needs new data. The progress on a game:
 `GET /front/players/{id}/games/{romname}` lists the personal bests of the
 player, oldest first (`scores` keeps each of them, D50), with the two scores
-to reach, the leader's and the rank just above. Games by rank (1st, 2nd,
+to reach, the leader's and the rank just above. It takes two bests to make
+a progress: each best of the player page says how many are stored
+(`scores`), and the front draws the line for those games only. Games by rank (1st, 2nd,
 3rd, 4 to 9, 10 and more) are counted by the front from the bests it already
 has. Next targets and threats: each best of `GET /front/players/{id}` now
 says who is just above and just below, with their score (`lag` and `lead`
@@ -887,4 +894,19 @@ player's points and rank, and for each best its points and whether it is
 counted. Private players are on no leaderboard, so on no podium. Not done
 yet: the daily snapshot that would draw the points and the rank over time;
 nothing runs scheduled commands (Lot 3.6).
+
+**D71: One player per member.** (2026-10-09, Lot 3.1, supersedes D66 on the number of players)
+D66 let a member link several players, for a family sharing a Discord
+account or a player with two sets of initials. Decided otherwise: a Discord
+account is a person, and a person has one player. `member_player` gains a
+unique `member_id` next to its unique `player_id`: one player per member,
+one member per player. `POST /front/me/player` refuses a second player
+(`409 member_has_player`, told once the PIN is right, like
+`player_already_linked`): the member unlinks the first
+(`DELETE /front/me/player`) to take another. `GET /front/me` answers
+`player`, an object or null, instead of the `players` list. The routes are
+renamed with it (`me/player`, without an id to unlink): the front is the
+only reader, and nothing of Lot 3 is released yet. The rest of D66 stands:
+initials and PIN, the lock, the audit. On the front, "my players" becomes
+"my player", and the lists highlight that one player.
 

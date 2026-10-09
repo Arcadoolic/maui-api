@@ -222,7 +222,7 @@ describe('players', function () {
                 'game' => ['romname' => 'pacman', 'description' => 'Pac-Man'],
                 'table' => 'default', 'score' => 200, 'rank' => 2, 'players' => 2,
                 'achieved_at' => '2026-01-02T00:00:00+00:00',
-                'points' => 20, 'counted' => true,
+                'scores' => 2, 'points' => 20, 'counted' => true,
                 'above' => ['player' => ['id' => Player::query()->where('pseudo_3', 'BOB')->value('uuid'), 'pseudo_3' => 'BOB', 'avatar' => null], 'score' => 300],
                 'below' => null,
             ]],

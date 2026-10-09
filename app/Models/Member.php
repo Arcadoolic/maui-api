@@ -60,16 +60,37 @@ class Member extends Authenticatable
         ];
     }
 
-    /** @return BelongsToMany<Player, $this> */
+    /**
+     * The player of the member: one at most (D71), through the pivot that
+     * also keeps a player to one member.
+     *
+     * @return BelongsToMany<Player, $this>
+     */
     public function players(): BelongsToMany
     {
         return $this->belongsToMany(Player::class)->withPivot('linked_at');
+    }
+
+    public function player(): ?Player
+    {
+        return $this->players()->first();
     }
 
     /** @return BelongsTo<MemberInvitation, $this> */
     public function invitation(): BelongsTo
     {
         return $this->belongsTo(MemberInvitation::class, 'member_invitation_id');
+    }
+
+    /**
+     * A member has no password, Discord authenticates it. Laravel only honours
+     * a "remember me" cookie for a user with one, and signs the cookie with
+     * it: this fixed value stands in. It protects nothing by itself: the
+     * cookie is worth its random `remember_token`, renewed at each logout.
+     */
+    public function getAuthPassword(): string
+    {
+        return 'member:'.$this->discord_id;
     }
 
     public function isActive(): bool

@@ -208,12 +208,12 @@ maze-blue frames, ghost colours, a pixel font for titles and scores only.
 - `members`, `member_invitations`, `member_player`; guard `member`.
 - Discord login: `GET /front/auth/discord`, `.../callback`,
   `GET /front/invitations/{token}`, `GET /front/me`, `POST /front/logout`.
-- Players of the member: `POST /front/me/players` (initials + PIN),
-  `DELETE /front/me/players/{id}`.
+- The player of the member, one at most (D71): `POST /front/me/player`
+  (initials + PIN), `DELETE /front/me/player`.
 - Back office: front invitations (create, link shown once, revoke), front
   members (disable, enable).
 - Front: skeleton, design tokens and base components, login, invitation
-  page, "my players".
+  page, "my player".
 
 ### 3.2 Reading
 
@@ -225,7 +225,7 @@ maze-blue frames, ghost colours, a pixel font for titles and scores only.
 - `GET /front/players`, `GET /front/players/{id}` (bests with their rank),
   `GET /front/events` (cursor, as `GET /bot/events`), avatars.
 - Visibility: public and active players only, as on the shared leaderboards
-  (D52); a member also sees its own linked players when they are private.
+  (D52); a member also sees its own player when it is private.
 - Front: game list and page, player list and page, event feed.
 
 ### 3.3 Complete game pages

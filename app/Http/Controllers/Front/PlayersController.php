@@ -67,6 +67,12 @@ final class PlayersController
                 ->toBase()->get();
         }
         $games = Game::query()->whereIn('id', $rows->pluck('game_id'))->get()->keyBy('id');
+        // Personal bests stored on each leaderboard: with two at least, there is a progress to show.
+        $stored = $this->ownScores($found)
+            ->selectRaw('scores.game_id, scores."table", count(*) as stored')
+            ->groupBy('scores.game_id', 'scores.table')
+            ->toBase()->get()
+            ->mapWithKeys(fn (object $row): array => [$row->game_id.'/'.$row->table => (int) $row->stored]);
         // Its place on the global podium, and what each leaderboard brings to it (D70).
         $standing = $this->globalRanking->standings()->first(fn (Standing $standing): bool => $standing->playerId === $found->id);
         $counted = [];
@@ -109,6 +115,7 @@ final class PlayersController
                     'rank' => isset($row->rank) ? (int) $row->rank : null,
                     'players' => isset($row->players) ? (int) $row->players : null,
                     'achieved_at' => GamesController::iso($row->achieved_at),
+                    'scores' => $stored->get($row->game_id.'/'.$row->table, 1),
                     // Points of this leaderboard on the global podium; `counted`: among the best results that make the total.
                     'points' => isset($row->rank) ? GlobalRanking::points((int) $row->rank, (int) $row->players) : null,
                     'counted' => $counted[$row->game_id.'/'.$row->table] ?? false,

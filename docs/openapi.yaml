@@ -1140,7 +1140,7 @@ paths:
     get:
       tags: [Front]
       operationId: frontMe
-      summary: The logged-in member and its players
+      summary: The logged-in member and its player
       security:
         - frontSession: []
       responses:
@@ -1178,19 +1178,21 @@ paths:
         '500':
           $ref: '#/components/responses/ServerError'
 
-  /front/me/players:
+  /front/me/player:
     post:
       tags: [Front]
       operationId: frontLinkPlayer
-      summary: Link a player to the member with its PIN
+      summary: Link the member's player with its PIN
       description: |
         Same initials, PIN and lock as `POST /players/link` on a cabinet
         (D66): each wrong PIN is counted, the fifth in a row locks the
-        player. The cabinets of the player are unchanged. A player has one
-        member at most: `409 player_already_linked`, told only once the PIN
-        is right. Idempotent for a player the member already linked. A member
-        can link several players. Own rate limit: 10 requests per minute per
-        member.
+        player. The cabinets of the player are unchanged. A member has one
+        player and a player one member (D71): `409 member_has_player` when
+        the member already has another one (to unlink first),
+        `409 player_already_linked` when the player belongs to another
+        member; both are told only once the PIN is right. Idempotent for the
+        player the member already has. Own rate limit: 10 requests per minute
+        per member.
       security:
         - frontSession: []
       requestBody:
@@ -1218,16 +1220,24 @@ paths:
         '404':
           $ref: '#/components/responses/PlayerNotFound'
         '409':
-          description: The player is linked to another member.
+          description: The member already has a player, or the player is linked to another member.
           content:
             application/problem+json:
               schema:
                 $ref: '#/components/schemas/Problem'
-              example:
-                type: about:blank
-                title: Conflict
-                status: 409
-                code: player_already_linked
+              examples:
+                memberHasPlayer:
+                  value:
+                    type: about:blank
+                    title: Conflict
+                    status: 409
+                    code: member_has_player
+                playerAlreadyLinked:
+                  value:
+                    type: about:blank
+                    title: Conflict
+                    status: 409
+                    code: player_already_linked
         '422':
           $ref: '#/components/responses/ValidationFailed'
         '423':
@@ -1236,14 +1246,10 @@ paths:
           $ref: '#/components/responses/RateLimited'
         '500':
           $ref: '#/components/responses/ServerError'
-
-  /front/me/players/{playerId}:
-    parameters:
-      - $ref: '#/components/parameters/PlayerId'
     delete:
       tags: [Front]
       operationId: frontUnlinkPlayer
-      summary: Unlink a player from the member
+      summary: Unlink the member's player
       description: The player stays as it is on its cabinets, with its scores.
       security:
         - frontSession: []
@@ -1255,7 +1261,16 @@ paths:
         '403':
           $ref: '#/components/responses/FrontForbidden'
         '404':
-          $ref: '#/components/responses/PlayerNotFound'
+          description: The member has no player.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+              example:
+                type: about:blank
+                title: Not Found
+                status: 404
+                code: player_not_found
         '429':
           $ref: '#/components/responses/RateLimited'
         '500':
@@ -1280,7 +1295,7 @@ paths:
         - {name: players, in: query, schema: {type: integer, minimum: 1, maximum: 8}, description: 'Simultaneous players, at least.'}
         - name: scores
           in: query
-          description: '`with`: a visible score; `mine`: one of the member''s players is ranked; `unranked`: scores, but none of the member''s players.'
+          description: '`with`: a visible score; `mine`: the member''s player is ranked; `unranked`: scores, but not the member''s player.'
           schema: {type: string, enum: [with, mine, unranked]}
         - name: sort
           in: query
@@ -2560,16 +2575,16 @@ components:
 
     FrontMeResponse:
       type: object
-      required: [member, players]
+      required: [member, player]
       additionalProperties: false
       properties:
         member:
           $ref: '#/components/schemas/FrontMember'
-        players:
-          type: array
-          description: Players the member linked, by initials.
-          items:
-            $ref: '#/components/schemas/FrontPlayer'
+        player:
+          description: The player the member linked, null until it has (D71).
+          oneOf:
+            - type: 'null'
+            - $ref: '#/components/schemas/FrontPlayer'
 
     FrontPlayerRef:
       type: object
@@ -2799,8 +2814,9 @@ components:
           description: The best of the player on each game and table, by game name.
           items:
             type: object
-            required: [game, table, score, rank, players, achieved_at, points, counted, above, below]
+            required: [game, table, score, rank, players, achieved_at, scores, points, counted, above, below]
             properties:
+              scores: {type: integer, description: 'Personal bests stored for the player on this leaderboard (D50): with two at least, there is a progress to show.'}
               points: {type: [integer, 'null'], description: 'Points of this leaderboard on the global podium (D70), null for a private player.'}
               counted: {type: boolean, description: Among the best results that make the player's total.}
               above:
@@ -2942,6 +2958,7 @@ components:
             - member_disabled
             - invitation_unavailable
             - player_already_linked
+            - member_has_player
             - forbidden
             - not_found
             - method_not_allowed

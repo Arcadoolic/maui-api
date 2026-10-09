@@ -121,4 +121,9 @@ final class ApiProblemException extends RuntimeException
     {
         return new self(Response::HTTP_CONFLICT, 'player_already_linked', 'This player is linked to another member.');
     }
+
+    public static function memberHasPlayer(): self
+    {
+        return new self(Response::HTTP_CONFLICT, 'member_has_player', 'This member already has a player: unlink it first.');
+    }
 }

@@ -85,8 +85,8 @@ For why things are done this way, see `docs/DECISIONS.md`.
   decides who enters (a member comes back freely, a new account needs a
   usable invitation).
 - `GET /front/invitations/{token}`, `GET /front/me`, `POST /front/logout`,
-  `POST /front/me/players` (initials + PIN, same lock as on a cabinet),
-  `DELETE /front/me/players/{id}`.
+  `POST /front/me/player` (initials + PIN, same lock as on a cabinet, one
+  player per member, D71), `DELETE /front/me/player`.
 - Back office: "Front invitations" (create, link shown once, revoke) and
   "Front members" (players, invitation, disable, enable), audited.
 - To set on a server: `FRONT_URL`, `FRONT_DISCORD_CLIENT_ID`,

@@ -5,14 +5,12 @@ namespace App\Http\Controllers\Front;
 use App\Http\Middleware\AuthenticateMember;
 use App\Http\Problems\ApiProblemException;
 use App\Http\Requests\Api\LinkPlayerRequest;
-use App\Models\Player;
 use App\Services\Players\PlayerRegistry;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
-use Illuminate\Support\Str;
 
-/** The logged-in member and the players it linked with their PIN (docs/DECISIONS.md D66). */
+/** The logged-in member and its player, linked with the PIN (docs/DECISIONS.md D66, D71). */
 final class MeController
 {
     public function __construct(private readonly PlayerRegistry $registry) {}
@@ -23,8 +21,7 @@ final class MeController
 
         return new JsonResponse([
             'member' => $member->toApiArray(),
-            'players' => $member->players()->orderBy('pseudo_3')->get()
-                ->map(fn (Player $player): array => $player->toFrontArray())->all(),
+            'player' => $member->player()?->toFrontArray(),
         ]);
     }
 
@@ -39,13 +36,11 @@ final class MeController
         return new JsonResponse(['player' => $player->toFrontArray()]);
     }
 
-    public function unlinkPlayer(Request $request, string $player): Response
+    public function unlinkPlayer(Request $request): Response
     {
         $member = AuthenticateMember::member($request);
-        // The players of other members do not exist for this one.
-        $linked = Str::isUuid($player) ? $member->players()->where('players.uuid', $player)->first() : null;
 
-        $this->registry->unlinkMember($member, $linked ?? throw ApiProblemException::playerNotFound());
+        $this->registry->unlinkMember($member, $member->player() ?? throw ApiProblemException::playerNotFound());
 
         return response()->noContent();
     }
