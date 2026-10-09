@@ -1,3 +1,9 @@
+## [0.8.0](https://github.com/Arcadoolic/maui-api/compare/0.7.1...0.8.0) (2026-10-09)
+
+### Features
+
+* **front:** give each game's screenshot in the games list ([f1defb4](https://github.com/Arcadoolic/maui-api/commit/f1defb4bc747c90789c40d8e9228a7d6e1cde8a2))
+
 ## [0.7.1](https://github.com/Arcadoolic/maui-api/compare/0.7.0...0.7.1) (2026-10-09)
 
 ### Bug Fixes
