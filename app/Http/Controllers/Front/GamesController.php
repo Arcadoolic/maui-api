@@ -67,7 +67,8 @@ final class GamesController
             default => $query,
         };
         $games = $query->orderBy('games.description')->orderBy('games.romname')
-            ->with(['catverCategory.parent'])
+            // Only the screenshot: the list shows it behind each game.
+            ->with(['catverCategory.parent', 'media' => fn ($media) => $media->where('type', 'screenshot')])
             ->forPage($page, $perPage)
             ->get();
         $leaders = $this->leaders($games->modelKeys());
@@ -78,6 +79,8 @@ final class GamesController
                 'ranked_players' => (int) ($game->getAttribute('ranked_players') ?? 0),
                 'last_score_at' => self::iso($game->getAttribute('last_score_at')),
                 'leader' => $leaders->get($game->id),
+                // Its hash: GET /front/games/{romname}/media/screenshot.
+                'screenshot' => $game->media->first()?->hash,
             ])->all(),
             'meta' => ['page' => $page, 'per_page' => $perPage, 'total' => $total],
         ]);
