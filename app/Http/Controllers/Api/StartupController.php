@@ -23,6 +23,9 @@ final class StartupController
         return new JsonResponse([
             'id' => $startup->id,
             'received_at' => $startup->received_at->toIso8601ZuluString(),
+            // What MAUI shows next to ONLINE / OFFLINE (D62).
+            'client' => ['name' => $client->name],
+            'environment' => app()->environment(),
         ], JsonResponse::HTTP_CREATED);
     }
 }
