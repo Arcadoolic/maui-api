@@ -1263,7 +1263,7 @@ components:
 
     PingResponse:
       type: object
-      required: [client, machine, server_time]
+      required: [client, machine, server_time, environment]
       additionalProperties: false
       properties:
         client:
@@ -1292,6 +1292,13 @@ components:
           type: string
           format: date-time
           description: Lets MAUI detect a clock skew with `client_datetime`.
+        environment:
+          type: string
+          description: |
+            The server's environment (`APP_ENV`): `production`, `staging`,
+            `local`. MAUI shows it next to the cabinet's name, except for
+            `production` (D62).
+          examples: ['staging']
 
     StartupRequest:
       type: object
@@ -1338,7 +1345,7 @@ components:
 
     StartupResponse:
       type: object
-      required: [id, received_at]
+      required: [id, received_at, client, environment]
       additionalProperties: false
       properties:
         id:
@@ -1348,6 +1355,22 @@ components:
         received_at:
           type: string
           format: date-time
+        client:
+          type: object
+          required: [name]
+          additionalProperties: false
+          properties:
+            name:
+              type: string
+              description: Human-readable cabinet name.
+              examples: ['marvelous_mario']
+        environment:
+          type: string
+          description: |
+            The server's environment (`APP_ENV`): `production`, `staging`,
+            `local`. MAUI shows it next to the cabinet's name, except for
+            `production` (D62).
+          examples: ['staging']
 
     RepositoryResponse:
       type: object

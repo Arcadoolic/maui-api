@@ -22,6 +22,7 @@ final class PingController
                 'newly_bound' => AuthenticateCabinet::binding($request)->newlyBound,
             ],
             'server_time' => now()->toIso8601ZuluString(),
+            'environment' => app()->environment(),
         ]);
     }
 }

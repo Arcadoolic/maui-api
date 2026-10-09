@@ -694,3 +694,12 @@ older than this decision sends by leaving the field out), stored in
 `scores.attribution` and shown in the back office with a filter: a declared
 score rests on what was answered on the cabinet, which moderation, and
 later the anti-cheat lot, must be able to tell apart.
+
+**D62: The cabinet is told its name and the server's environment.** (2026-10-09)
+MAUI shows them next to its ONLINE / OFFLINE badge, on the cabinet's screen
+and in its back office: several cabinets and two servers (staging,
+production) are told apart at a glance. `POST /startups`, which a cabinet
+sends every time it starts, answers `client.name` and `environment`
+(`APP_ENV`); `GET /ping` already gave the name and now gives `environment`
+too. MAUI leaves the environment out when it is `production`. A cabinet
+older than this decision ignores both.
