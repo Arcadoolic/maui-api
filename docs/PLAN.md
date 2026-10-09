@@ -260,7 +260,7 @@ real data before it is frozen:
 ```
 points(game) = base(rank) x competition(N)     N = players ranked on the game
 base         : 100, 80, 65, 55, 45, 38, 32, 26, 20, then -2 per rank, 5 at least
-competition  : min(1, (N - 1) / 6)             alone = 0, 7 players and more = 1
+competition  : min(1, (N - 1) / 4)             alone = 0, 5 players and more = 1
 total        = sum of the player's 15 best points(game)
 ```
 

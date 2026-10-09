@@ -33,6 +33,16 @@ For why things are done this way, see `docs/DECISIONS.md`.
 - Releases by semantic-release on every push to `main` (D44): 0.1.0
   published on 2026-09-25.
 
+## Lot 3.5: global podium (in progress, D70)
+
+- `GlobalRanking`: points by rank times a competition factor, the 15 best
+  results of each player, one per game; values in `config/hiscores.php`.
+- `GET /front/ranking` (podium and its rule); `points`, `global_rank` and,
+  per best, `points` and `counted` on `GET /front/players/{id}`.
+- `hiscores:ranking [--best=] [--full=]`: the podium next to the former
+  500/300/50 rule, to tune the values on real data.
+- Not done: the daily snapshot (points and rank over time), with Lot 3.6.
+
 ## Lot 3.4: player stats (in progress, D69)
 
 - `Rankings` rows say who is just above and just below.

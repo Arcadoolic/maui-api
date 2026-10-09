@@ -8,8 +8,10 @@ use App\Models\Game;
 use App\Models\Member;
 use App\Models\Player;
 use App\Models\Score;
+use App\Services\Leaderboards\GlobalRanking;
 use App\Services\Leaderboards\Leaderboards;
 use App\Services\Leaderboards\Rankings;
+use App\Services\Leaderboards\Standing;
 use App\Services\Players\PlayerAvatars;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
@@ -25,7 +27,7 @@ use Symfony\Component\HttpFoundation\Response;
  */
 final class PlayersController
 {
-    public function __construct(private readonly Rankings $rankings) {}
+    public function __construct(private readonly Rankings $rankings, private readonly GlobalRanking $globalRanking) {}
 
     public function index(Request $request): JsonResponse
     {
@@ -65,6 +67,12 @@ final class PlayersController
                 ->toBase()->get();
         }
         $games = Game::query()->whereIn('id', $rows->pluck('game_id'))->get()->keyBy('id');
+        // Its place on the global podium, and what each leaderboard brings to it (D70).
+        $standing = $this->globalRanking->standings()->first(fn (Standing $standing): bool => $standing->playerId === $found->id);
+        $counted = [];
+        foreach ($standing->results ?? [] as $result) {
+            $counted[$result['game_id'].'/'.$result['table']] = $result['counted'];
+        }
         $neighbours = Player::query()
             ->whereIn('id', $rows->pluck('above_player_id')->merge($rows->pluck('below_player_id'))->filter()->unique())
             ->get()->keyBy('id');
@@ -85,6 +93,8 @@ final class PlayersController
                 'podiums' => (int) ($totals->podiums ?? 0),
                 'beaten' => (int) ($totals->beaten ?? 0),
                 'last_score_at' => GamesController::iso($totals->last_score_at ?? null),
+                'points' => $standing->points ?? 0,
+                'global_rank' => $standing?->rank,
             ],
             'bests' => $rows
                 ->sortBy(fn (object $row): string => Str::lower($games->get($row->game_id)->description ?? '').'/'.$row->table)
@@ -99,6 +109,9 @@ final class PlayersController
                     'rank' => isset($row->rank) ? (int) $row->rank : null,
                     'players' => isset($row->players) ? (int) $row->players : null,
                     'achieved_at' => GamesController::iso($row->achieved_at),
+                    // Points of this leaderboard on the global podium; `counted`: among the best results that make the total.
+                    'points' => isset($row->rank) ? GlobalRanking::points((int) $row->rank, (int) $row->players) : null,
+                    'counted' => $counted[$row->game_id.'/'.$row->table] ?? false,
                     // The next rank to take, and who is closest behind: null at either end.
                     'above' => $neighbour($row, 'above'),
                     'below' => $neighbour($row, 'below'),

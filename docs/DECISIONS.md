@@ -854,3 +854,37 @@ history and its activity but no rank, nobody above nor below. The charts
 are drawn by the front in SVG, without a chart library: three simple forms,
 and the look of the game screen to keep.
 
+**D70: Global podium: points for the rank, weighted by the competition, best results only.** (2026-10-09, Lot 3.5)
+A former version gave 500, 300 and 50 points to the first three of each
+game: playing many games nobody else played was enough to be first. The new
+rule, for each leaderboard a player is ranked on:
+`points = base(rank) x competition(N)`, `N` being the players ranked on it.
+`base`: 100, 80, 65, 55, 45, 38, 32, 26, 20 for the first nine, then 2 less
+per rank, 5 at least: every rank earns something, not the podium only.
+`competition`: `min(1, (N - 1) / 4)`: alone on a game, nothing; two players,
+a quarter; full points from five. Seven was the first setting: with few
+players at the start, hardly any game would have reached it, and five gives
+the same order on the scores at hand with points easier to read; under five,
+games played by two start to outweigh a contested one again. A fixed value,
+set by `HISCORES_FULL_COMPETITION_PLAYERS`, rather than one following the
+number of players: everybody's points would then move each time a player
+joins. To raise as the players come. A player's total is the sum of its 15 best
+results, one per game (its best table, so that a game with several tables
+does not count twice): beyond 15 games, a new one only counts by replacing a
+weaker result. Ties: crowns, then podiums, then the oldest best. Points are
+rounded per leaderboard, so that the total is the sum of what the player
+page shows. The values live in `config/hiscores.php` (`ranking`) and are
+sent with `GET /front/ranking`, for the front to explain the rule with the
+numbers in force. They are a first setting: `hiscores:ranking [--best=]
+[--full=]` prints the podium next to the former rule, to tune them on real
+data before they are frozen. On the scores of one real cabinet (14 players,
+21 games, 2026-10-09), the leader by the former rule, with six crowns on
+games it mostly played alone, comes second, and the leader of the only
+game with five players goes from 8th to 3rd. `GlobalRanking` works it out
+in PHP from the `Rankings` rows, on each request: a few thousand rows at
+most for now, to cache when it shows. `GET /front/players/{id}` gives the
+player's points and rank, and for each best its points and whether it is
+counted. Private players are on no leaderboard, so on no podium. Not done
+yet: the daily snapshot that would draw the points and the rank over time;
+nothing runs scheduled commands (Lot 3.6).
+

@@ -217,11 +217,12 @@ describe('players', function () {
 
         $this->getJson('/api/v1/front/players/'.$ace->uuid)->assertOk()->assertExactJson([
             'player' => ['id' => $ace->uuid, 'pseudo_3' => 'ACE', 'avatar' => null, 'is_public' => true, 'is_mine' => false],
-            'stats' => ['games' => 1, 'crowns' => 0, 'podiums' => 1, 'beaten' => 0, 'last_score_at' => '2026-01-02T00:00:00+00:00'],
+            'stats' => ['games' => 1, 'crowns' => 0, 'podiums' => 1, 'beaten' => 0, 'last_score_at' => '2026-01-02T00:00:00+00:00', 'points' => 20, 'global_rank' => 2],
             'bests' => [[
                 'game' => ['romname' => 'pacman', 'description' => 'Pac-Man'],
                 'table' => 'default', 'score' => 200, 'rank' => 2, 'players' => 2,
                 'achieved_at' => '2026-01-02T00:00:00+00:00',
+                'points' => 20, 'counted' => true,
                 'above' => ['player' => ['id' => Player::query()->where('pseudo_3', 'BOB')->value('uuid'), 'pseudo_3' => 'BOB', 'avatar' => null], 'score' => 300],
                 'below' => null,
             ]],

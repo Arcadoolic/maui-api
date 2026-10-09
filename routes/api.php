@@ -15,6 +15,7 @@ use App\Http\Controllers\Front\EventsController;
 use App\Http\Controllers\Front\GamesController;
 use App\Http\Controllers\Front\MeController;
 use App\Http\Controllers\Front\PlayersController as FrontPlayersController;
+use App\Http\Controllers\Front\RankingController;
 use App\Services\Members\MemberInvitationIssuer;
 use Illuminate\Support\Facades\Route;
 
@@ -108,5 +109,7 @@ Route::prefix('front')->middleware('front')->group(function () {
         Route::get('players/{player}/avatar', [FrontPlayersController::class, 'avatar']);
         Route::get('players/{player}/games/{romname}', [FrontPlayersController::class, 'history']);
         Route::get('events', [EventsController::class, 'index']);
+        // The global podium (docs/DECISIONS.md D70).
+        Route::get('ranking', RankingController::class);
     });
 });
