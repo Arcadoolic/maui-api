@@ -18,7 +18,7 @@ For why things are done this way, see `docs/DECISIONS.md`.
 
 ## Done
 
-- Delivery plan (`docs/PLAN.md`), decisions D1 to D61 (`docs/DECISIONS.md`).
+- Delivery plan (`docs/PLAN.md`), decisions D1 to D63 (`docs/DECISIONS.md`).
 - Lot 1 OpenAPI 3.1 contract (`docs/openapi.yaml`).
 - Lot 0 skeleton:
   - Docker: FrankenPHP + PHP 8.4 image (`Dockerfile`, `docker/`), Compose
@@ -53,6 +53,14 @@ For why things are done this way, see `docs/DECISIONS.md`.
   stored in `scores.attribution`; column and filter in the back office.
 - For the games that write no name next to their scores: MAUI asks who made
   the score when the game is quit.
+
+## Client deletion in the back office (D63)
+
+- "Delete" on the client page: the client, its tokens, invitations,
+  startups, player links and scores (events cascade), in one transaction;
+  players kept, only unlinked. Confirmation by typing the client name, after
+  a summary of what goes. Recorded as `client.deleted` in the kept audit
+  trail. Supersedes D31.
 
 ## Score events for the Discord bot (D60)
 
@@ -216,7 +224,7 @@ For why things are done this way, see `docs/DECISIONS.md`.
 - `ClientResource`: list (type, status, online, last seen, versions),
   create (generated name), edit (type locked), view with actions: invite,
   renew, issue / replace service token, reset machine binding, disable,
-  enable. No delete (D31). Secrets shown once in a chained modal (D34).
+  enable. No delete (D31, superseded by D63). Secrets shown once in a chained modal (D34).
 - Relation managers: startup history, audit log (D33).
 - `ClientAdministration` service with audit entries; `LogsActivity` on
   `Client`.

@@ -3,8 +3,13 @@
 use App\Enums\ClientStatus;
 use App\Enums\InvitationPurpose;
 use App\Models\Client;
+use App\Models\Player;
+use App\Models\Score;
+use App\Models\ScoreEvent;
 use App\Models\User;
 use App\Services\ClientAdministration;
+use App\Services\Scores\ScoreEventRecorder;
+use Illuminate\Support\Facades\DB;
 use Spatie\Activitylog\Models\Activity;
 
 beforeEach(function () {
@@ -106,4 +111,62 @@ it('does not record technical updates such as heartbeats', function () {
     $client->recordHeartbeat();
 
     expect(Activity::count())->toBe($before);
+});
+
+describe('deletion (D63)', function () {
+    it('deletes a client with everything attached to it, scores included', function () {
+        [$client, $token] = cabinetWithToken();
+        $this->administration->invite($client);
+        $client->recordStartup([
+            'mame_version' => '0.289', 'maui_version' => '2.5.0', 'os' => 'linux',
+            'os_version' => '6.8.0', 'client_datetime' => now(),
+        ]);
+        $player = Player::factory()->create(['origin_client_id' => $client->id, 'is_public' => true]);
+        $client->players()->attach($player, ['linked_at' => now()]);
+        $score = Score::factory()->for($client)->for($player)->create();
+        expect(app(ScoreEventRecorder::class)->record($score, null))->not->toBeNull();
+
+        $this->administration->delete($client);
+
+        expect(Client::query()->find($client->id))->toBeNull()
+            ->and(Score::query()->count())->toBe(0)
+            ->and(ScoreEvent::query()->count())->toBe(0)
+            ->and(DB::table('invitations')->count())->toBe(0)
+            ->and(DB::table('client_startups')->count())->toBe(0)
+            ->and(DB::table('client_player')->count())->toBe(0)
+            ->and(DB::table('personal_access_tokens')->count())->toBe(0);
+        $this->getJson('/api/v1/ping', cabinetHeaders($client, $token))->assertUnauthorized();
+    });
+
+    it('keeps the players and the scores of the other cabinets, only unlinked', function () {
+        $client = Client::factory()->create();
+        $other = Client::factory()->create();
+        $player = Player::factory()->create(['origin_client_id' => $client->id]);
+        $client->players()->attach($player, ['linked_at' => now()]);
+        $other->players()->attach($player, ['linked_at' => now()]);
+        Score::factory()->for($client)->for($player)->create();
+        $kept = Score::factory()->for($other)->for($player)->create();
+
+        $this->administration->delete($client);
+
+        expect($player->fresh())->not->toBeNull()
+            ->and($player->fresh()->origin_client_id)->toBeNull()
+            ->and($other->players()->pluck('players.id')->all())->toBe([$player->id])
+            ->and(Score::query()->pluck('id')->all())->toBe([$kept->id]);
+    });
+
+    it('records the deletion in the kept audit trail', function () {
+        $client = Client::factory()->create(['name' => 'glitchy_pac_man']);
+        $this->administration->disable($client);
+        Score::factory()->count(2)->for($client)->create();
+
+        $this->administration->delete($client);
+
+        $entry = auditEntry($client, 'client.deleted');
+        expect($entry)->not->toBeNull()
+            ->and($entry->causer_id)->toBe($this->admin->id)
+            ->and($entry->properties->all())->toMatchArray(['name' => 'glitchy_pac_man', 'scores' => 2, 'players' => 0])
+            ->and(auditEntry($client, 'client.disabled'))->not->toBeNull()
+            ->and(auditEntry($client, 'deleted'))->toBeNull();
+    });
 });
