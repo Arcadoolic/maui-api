@@ -1,6 +1,7 @@
 <?php
 
 use App\Enums\ClientType;
+use App\Enums\ScoreAttribution;
 use App\Models\Client;
 use App\Models\Game;
 use App\Models\Player;
@@ -176,6 +177,29 @@ describe('intake', function () {
         ])->assertOk();
 
         expect(Score::query()->orderBy('score')->pluck('client_startup_id')->all())->toBe([$own->id, null]);
+    });
+
+    it('records whether the player was read from the game or declared on the cabinet', function () {
+        [$client, $token] = cabinetWithToken();
+        $player = linkedPlayer($client);
+
+        postScores($client, $token, [
+            scorePayload($player, 100),
+            scorePayload($player, 200, ['attribution' => 'declared']),
+            scorePayload($player, 300, ['attribution' => 'initials']),
+        ])->assertOk();
+
+        expect(Score::query()->orderBy('score')->get()->map(fn (Score $score) => $score->attribution)->all())
+            ->toBe([ScoreAttribution::Initials, ScoreAttribution::Declared, ScoreAttribution::Initials]);
+    });
+
+    it('refuses an unknown attribution', function () {
+        [$client, $token] = cabinetWithToken();
+
+        postScores($client, $token, [scorePayload(linkedPlayer($client), 100, ['attribution' => 'guessed'])])
+            ->assertStatus(422);
+
+        expect(Score::query()->count())->toBe(0);
     });
 });
 

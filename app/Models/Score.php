@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\ScoreAttribution;
 use Database\Factories\ScoreFactory;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
@@ -25,6 +26,7 @@ use Illuminate\Support\Carbon;
  * @property Carbon $achieved_at
  * @property Carbon $received_at
  * @property Carbon|null $hidden_at
+ * @property ScoreAttribution $attribution
  * @property-read Player $player
  * @property-read Game $game
  * @property-read Client $client
@@ -40,6 +42,7 @@ class Score extends Model
 
     protected $attributes = [
         'table' => self::DEFAULT_TABLE,
+        'attribution' => ScoreAttribution::Initials->value,
     ];
 
     /**
@@ -60,6 +63,7 @@ class Score extends Model
             'achieved_at' => 'datetime',
             'received_at' => 'datetime',
             'hidden_at' => 'datetime',
+            'attribution' => ScoreAttribution::class,
         ];
     }
 

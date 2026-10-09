@@ -1508,6 +1508,15 @@ components:
           type: [string, 'null']
           format: uuid
           description: The `id` of the startup report of the run (D6), when there was one.
+        attribution:
+          type: string
+          enum: [initials, declared]
+          default: initials
+          description: >-
+            How the cabinet knew whose score it is (D61): `initials` read
+            next to the score in the game's file, or `declared` when the
+            game writes no name and the player was picked on the cabinet
+            once the game was quit.
 
     ScoresRequest:
       type: object

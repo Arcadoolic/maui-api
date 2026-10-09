@@ -2,8 +2,10 @@
 
 namespace App\Http\Requests\Api;
 
+use App\Enums\ScoreAttribution;
 use App\Services\Scores\ScoreData;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 final class StoreScoresRequest extends FormRequest
 {
@@ -28,6 +30,8 @@ final class StoreScoresRequest extends FormRequest
             // The cabinet's clock: a few minutes ahead is tolerated, not the future.
             'scores.*.achieved_at' => ['required', 'date', 'before_or_equal:'.now()->addMinutes(5)->toIso8601String()],
             'scores.*.startup_id' => ['nullable', 'uuid'],
+            // Left out by the cabinets older than D61: the initials, as before.
+            'scores.*.attribution' => ['sometimes', Rule::enum(ScoreAttribution::class)],
         ];
     }
 

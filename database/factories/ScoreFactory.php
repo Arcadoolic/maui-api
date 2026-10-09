@@ -2,6 +2,7 @@
 
 namespace Database\Factories;
 
+use App\Enums\ScoreAttribution;
 use App\Models\Client;
 use App\Models\Game;
 use App\Models\Player;
@@ -28,5 +29,10 @@ class ScoreFactory extends Factory
     public function hidden(): static
     {
         return $this->state(['hidden_at' => now()]);
+    }
+
+    public function declared(): static
+    {
+        return $this->state(['attribution' => ScoreAttribution::Declared]);
     }
 }
