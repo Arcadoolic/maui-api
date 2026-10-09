@@ -205,7 +205,7 @@ raised from 10 to 30 per minute per IP, since each draw costs two requests.
 
 ## Lot 1 back office
 
-**D31: No client deletion in the back office.** (2026-09-24)
+**D31: No client deletion in the back office.** (2026-09-24, superseded by D63)
 Disabling (D12) is the way to stop a client. Deleting would drop its audit
 trail and, from Lot 2, orphan its scores. The generated Filament resource
 came with delete actions: removed.
@@ -680,3 +680,253 @@ is recorded but not `announceable`; hiding a score retracts its event.
 `GET /bot/events?after=<id>` with a new `events:read` ability of the `bot`
 type (existing tokens get it by migration): it polls, since it has no
 inbound HTTP, and keeps the cursor.
+
+**D61: A score without initials is declared on the cabinet, and marked.** (2026-10-09)
+Some games write their scores without any name (`route16`, `scobra`, and
+the games keeping a single top score): the cabinet cannot read whose score
+it is. MAUI asks it when the game is quit, among the cabinet's active public
+players, and gives the score to the only one when there is only one.
+`POST /scores` already takes a `player_id`, so nothing changes in the
+intake: such a score is a personal best like any other, on the same
+leaderboards and with the same events (D50, D52, D60). It only carries
+`attribution: declared` (`initials` by default, which is also what a cabinet
+older than this decision sends by leaving the field out), stored in
+`scores.attribution` and shown in the back office with a filter: a declared
+score rests on what was answered on the cabinet, which moderation, and
+later the anti-cheat lot, must be able to tell apart.
+
+**D62: The cabinet is told its name and the server's environment.** (2026-10-09)
+MAUI shows them next to its ONLINE / OFFLINE badge, on the cabinet's screen
+and in its back office: several cabinets and two servers (staging,
+production) are told apart at a glance. `POST /startups`, which a cabinet
+sends every time it starts, answers `client.name` and `environment`
+(`APP_ENV`); `GET /ping` already gave the name and now gives `environment`
+too. MAUI leaves the environment out when it is `production`. A cabinet
+older than this decision ignores both.
+
+**D63: Clients can be deleted in the back office, with their scores.** (2026-10-09, supersedes D31)
+A test cabinet or a dead one should not stay in the list forever, nor keep
+its scores in the leaderboards. Disabling (D12) remains the way to stop a
+client; deleting is for removing it for good. "Delete" on the client page
+removes the client, its tokens, invitations, startup history, player links
+and its scores, whose events (D60) cascade, in one transaction. Players are
+kept, as D48 says: a player can be linked to other cabinets and have scores
+there; it is only unlinked, and its `origin_client_id` set to null. The
+audit trail is kept (`activity_log` has no foreign key) and the deletion is
+recorded as `client.deleted`, with the admin as causer, the name, type and
+the number of scores and players, instead of the automatic `deleted` entry.
+Being irreversible, the confirmation modal tells what goes and asks for the
+client name to be typed. The leaderboards change at once (their ETag is a
+hash of the content, D52); a Discord message already posted for a deleted
+score stays, as for a hidden one (D60).
+
+**D64: The hiscores front has members with a session, logged in with Discord.** (2026-10-09, Lot 3.1, completes D2)
+The front (`afronob/maui-hifront`, a Vue SPA) is closed: nothing is
+shown without a login. Its users are `members`, a table of their own: `users`
+only holds admins (D2), and a member has no password, Discord authenticates
+it (OAuth2 authorization code, scope `identify`: id, name and avatar, no
+email). The two calls are made with the HTTP client, without Socialite: one
+provider, and a fake in the tests. D2 kept sessions for humans and Sanctum
+for machines: members are humans, so they get a session (guard `member`),
+not a token a script of the page could read. The routes sit under
+`/api/v1/front`, the only API routes with the cookie and session middleware
+(group `front`). The browser never calls the API from another origin: the
+front's server passes `/api/v1/front/*` on to it (Vite's proxy in
+development), so the cookie belongs to the front's host, no CORS is opened,
+and the same setup works whatever the two domain names are. `FRONT_URL` is
+that public URL: invitation links, the Discord redirect URI
+(`<FRONT_URL>/api/v1/front/auth/discord/callback`) and the redirects after
+a login are built from it. The session has a cookie of its own
+(`maui-front-session`): with the back office's, a member logging out would
+end the admin's session wherever one host serves both (`localhost` in
+development: cookies ignore the port). CSRF: the cookie is `SameSite=Lax`, and
+`VerifyFrontOrigin` refuses any request that changes something without the
+front's `Origin` (`403 origin_not_allowed`), which a page of another site
+cannot forge; no token to fetch first. The login is two pages the browser
+is sent to: they always answer a redirect to the front, with
+`/login?error=<code>` when it failed. The `state` and the invitation wait in
+the session while the visitor is on Discord. A member is remembered for 60
+days (`FRONT_REMEMBER_DAYS`) rather than logged out after two idle hours,
+when its session ends. Laravel only honours a remember cookie for a user
+with a password, and signs the cookie with it: a member has none, so
+`Member::getAuthPassword()` gives a fixed value in its place. The cookie is
+worth its random `remember_token`, renewed at each logout. (First shipped
+without it: the cookie was set and silently ignored.) An admin disables a
+member in the back office: refused at the login, and logged out at its next
+request (`403 member_disabled`). Since every request comes from the front's
+server, logged-in members are rate limited one by one (`front`, 240/min),
+the login routes by IP (`front-auth`, 30/min).
+
+**D65: Front invitations: a link for one or several Discord accounts.** (2026-10-09, Lot 3.1)
+A Discord account becomes a member with an invitation link created by an
+admin ("Front invitations" in the back office): a label to remember who it
+was given to, a number of accounts (one by default, empty for no limit, e.g.
+a link posted on the Discord server), a validity in days (empty: until it is
+revoked). A table of its own (`member_invitations`): the cabinet invitations
+(`invitations`, D15) belong to a client and are single-use. Only the hash of
+the token is stored, so the link is shown once, when it is created. It
+points to the front (`/invite/<token>`), which checks it
+(`GET /front/invitations/{token}`, `valid` or `404`) and sends the visitor
+to Discord with it. A use is counted when the member is created, with the
+invitation row locked: two accounts cannot both take the last one. A member
+that comes back needs no invitation, and revoking one keeps the members it
+let in: to remove a member, disable it. Each member keeps the invitation it
+came with.
+
+**D66: A member links its players with initials and PIN.** (2026-10-09, Lot 3.1)
+The front must know which players are the member's ("my progress"). The
+member types the initials and the 4-digit PIN, as when joining a cabinet
+(D48): same check, same count of wrong PINs and same lock after five, on top
+of a `front-player-link` limiter (10/min per member). `PlayerRegistry` runs
+one PIN check for both. Nothing changes on the cabinets of the player. A
+member may link several players (a family sharing one Discord account, or a
+player with two sets of initials); a player has one member at most
+(`409 player_already_linked`), told only once the PIN is right, so that
+guessing initials tells nothing. Unlinking removes the link only. Both are
+recorded in the player's audit log (`player.member_linked`,
+`player.member_unlinked`) with the member as causer.
+
+**D67: The front reads every leaderboard at once, and sees what the leaderboards show.** (2026-10-09, Lot 3.2)
+The front lists games and players with their ranks, which the cabinets'
+endpoints (one leaderboard, top 9, D52) cannot give without a request per
+game. `Rankings` ranks every visible best in one query (the best of each
+player per game and table, then a window by leaderboard): each row has its
+rank and the number of ranked players, and the lists are aggregates of it
+(ranked players and latest best of a game; games, crowns, podiums and
+players beaten of a player). The same rule as `Leaderboards`, which keeps
+serving the cabinets and the bots. Computed on each request: a few thousand
+rows at most for now, to cache when it shows. `GET /front/games` lists the
+catalogued games, and those only known from a visible score; filters by
+text, catver genre (with its subgenres), manufacturer, year, simultaneous
+players, and scores (`with`, `mine`, `unranked`: with scores but none of the
+member's players), which is how a player finds where to play next.
+`GET /front/games/{romname}` gives the whole leaderboard of each table, not
+the top 9. Visibility is that of the shared leaderboards: public and active
+players, visible scores. One exception: a member sees the page of its own
+linked players even when they are private, with their bests and no rank,
+since they are on no leaderboard; nobody else sees them. `GET /front/events`
+is a history, latest first, with a `before` cursor: it includes the events
+too old to be announced (`announceable`, D60), which the bots' feed leaves
+out. Events are sent as the bots get them (`ScoreEvent::toApiArray()`).
+
+**D68: Game pages completed with ScreenScraper, on the API side.** (2026-10-09, Lot 3.3)
+The catalog (D47) says little of a game: name, manufacturer, year, players,
+genre. The front's game pages take the rest from ScreenScraper, which MAUI
+already uses for its own pictures: synopsis (French and English), developer,
+publisher, rating out of 20, players, screen rotation, resolution, the first
+player's controls (a joystick or not, the number of buttons), genres (their
+English names, the front being in English), and five pictures (in-game screenshot, title screen, logo, marquee,
+flyer; the world region first, then the West, then Japan: MAUI takes
+Japan second, but a logo in Japanese says little on these pages). On the API side
+rather than in each cabinet or in the front: one account, one quota, one
+copy of each picture. `catalog:scrape` asks for a few games at a time
+(`--limit`, 50 by default), those with a visible score first, then those
+never asked, then the answers older than 30 days; it waits between two
+calls (1.5 s) and stops as soon as ScreenScraper refuses more (quota,
+threads). A game ScreenScraper does not know is remembered, not to be asked
+again the next day. Texts go to `game_details`, apart from `games`, which
+each catalog push rewrites completely; pictures to the `local` disk
+(`game-media/<romname>/<type>.<ext>`), their SHA-256 in `game_media`, served
+by `GET /front/games/{romname}/media/{type}` with that hash as ETag, like
+the avatars (D53). They are kept as downloaded: the image has no GD nor
+Imagick to convert them, a file over 4 MB or that is not an image is left
+out. Screen rotation, resolution and controls were first meant to come from
+MAME through `push-catalog`: the pack manifests it reads do not hold them,
+and ScreenScraper gives them without touching the packs. Nothing runs the
+command yet: no scheduler in the containers, to set up with the deployment
+(Lot 3.6); until then it is run by hand. Credentials: a developer account
+and a user account (`SCREENSCRAPER_*`); without them the command refuses to
+run and the game pages show the catalog only. Checked against real answers:
+there is no field for the controls, they are read from the colours of the
+panel (`couleurs`, one entry per control: `P1_JOYSTICK`, `P1_BUTTON1`...);
+some medias have no region; and each media URL of an answer carries the
+credentials of the request, so these URLs are downloaded at once and never
+stored nor logged.
+
+**D69: Player stats come from what is already stored.** (2026-10-09, Lot 3.4)
+The player page of the front shows a player's progress with four views,
+none of which needs new data. The progress on a game:
+`GET /front/players/{id}/games/{romname}` lists the personal bests of the
+player, oldest first (`scores` keeps each of them, D50), with the two scores
+to reach, the leader's and the rank just above. It takes two bests to make
+a progress: each best of the player page says how many are stored
+(`scores`), and the front draws the line for those games only. Games by rank (1st, 2nd,
+3rd, 4 to 9, 10 and more) are counted by the front from the bests it already
+has. Next targets and threats: each best of `GET /front/players/{id}` now
+says who is just above and just below, with their score (`lag` and `lead`
+over the leaderboard, in `Rankings`); the front sorts them by the smallest
+gap. The activity calendar: `activity`, the days (UTC) with at least one
+personal best. A private player, seen by its own member only, has its
+history and its activity but no rank, nobody above nor below. The charts
+are drawn by the front in SVG, without a chart library: three simple forms,
+and the look of the game screen to keep.
+
+**D70: Global podium: points for the rank, weighted by the competition, best results only.** (2026-10-09, Lot 3.5)
+A former version gave 500, 300 and 50 points to the first three of each
+game: playing many games nobody else played was enough to be first. The new
+rule, for each leaderboard a player is ranked on:
+`points = base(rank) x competition(N)`, `N` being the players ranked on it.
+`base`: 100, 80, 65, 55, 45, 38, 32, 26, 20 for the first nine, then 2 less
+per rank, 5 at least: every rank earns something, not the podium only.
+`competition`: `min(1, (N - 1) / 4)`: alone on a game, nothing; two players,
+a quarter; full points from five. Seven was the first setting: with few
+players at the start, hardly any game would have reached it, and five gives
+the same order on the scores at hand with points easier to read; under five,
+games played by two start to outweigh a contested one again. A fixed value,
+set by `HISCORES_FULL_COMPETITION_PLAYERS`, rather than one following the
+number of players: everybody's points would then move each time a player
+joins. To raise as the players come. A player's total is the sum of its 15 best
+results, one per game (its best table, so that a game with several tables
+does not count twice): beyond 15 games, a new one only counts by replacing a
+weaker result. Ties: crowns, then podiums, then the oldest best. Points are
+rounded per leaderboard, so that the total is the sum of what the player
+page shows. The values live in `config/hiscores.php` (`ranking`) and are
+sent with `GET /front/ranking`, for the front to explain the rule with the
+numbers in force. They are a first setting: `hiscores:ranking [--best=]
+[--full=]` prints the podium next to the former rule, to tune them on real
+data before they are frozen. On the scores of one real cabinet (14 players,
+21 games, 2026-10-09), the leader by the former rule, with six crowns on
+games it mostly played alone, comes second, and the leader of the only
+game with five players goes from 8th to 3rd. `GlobalRanking` works it out
+in PHP from the `Rankings` rows, on each request: a few thousand rows at
+most for now, to cache when it shows. `GET /front/players/{id}` gives the
+player's points and rank, and for each best its points and whether it is
+counted. Private players are on no leaderboard, so on no podium. Not done
+yet: the daily snapshot that would draw the points and the rank over time;
+nothing runs scheduled commands (Lot 3.6).
+
+**D71: One player per member.** (2026-10-09, Lot 3.1, supersedes D66 on the number of players)
+D66 let a member link several players, for a family sharing a Discord
+account or a player with two sets of initials. Decided otherwise: a Discord
+account is a person, and a person has one player. `member_player` gains a
+unique `member_id` next to its unique `player_id`: one player per member,
+one member per player. `POST /front/me/player` refuses a second player
+(`409 member_has_player`, told once the PIN is right, like
+`player_already_linked`): the member unlinks the first
+(`DELETE /front/me/player`) to take another. `GET /front/me` answers
+`player`, an object or null, instead of the `players` list. The routes are
+renamed with it (`me/player`, without an id to unlink): the front is the
+only reader, and nothing of Lot 3 is released yet. The rest of D66 stands:
+initials and PIN, the lock, the audit. On the front, "my players" becomes
+"my player", and the lists highlight that one player.
+
+**D72: A scheduler container runs the periodic commands; the front is deployed like the other projects.** (2026-10-09, Lot 3.6)
+Nothing ran `catalog:scrape` (D68): the containers had no scheduler. A
+`scheduler` service is added to the staging and production Compose files:
+the app's image and settings, no port, `php artisan schedule:work`, the
+storage volume shared with the app, since the commands keep their files
+there (the game pictures). In a container rather than in the host's cron:
+it is deployed, restarted and rolled back with the code, on both servers,
+with nothing to install on the host. The schedule is in `routes/console.php`,
+times in UTC: `catalog:scrape` every night at 04:15, skipped when
+ScreenScraper is not configured. The daily snapshot of the global podium
+(D70) will join it. The front (`afronob/maui-hifront`) goes to production as
+maui-repository does (D58, D59): its own container ending its TLS behind
+nginx's SNI routing, `hiscores.maui.afronob.com`, a tag sent by its
+`deploy.yml`. Its Caddy serves the built files and passes
+`/api/v1/front/*` on to `https://api.maui.afronob.com`, by the public name:
+no shared Docker network between two projects deployed apart, at the price
+of one more TLS hop on the same host. Nothing else of the API is passed on.
+Production settings on the API's side: `FRONT_URL`, the Discord application
+(its redirect URI on the front's name), the ScreenScraper credentials.
+

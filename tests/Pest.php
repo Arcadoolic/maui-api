@@ -8,6 +8,10 @@ use App\Models\Score;
 use App\Services\ClientTokenIssuer;
 use App\Services\Invitations\InvitationIssuer;
 use App\Services\Invitations\IssuedInvitation;
+use App\Services\Members\DiscordOAuth;
+use App\Services\Members\IssuedMemberInvitation;
+use App\Services\Members\MemberInvitationIssuer;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Testing\TestResponse;
 use Tests\TestCase;
 
@@ -133,4 +137,31 @@ function leaderboardScore(Game $game, Player $player, int $score, ?Client $clien
 function publicPlayer(string $pseudo3): Player
 {
     return Player::factory()->create(['pseudo_3' => $pseudo3, 'is_public' => true]);
+}
+
+/**
+ * An invitation to the hiscores front (D65).
+ *
+ * @param  array{label?: string, max_uses?: int|null, expires_at?: DateTimeInterface|null}  $attributes
+ */
+function issueMemberInvitation(array $attributes = []): IssuedMemberInvitation
+{
+    return app(MemberInvitationIssuer::class)->issue(
+        $attributes['label'] ?? 'Test invitation',
+        array_key_exists('max_uses', $attributes) ? $attributes['max_uses'] : 1,
+        $attributes['expires_at'] ?? null,
+    );
+}
+
+/**
+ * Discord answering the OAuth2 code exchange, then the profile of the account.
+ *
+ * @param  array<string, mixed>  $user
+ */
+function fakeDiscord(array $user): void
+{
+    Http::fake([
+        DiscordOAuth::TOKEN_URL => Http::response(['access_token' => 'discord-access-token', 'token_type' => 'Bearer']),
+        DiscordOAuth::USER_URL => Http::response(['global_name' => null, 'avatar' => null, ...$user]),
+    ]);
 }

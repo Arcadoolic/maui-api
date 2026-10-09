@@ -13,12 +13,12 @@ For why things are done this way, see `docs/DECISIONS.md`.
 | 0 | Foundation: Docker Compose, Laravel 13 skeleton, CI | **Done**; staging deployed (D40, `docs/DEPLOYMENT.md`), production hosting undecided |
 | 1 | MAUI authentication, machine binding, telemetry, Filament BO | **Done**: API (PR #1 to #4, follow-ups #9, #11), MAUI slices 1 to 5 (`Arcadoolic/maui` PRs #88, #92, #93, #96, #97), end-to-end checked, see `docs/MAUI-INTEGRATION.md` |
 | 2 | Hiscores: catalog, players, scores, leaderboards | **In progress**: 2.1 catalog and 2.2 players merged (not on staging yet), 2.3 scores in progress |
-| 3 | Hiscores front end | Not started |
+| 3 | Hiscores front end (`afronob/maui-hifront`) | **In progress**: 3.1 accounts done (D64 to D66, PR #55), 3.2 reading in progress (D67) |
 | Last | Anti-cheat | Not started, after Lot 3 |
 
 ## Done
 
-- Delivery plan (`docs/PLAN.md`), decisions D1 to D60 (`docs/DECISIONS.md`).
+- Delivery plan (`docs/PLAN.md`), decisions D1 to D63 (`docs/DECISIONS.md`).
 - Lot 1 OpenAPI 3.1 contract (`docs/openapi.yaml`).
 - Lot 0 skeleton:
   - Docker: FrankenPHP + PHP 8.4 image (`Dockerfile`, `docker/`), Compose
@@ -33,6 +33,77 @@ For why things are done this way, see `docs/DECISIONS.md`.
 - Releases by semantic-release on every push to `main` (D44): 0.1.0
   published on 2026-09-25.
 
+## Lot 3.6: deployment (in progress, D72)
+
+- `scheduler` container in both Compose files, `catalog:scrape` every night
+  (`routes/console.php`).
+- The front's container, Caddy configuration, CI, release and deploy
+  workflows are in `afronob/maui-hifront`.
+- To do on jumpman, by hand: DNS of `hiscores.maui.afronob.com`, nginx route,
+  the `hifront` project for `maui-deploy`, the settings above in `.env`.
+
+## Lot 3.5: global podium (in progress, D70)
+
+- `GlobalRanking`: points by rank times a competition factor, the 15 best
+  results of each player, one per game; values in `config/hiscores.php`.
+- `GET /front/ranking` (podium and its rule); `points`, `global_rank` and,
+  per best, `points` and `counted` on `GET /front/players/{id}`.
+- `hiscores:ranking [--best=] [--full=]`: the podium next to the former
+  500/300/50 rule, to tune the values on real data.
+- Not done: the daily snapshot (points and rank over time), with Lot 3.6.
+
+## Lot 3.4: player stats (in progress, D69)
+
+- `Rankings` rows say who is just above and just below.
+- `GET /front/players/{id}`: `above` and `below` on each best, `activity`
+  (days with a personal best).
+- `GET /front/players/{id}/games/{romname}`: the bests of the player on the
+  game over time, with the leader's score and the rank above.
+- Next: Lot 3.5 (global podium).
+
+## Lot 3.3: complete game pages (in progress, D68)
+
+- `game_details` and `game_media`; `ScreenScraperClient`, `GameScraper`,
+  `catalog:scrape [romname...] [--limit=50] [--force]`.
+- `GET /front/games/{romname}` gains `details` and `media`;
+  `GET /front/games/{romname}/media/{type}` serves a picture.
+- Written against faked answers: to check with real ones once
+  `SCREENSCRAPER_DEV_ID`, `SCREENSCRAPER_DEV_PASSWORD`, `SCREENSCRAPER_USER`
+  and `SCREENSCRAPER_PASSWORD` are set.
+- Nothing runs the command yet (no scheduler): by hand until Lot 3.6.
+
+## Lot 3.2: front reading (in progress, D67)
+
+- `Rankings`: every shared leaderboard in one query, rank and number of
+  ranked players on each row.
+- `GET /front/games` (filters, sorts, pages), `GET /front/games/filters`,
+  `GET /front/games/{romname}` (whole leaderboards, stats, latest events).
+- `GET /front/players`, `GET /front/players/{id}` (bests with their rank; a
+  member's own private player without ranks), `GET /front/players/{id}/avatar`.
+- `GET /front/events` (history, latest first, `before` cursor).
+- Next: Lot 3.3 (ScreenScraper, MAME fields).
+
+## Lot 3.1: front members (in progress, D64, D65, D66)
+
+- Lot 3 is detailed in `docs/PLAN.md` (3.1 to 3.6).
+- `members` (Discord accounts), `member_invitations`, `member_player`;
+  session guard `member`, routes under `/api/v1/front` (group `front`:
+  cookies, session, `Origin` check).
+- Discord login without a package (`DiscordOAuth`): `GET /front/auth/discord`
+  and its callback, which always redirect to the front; `MemberAccess`
+  decides who enters (a member comes back freely, a new account needs a
+  usable invitation).
+- `GET /front/invitations/{token}`, `GET /front/me`, `POST /front/logout`,
+  `POST /front/me/player` (initials + PIN, same lock as on a cabinet, one
+  player per member, D71), `DELETE /front/me/player`.
+- Back office: "Front invitations" (create, link shown once, revoke) and
+  "Front members" (players, invitation, disable, enable), audited.
+- To set on a server: `FRONT_URL`, `FRONT_DISCORD_CLIENT_ID`,
+  `FRONT_DISCORD_CLIENT_SECRET`, and the redirect URI
+  `<FRONT_URL>/api/v1/front/auth/discord/callback` in the Discord
+  application.
+- Next: the front's skeleton (`maui-hifront`), then Lot 3.2 (reading).
+
 ## Follow-up of Lot 2.2: PIN issued by the origin cabinet only (D54)
 
 - `players.origin_client_id` (creation; oldest link for existing players),
@@ -46,6 +117,21 @@ For why things are done this way, see `docs/DECISIONS.md`.
 - `403 not_origin_cabinet` on `POST /players/{id}/avatar` from a cabinet the
   player was only linked to; `GET /players/{id}/avatar` also serves a
   private player to the cabinets it is linked to.
+
+## Scores declared on the cabinet (D61)
+
+- `POST /scores` takes an optional `attribution` (`initials`, `declared`),
+  stored in `scores.attribution`; column and filter in the back office.
+- For the games that write no name next to their scores: MAUI asks who made
+  the score when the game is quit.
+
+## Client deletion in the back office (D63)
+
+- "Delete" on the client page: the client, its tokens, invitations,
+  startups, player links and scores (events cascade), in one transaction;
+  players kept, only unlinked. Confirmation by typing the client name, after
+  a summary of what goes. Recorded as `client.deleted` in the kept audit
+  trail. Supersedes D31.
 
 ## Score events for the Discord bot (D60)
 
@@ -209,7 +295,7 @@ For why things are done this way, see `docs/DECISIONS.md`.
 - `ClientResource`: list (type, status, online, last seen, versions),
   create (generated name), edit (type locked), view with actions: invite,
   renew, issue / replace service token, reset machine binding, disable,
-  enable. No delete (D31). Secrets shown once in a chained modal (D34).
+  enable. No delete (D31, superseded by D63). Secrets shown once in a chained modal (D34).
 - Relation managers: startup history, audit log (D33).
 - `ClientAdministration` service with audit entries; `LogsActivity` on
   `Client`.
@@ -290,7 +376,7 @@ Tracked in `docs/PLAN.md`, section "Open questions".
 | Check | Expected |
 |-------|----------|
 | `just up` then `/up` | 200 |
-| `just ci` | Pint pass, PHPStan no errors, Pest 501 passed |
+| `just ci` | Pint pass, PHPStan no errors, Pest 522 passed |
 | `curl -sD - -o /dev/null http://localhost:8080/invite/<48 chars>` | `Referrer-Policy: no-referrer`, `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff` |
 | `docker run --rm -v "$PWD/docs:/spec" redocly/cli lint /spec/openapi.yaml` | valid, 7 known warnings (no license, localhost server, unused `MauiConfiguration`, no 2xx on the 303-only `/invite/{t}/name`) |
 | `docker run --rm -v "$PWD":/repo -w /repo rhysd/actionlint:latest .github/workflows/ci.yml` | no output |

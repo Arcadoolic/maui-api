@@ -2,6 +2,7 @@
 
 namespace App\Services\Scores;
 
+use App\Enums\ScoreAttribution;
 use App\Models\Score;
 use Illuminate\Support\Carbon;
 
@@ -17,6 +18,7 @@ final readonly class ScoreData
         public ?int $rankOnCabinet,
         public Carbon $achievedAt,
         public ?string $startupId,
+        public ScoreAttribution $attribution,
     ) {}
 
     /**
@@ -33,6 +35,7 @@ final readonly class ScoreData
             rankOnCabinet: isset($score['rank_on_cabinet']) ? (int) $score['rank_on_cabinet'] : null,
             achievedAt: Carbon::parse((string) $score['achieved_at']),
             startupId: isset($score['startup_id']) ? strtolower((string) $score['startup_id']) : null,
+            attribution: isset($score['attribution']) ? ScoreAttribution::from((string) $score['attribution']) : ScoreAttribution::Initials,
         );
     }
 }

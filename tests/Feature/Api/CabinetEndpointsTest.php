@@ -19,6 +19,7 @@ describe('GET /ping', function () {
                     'newly_bound' => true,
                 ],
                 'server_time' => now()->toIso8601ZuluString(),
+                'environment' => 'testing',
             ]);
     });
 });
@@ -45,6 +46,15 @@ describe('POST /startups', function () {
             ->and($startup->mame_version)->toBe('0.272')
             ->and($startup->os)->toBe('linux')
             ->and($startup->client_datetime->toIso8601ZuluString())->toBe('2026-09-23T18:15:00Z');
+    });
+
+    it('tells the cabinet its name and the server\'s environment', function () use ($validStartup) {
+        [$client, $token] = cabinetWithToken(['name' => 'marvelous_mario']);
+
+        $this->postJson('/api/v1/startups', $validStartup(), cabinetHeaders($client, $token))
+            ->assertCreated()
+            ->assertJsonPath('client', ['name' => 'marvelous_mario'])
+            ->assertJsonPath('environment', 'testing');
     });
 
     it('counts as a heartbeat', function () use ($validStartup) {

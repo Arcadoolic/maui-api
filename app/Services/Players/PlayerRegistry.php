@@ -4,14 +4,17 @@ namespace App\Services\Players;
 
 use App\Http\Problems\ApiProblemException;
 use App\Models\Client;
+use App\Models\Member;
 use App\Models\Player;
+use Closure;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Facades\DB;
 
 /**
  * Players as cabinets see them: initials reserved fleet-wide, linked to a
  * cabinet at creation or with the PIN (docs/DECISIONS.md D48). Every change
- * is recorded in the audit log with the cabinet as causer; PINs never are.
+ * is recorded in the audit log with the cabinet as causer (the member, when
+ * it comes from the hiscores front); PINs never are.
  */
 final class PlayerRegistry
 {
@@ -64,8 +67,50 @@ final class PlayerRegistry
      */
     public function link(Client $client, string $pseudo3, string $pin): Player
     {
+        return $this->linkWithPin($client, $pseudo3, $pin, 'player.linked', function (Player $player) use ($client): string {
+            $player->clients()->syncWithoutDetaching([$client->id => ['linked_at' => now()]]);
+
+            return 'linked';
+        });
+    }
+
+    /**
+     * Links an existing player to a member of the hiscores front, with the
+     * same PIN and the same lock as on a cabinet (D66). One player per member
+     * and one member per player (D71): the PIN is checked first, so that only
+     * its holder learns the player is taken.
+     */
+    public function linkMember(Member $member, string $pseudo3, string $pin): Player
+    {
+        return $this->linkWithPin($member, $pseudo3, $pin, 'player.member_linked', function (Player $player) use ($member): string {
+            $holder = $player->members()->first();
+            if ($holder !== null) {
+                return $holder->is($member) ? 'linked' : 'taken';
+            }
+            // Locked with the player's row: two requests of the member cannot both pass.
+            if (Member::query()->whereKey($member->id)->lockForUpdate()->firstOrFail()->players()->exists()) {
+                return 'member_has_player';
+            }
+            $player->members()->attach($member, ['linked_at' => now()]);
+
+            return 'linked';
+        });
+    }
+
+    /** The player stays as it is on its cabinets. */
+    public function unlinkMember(Member $member, Player $player): void
+    {
+        $player->members()->detach($member);
+        $this->audit($player, $member, 'player.member_unlinked');
+    }
+
+    /**
+     * @param  Closure(Player): string  $attach  Links the player once the PIN is right: `linked`, or why it cannot be.
+     */
+    private function linkWithPin(Client|Member $causer, string $pseudo3, string $pin, string $event, Closure $attach): Player
+    {
         // The failure count must be committed before the error is thrown.
-        [$player, $outcome] = DB::transaction(function () use ($client, $pseudo3, $pin): array {
+        [$player, $outcome] = DB::transaction(function () use ($pseudo3, $pin, $attach): array {
             $player = Player::query()->where('pseudo_3', $pseudo3)->lockForUpdate()->first();
 
             if ($player === null) {
@@ -88,16 +133,15 @@ final class PlayerRegistry
             }
 
             $player->forceFill(['pin_failed_attempts' => 0])->save();
-            $player->clients()->syncWithoutDetaching([$client->id => ['linked_at' => now()]]);
 
-            return [$player, 'linked'];
+            return [$player, $attach($player)];
         });
 
         if ($outcome === 'now_locked' && $player instanceof Player) {
-            $this->audit($player, $client, 'player.locked');
+            $this->audit($player, $causer, 'player.locked');
         }
         if ($outcome === 'linked' && $player instanceof Player) {
-            $this->audit($player, $client, 'player.linked');
+            $this->audit($player, $causer, $event);
         }
 
         return match ($outcome) {
@@ -105,6 +149,8 @@ final class PlayerRegistry
             'disabled' => throw ApiProblemException::playerDisabled(),
             'locked', 'now_locked' => throw ApiProblemException::playerLocked(),
             'pin_invalid' => throw ApiProblemException::pinInvalid(Player::MAX_PIN_ATTEMPTS - ($player->pin_failed_attempts ?? 0)),
+            'taken' => throw ApiProblemException::playerAlreadyLinked(),
+            'member_has_player' => throw ApiProblemException::memberHasPlayer(),
             default => $player ?? throw ApiProblemException::playerNotFound(),
         };
     }
@@ -154,13 +200,15 @@ final class PlayerRegistry
     /**
      * @param  array<string, mixed>  $properties  Never put a PIN here.
      */
-    private function audit(Player $player, Client $client, string $event, array $properties = []): void
+    private function audit(Player $player, Client|Member $causer, string $event, array $properties = []): void
     {
+        $by = $causer instanceof Client ? ['client' => $causer->name] : ['member' => $causer->username];
+
         activity(self::LOG_NAME)
             ->performedOn($player)
-            ->causedBy($client)
+            ->causedBy($causer)
             ->event($event)
-            ->withProperties(['client' => $client->name, ...$properties])
+            ->withProperties([...$by, ...$properties])
             ->log($event);
     }
 }

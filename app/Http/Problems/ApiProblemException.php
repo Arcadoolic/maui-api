@@ -56,6 +56,16 @@ final class ApiProblemException extends RuntimeException
         return new self(Response::HTTP_NOT_FOUND, 'player_not_found');
     }
 
+    public static function gameNotFound(): self
+    {
+        return new self(Response::HTTP_NOT_FOUND, 'game_not_found');
+    }
+
+    public static function mediaNotFound(): self
+    {
+        return new self(Response::HTTP_NOT_FOUND, 'media_not_found', 'This game has no such picture.');
+    }
+
     public static function avatarNotFound(): self
     {
         return new self(Response::HTTP_NOT_FOUND, 'avatar_not_found', 'This player has no avatar.');
@@ -90,5 +100,30 @@ final class ApiProblemException extends RuntimeException
     public static function pinInvalid(int $attemptsLeft): self
     {
         return new self(Response::HTTP_FORBIDDEN, 'pin_invalid', extra: ['attempts_left' => $attemptsLeft]);
+    }
+
+    public static function originNotAllowed(): self
+    {
+        return new self(Response::HTTP_FORBIDDEN, 'origin_not_allowed', 'This request does not come from the hiscores front.');
+    }
+
+    public static function memberDisabled(): self
+    {
+        return new self(Response::HTTP_FORBIDDEN, 'member_disabled', 'This member has been disabled by an administrator.');
+    }
+
+    public static function invitationUnavailable(): self
+    {
+        return new self(Response::HTTP_NOT_FOUND, 'invitation_unavailable', 'This invitation does not exist or can no longer be used.');
+    }
+
+    public static function playerAlreadyLinked(): self
+    {
+        return new self(Response::HTTP_CONFLICT, 'player_already_linked', 'This player is linked to another member.');
+    }
+
+    public static function memberHasPlayer(): self
+    {
+        return new self(Response::HTTP_CONFLICT, 'member_has_player', 'This member already has a player: unlink it first.');
     }
 }

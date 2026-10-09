@@ -3,11 +3,13 @@
 use App\Enums\ClientStatus;
 use App\Enums\ClientType;
 use App\Enums\InvitationPurpose;
+use App\Filament\Resources\Clients\ClientResource;
 use App\Filament\Resources\Clients\Pages\CreateClient;
 use App\Filament\Resources\Clients\Pages\ListClients;
 use App\Filament\Resources\Clients\Pages\ViewClient;
 use App\Filament\Resources\Clients\RelationManagers\StartupsRelationManager;
 use App\Models\Client;
+use App\Models\Score;
 use App\Models\User;
 
 use function Pest\Livewire\livewire;
@@ -182,6 +184,43 @@ describe('cabinet actions', function () {
     it('does not offer a service token to a cabinet', function () {
         livewire(ViewClient::class, ['record' => Client::factory()->create()->getRouteKey()])
             ->assertActionHidden('issueServiceToken');
+    });
+});
+
+describe('deletion (D63)', function () {
+    it('deletes a client once its name is typed, then goes back to the list', function () {
+        $client = Client::factory()->create(['name' => 'glitchy_pac_man']);
+        Score::factory()->for($client)->create();
+
+        livewire(ViewClient::class, ['record' => $client->getRouteKey()])
+            ->callAction('delete', data: ['name_confirmation' => 'glitchy_pac_man'])
+            ->assertHasNoActionErrors()
+            ->assertRedirect(ClientResource::getUrl('index'));
+
+        expect(Client::query()->find($client->id))->toBeNull()
+            ->and(Score::query()->count())->toBe(0);
+    });
+
+    it('refuses to delete when the typed name does not match', function (?string $typed, string $rule) {
+        $client = Client::factory()->create(['name' => 'glitchy_pac_man']);
+
+        livewire(ViewClient::class, ['record' => $client->getRouteKey()])
+            ->callAction('delete', data: ['name_confirmation' => $typed])
+            ->assertHasActionErrors(['name_confirmation' => $rule]);
+
+        expect(Client::query()->find($client->id))->not->toBeNull();
+    })->with([
+        'missing' => [null, 'required'],
+        'another name' => ['laggy_ryu', 'in'],
+    ]);
+
+    it('tells what will be deleted before asking for confirmation', function () {
+        $client = Client::factory()->create();
+        Score::factory()->count(3)->for($client)->create();
+
+        livewire(ViewClient::class, ['record' => $client->getRouteKey()])
+            ->mountAction('delete')
+            ->assertMountedActionModalSee('3 scores');
     });
 });
 

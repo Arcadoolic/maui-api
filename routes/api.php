@@ -10,6 +10,13 @@ use App\Http\Controllers\Api\RepositoryController;
 use App\Http\Controllers\Api\ScoreEventsController;
 use App\Http\Controllers\Api\ScoresController;
 use App\Http\Controllers\Api\StartupController;
+use App\Http\Controllers\Front\AuthController;
+use App\Http\Controllers\Front\EventsController;
+use App\Http\Controllers\Front\GamesController;
+use App\Http\Controllers\Front\MeController;
+use App\Http\Controllers\Front\PlayersController as FrontPlayersController;
+use App\Http\Controllers\Front\RankingController;
+use App\Services\Members\MemberInvitationIssuer;
 use Illuminate\Support\Facades\Route;
 
 // MAUI machine API, served under /api/v1 (see bootstrap/app.php).
@@ -72,4 +79,37 @@ Route::middleware('repository')->group(function () {
 // Service accounts: game catalog pushed by maui-repository (docs/DECISIONS.md D47).
 Route::middleware(['throttle:service', 'service:catalog:write'])->group(function () {
     Route::put('catalog/games', CatalogGamesController::class);
+});
+
+// Hiscores front (maui-hifront): members logged in with Discord, a session
+// instead of a token (docs/DECISIONS.md D64). Reached through the front's own
+// server, never from another origin.
+Route::prefix('front')->middleware('front')->group(function () {
+    Route::middleware('throttle:front-auth')->group(function () {
+        Route::get('auth/discord', [AuthController::class, 'redirect']);
+        Route::get('auth/discord/callback', [AuthController::class, 'callback']);
+        Route::get('invitations/{token}', [AuthController::class, 'invitation'])
+            ->where('token', '[A-Za-z0-9]{'.MemberInvitationIssuer::TOKEN_LENGTH.'}');
+    });
+
+    Route::middleware(['member', 'throttle:front'])->group(function () {
+        Route::get('me', [MeController::class, 'show']);
+        Route::post('logout', [AuthController::class, 'logout']);
+        // The player of the member, linked with initials + PIN (docs/DECISIONS.md D66, D71).
+        Route::post('me/player', [MeController::class, 'linkPlayer'])->middleware('throttle:front-player-link');
+        Route::delete('me/player', [MeController::class, 'unlinkPlayer']);
+
+        // Reading: games, players and the event feed (docs/DECISIONS.md D67).
+        Route::get('games', [GamesController::class, 'index']);
+        Route::get('games/filters', [GamesController::class, 'filters']);
+        Route::get('games/{romname}', [GamesController::class, 'show']);
+        Route::get('games/{romname}/media/{type}', [GamesController::class, 'media']);
+        Route::get('players', [FrontPlayersController::class, 'index']);
+        Route::get('players/{player}', [FrontPlayersController::class, 'show']);
+        Route::get('players/{player}/avatar', [FrontPlayersController::class, 'avatar']);
+        Route::get('players/{player}/games/{romname}', [FrontPlayersController::class, 'history']);
+        Route::get('events', [EventsController::class, 'index']);
+        // The global podium (docs/DECISIONS.md D70).
+        Route::get('ranking', RankingController::class);
+    });
 });

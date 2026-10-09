@@ -196,7 +196,85 @@ Any token holder can submit an arbitrary score. Accepted risk, mitigated by mode
 
 ## Lot 3: Hiscores front end
 
-Consumes the Lot 2 read endpoints. Public read-only endpoints with HTTP caching are enough.
+A site where players follow their progress and the others': game pages
+(podium, leaderboard, game information), player pages (stats and charts), a
+global podium. A Vue 3 SPA in its own repository, `afronob/maui-hifront`;
+everything is behind a Discord login, on invitation (D64, D65). The look
+takes after the Puck Man game screen, kept readable: black background,
+maze-blue frames, ghost colours, a pixel font for titles and scores only.
+
+### 3.1 Accounts (D64, D65, D66)
+
+- `members`, `member_invitations`, `member_player`; guard `member`.
+- Discord login: `GET /front/auth/discord`, `.../callback`,
+  `GET /front/invitations/{token}`, `GET /front/me`, `POST /front/logout`.
+- The player of the member, one at most (D71): `POST /front/me/player`
+  (initials + PIN), `DELETE /front/me/player`.
+- Back office: front invitations (create, link shown once, revoke), front
+  members (disable, enable).
+- Front: skeleton, design tokens and base components, login, invitation
+  page, "my player".
+
+### 3.2 Reading
+
+- `GET /front/games` (paginated; filters: text, catver genre and subgenre,
+  manufacturer, year, number of players, with scores, played by me, where I
+  am not ranked; sorts: name, year, ranked players, latest activity),
+  `GET /front/games/{romname}` (catalog, clones, whole leaderboard of each
+  table, not the top 9 only, game stats, latest events).
+- `GET /front/players`, `GET /front/players/{id}` (bests with their rank),
+  `GET /front/events` (cursor, as `GET /bot/events`), avatars.
+- Visibility: public and active players only, as on the shared leaderboards
+  (D52); a member also sees its own player when it is private.
+- Front: game list and page, player list and page, event feed.
+
+### 3.3 Complete game pages
+
+- ScreenScraper, on the API side (D68: one place, one quota):
+  `catalog:scrape`, a few games at a time, rate limited, games with scores
+  first. Synopsis (French, English), developer, publisher, rating, genres,
+  players, screen rotation, resolution, controls; pictures: in-game
+  screenshot, title screen, logo, marquee, flyer, on the `local` disk like
+  the avatars, kept as downloaded.
+- Not from MAME through `push-catalog`, as first planned: the pack
+  manifests do not hold the screen and controls, ScreenScraper does.
+- Worked out by the API: ranked players, first and latest best (3.2); later,
+  length of the current reign, cabinets the game is played on.
+- To do with the deployment (3.6): run the command every day.
+
+### 3.4 Player stats
+
+Charts, most useful first: best score over time on a game (a step per
+personal best, `scores` keeps them all, D50), with the leader's score and
+the next rank as references; games by rank (1st, 2nd, 3rd, 4 to 9, 10 and
+more); next targets (smallest gap to the rank above) and threats; activity
+calendar; then rank over time on a game (from `score_events`, D60),
+points by genre, head-to-head of two players.
+
+### 3.5 Global podium
+
+The former rule (500, 300, 50 points for the first three of each game)
+rewarded playing many games nobody else played. New rule, to be tuned on
+real data before it is frozen:
+
+```
+points(game) = base(rank) x competition(N)     N = players ranked on the game
+base         : 100, 80, 65, 55, 45, 38, 32, 26, 20, then -2 per rank, 5 at least
+competition  : min(1, (N - 1) / 4)             alone = 0, 5 players and more = 1
+total        = sum of the player's 15 best points(game)
+```
+
+Only the best table of a game counts. Ties: crowns, then podiums, then the
+oldest best. Values in `config/hiscores.php`; an artisan command prints the
+ranking next to the former rule, for the tuning; the player page lists the
+games that count and a "Rules" page explains the formula. A daily snapshot
+gives the points and rank over time.
+
+### 3.6 Deployment
+
+The front's container (static files, and the proxy of `/api/v1/front/*`),
+an Ansible role in `infra/`, staging then production. Server variables:
+`FRONT_URL`, the Discord application, the ScreenScraper credentials.
 
 ## Last lot: anti-cheat
 

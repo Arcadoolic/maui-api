@@ -8,6 +8,7 @@ use App\Models\User;
 use App\Services\Invitations\InvitationIssuer;
 use App\Services\Invitations\IssuedInvitation;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use InvalidArgumentException;
 
 /**
@@ -66,6 +67,31 @@ final class ClientAdministration
         $this->audit($client, 'client.service_token_issued');
 
         return $token;
+    }
+
+    /**
+     * Deletes the client and everything attached to it: scores (their events
+     * cascade), tokens, invitations, startups, player links (D63). Players are
+     * kept, only unlinked. The audit trail is kept and the deletion recorded.
+     */
+    public function delete(Client $client): void
+    {
+        DB::transaction(function () use ($client): void {
+            $properties = [
+                'name' => $client->name,
+                'type' => $client->type->value,
+                'scores' => $client->scores()->count(),
+                'players' => $client->players()->count(),
+            ];
+
+            // scores.client_id restricts the delete: scores go first.
+            $client->scores()->delete();
+            $client->tokens()->delete();
+            // The explicit event below replaces the automatic "deleted" entry.
+            $client->disableLogging()->delete();
+
+            $this->audit($client, 'client.deleted', $properties);
+        });
     }
 
     private function issueInvitation(Client $client, InvitationPurpose $purpose, string $event): IssuedInvitation

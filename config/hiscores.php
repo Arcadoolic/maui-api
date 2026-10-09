@@ -33,4 +33,22 @@ return [
         'games' => [10, 25, 50, 100],
     ],
 
+    /*
+    | The global podium of the hiscores front (docs/DECISIONS.md D70). A
+    | leaderboard gives base points for the rank, times a competition factor:
+    | min(1, (ranked players - 1) / (full_competition_players - 1)). Alone on
+    | a game: nothing. A player's total is the sum of its best results.
+    */
+    'ranking' => [
+        // Points of the first ranks; then `step` less per rank, `floor` at least.
+        'base' => [100, 80, 65, 55, 45, 38, 32, 26, 20],
+        'step' => 2,
+        'floor' => 5,
+        // Ranked players from which a leaderboard gives its full points. Low
+        // while the players are few: to raise as they come.
+        'full_competition_players' => (int) env('HISCORES_FULL_COMPETITION_PLAYERS', 5),
+        // Results counted per player: one per game, the best ones.
+        'best_results' => 15,
+    ],
+
 ];

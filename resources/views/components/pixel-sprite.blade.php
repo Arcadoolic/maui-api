@@ -1,0 +1,1 @@
+<svg {{ $attributes->merge(['class' => 'frame']) }} viewBox="0 0 {{ $width }} {{ $height }}" shape-rendering="crispEdges" aria-hidden="true">@foreach ($runs as $run)<rect x="{{ $run['x'] }}" y="{{ $run['y'] }}" width="{{ $run['width'] }}" height="1" class="{{ $run['class'] }}"/>@endforeach</svg>
