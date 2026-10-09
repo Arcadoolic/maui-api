@@ -5,9 +5,18 @@
         <meta name="viewport" content="width=device-width, initial-scale=1">
         <title>{{ config('app.name', 'MAUI API') }}</title>
         <style>
+            /* Self-hosted (SIL OFL 1.1, see public/fonts/pixelify-sans/OFL.txt): no request to Google. */
+            @font-face {
+                font-family: "Pixelify Sans";
+                font-style: normal;
+                font-weight: 400;
+                font-display: swap;
+                src: url('/fonts/pixelify-sans/pixelify-sans-latin.woff2') format("woff2");
+            }
+
             :root {
                 --size: 48px;
-                --duration: 6s;
+                --duration: 7.5s; /* 6s run across, 1.5s refill delay: see the keyframes */
                 --gap: 72px;
                 --bg: #000;
                 --maze: #2121de;
@@ -24,18 +33,11 @@
                 place-items: center;
                 background: var(--bg);
                 color: #fff;
-                font-family: ui-monospace, "Courier New", monospace;
+                font-family: "Pixelify Sans", ui-monospace, "Courier New", monospace;
                 overflow: hidden;
             }
 
             main { width: 100%; text-align: center; }
-
-            h1 {
-                color: var(--pacman);
-                font-size: clamp(1.5rem, 6vw, 3rem);
-                letter-spacing: .3em;
-                margin-bottom: 3rem;
-            }
 
             .corridor {
                 position: relative;
@@ -43,12 +45,25 @@
                 border-block: 4px double var(--maze);
             }
 
-            .pellets {
+            .pellets,
+            .refill {
                 position: absolute;
                 inset: 0;
                 background: radial-gradient(circle, var(--pellet) 4px, transparent 5px) 0 50% / 32px 100% repeat-x;
+            }
+
+            /* Covers every pellet left of Pac-Man's mouth. */
+            .eaten {
+                position: absolute;
+                inset-block: 0;
+                width: 300vw;
+                transform: translateX(-100%);
+                background: var(--bg);
                 animation: eat var(--duration) linear infinite;
             }
+
+            /* Puts the pellets back up to where the ghost's centre was 1.5s ago. */
+            .refill { animation: refill var(--duration) linear infinite; }
 
             .runner {
                 position: absolute;
@@ -130,20 +145,28 @@
                 animation: blink 1s steps(1) infinite;
             }
 
+            /* Runners cross the screen in the first 80% of the cycle (6s of 7.5s),
+               "refill" trails the ghost by the last 20% (1.5s). Change both together. */
             @keyframes run {
                 from { left: calc(-1 * var(--size)); }
-                to { left: calc(100% + var(--gap) + var(--size)); }
+                80%, to { left: calc(100% + var(--gap) + var(--size)); }
             }
 
             @keyframes chase {
                 from { left: calc(-1 * var(--size) - var(--gap)); }
-                to { left: calc(100% + var(--size)); }
+                80%, to { left: calc(100% + var(--size)); }
             }
 
-            /* Pellets vanish right behind Pac-Man's mouth, in step with "run". */
+            /* Pac-Man's centre (run + size / 2). */
             @keyframes eat {
-                from { clip-path: inset(0 0 0 calc(-0.5 * var(--size))); }
-                to { clip-path: inset(0 0 0 calc(100% + var(--gap) + 1.5 * var(--size))); }
+                from { left: calc(-0.5 * var(--size)); }
+                80%, to { left: calc(100% + var(--gap) + 1.5 * var(--size)); }
+            }
+
+            /* Ghost's centre (chase + size / 2), 20% late; the right inset is 100% minus it. */
+            @keyframes refill {
+                from, 20% { clip-path: inset(0 calc(100% + var(--gap) + 0.5 * var(--size)) 0 0); }
+                to { clip-path: inset(0 calc(-1.5 * var(--size)) 0 0); }
             }
 
             @keyframes chomp-top {
@@ -167,6 +190,7 @@
 
             @media (prefers-reduced-motion: reduce) {
                 *, *::before, *::after { animation: none !important; }
+                .eaten, .refill { display: none; }
                 .pacman { left: calc(50% + var(--gap) / 2); }
                 .ghost { left: calc(50% - var(--gap) / 2 - var(--size)); }
             }
@@ -174,9 +198,10 @@
     </head>
     <body>
         <main>
-            <h1>MAUI</h1>
             <div class="corridor" aria-hidden="true">
                 <div class="pellets"></div>
+                <div class="eaten"></div>
+                <div class="refill"></div>
                 <div class="runner ghost"><span class="eye left"></span><span class="eye right"></span></div>
                 <div class="runner pacman"></div>
             </div>
