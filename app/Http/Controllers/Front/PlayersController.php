@@ -8,8 +8,10 @@ use App\Models\Game;
 use App\Models\Member;
 use App\Models\Player;
 use App\Models\Score;
+use App\Services\Leaderboards\Leaderboards;
 use App\Services\Leaderboards\Rankings;
 use App\Services\Players\PlayerAvatars;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
@@ -63,6 +65,13 @@ final class PlayersController
                 ->toBase()->get();
         }
         $games = Game::query()->whereIn('id', $rows->pluck('game_id'))->get()->keyBy('id');
+        $neighbours = Player::query()
+            ->whereIn('id', $rows->pluck('above_player_id')->merge($rows->pluck('below_player_id'))->filter()->unique())
+            ->get()->keyBy('id');
+        $neighbour = fn (object $row, string $side): ?array => ($row->{$side.'_player_id'} ?? null) === null ? null : [
+            'player' => GamesController::player($neighbours->get($row->{$side.'_player_id'})),
+            'score' => (int) $row->{$side.'_score'},
+        ];
 
         return new JsonResponse([
             'player' => [
@@ -90,8 +99,71 @@ final class PlayersController
                     'rank' => isset($row->rank) ? (int) $row->rank : null,
                     'players' => isset($row->players) ? (int) $row->players : null,
                     'achieved_at' => GamesController::iso($row->achieved_at),
+                    // The next rank to take, and who is closest behind: null at either end.
+                    'above' => $neighbour($row, 'above'),
+                    'below' => $neighbour($row, 'below'),
                 ])->all(),
+            // Days (UTC) with at least one personal best, oldest first.
+            'activity' => $this->ownScores($found)
+                ->selectRaw("to_char(scores.achieved_at at time zone 'UTC', 'YYYY-MM-DD') as day, count(*) as bests")
+                ->groupBy('day')->orderBy('day')->toBase()->get()
+                ->map(fn (object $row): array => ['date' => (string) $row->day, 'bests' => (int) $row->bests])->all(),
         ]);
+    }
+
+    /**
+     * The personal bests of a player on a game, oldest first: each one beat
+     * the previous (D50). With the scores to reach: the leader's, and the
+     * rank above the player's.
+     */
+    public function history(Request $request, string $player, string $romname): JsonResponse
+    {
+        $found = $this->shownPlayer(AuthenticateMember::member($request), $player);
+        $table = $request->validate(['table' => ['sometimes', 'string', 'regex:/^[a-z0-9_]{1,32}$/']])['table'] ?? Score::DEFAULT_TABLE;
+        $game = preg_match('/^[a-z0-9_]{1,32}$/', $romname) === 1 ? Game::query()->where('romname', $romname)->first() : null;
+        if ($game === null) {
+            throw ApiProblemException::gameNotFound();
+        }
+
+        $history = $this->ownScores($found)
+            ->where('scores.game_id', $game->id)->where('scores.table', $table)
+            ->orderBy('scores.achieved_at')->orderBy('scores.score')
+            ->get(['scores.*']);
+        $board = $this->rankings->rows()->where('ranked.game_id', $game->id)->where('ranked.table', $table);
+        $own = (clone $board)->where('ranked.player_id', $found->id)->first();
+        $leader = (clone $board)->where('ranked.rank', 1)->first();
+        $players = Player::query()->whereIn('id', array_filter([$leader->player_id ?? null, $own->above_player_id ?? null]))->get()->keyBy('id');
+
+        return new JsonResponse([
+            'game' => ['romname' => $game->romname, 'description' => $game->description],
+            'table' => $table,
+            'rank' => $own === null ? null : (int) $own->rank,
+            'players' => $own === null ? null : (int) $own->players,
+            'history' => $history->map(fn (Score $score): array => [
+                'score' => $score->score,
+                'achieved_at' => $score->achieved_at->toIso8601String(),
+            ])->all(),
+            'leader' => $leader === null ? null : [
+                'player' => GamesController::player($players->get($leader->player_id)),
+                'score' => (int) $leader->score,
+            ],
+            'above' => $own === null || $own->above_player_id === null ? null : [
+                'player' => GamesController::player($players->get($own->above_player_id)),
+                'score' => (int) $own->above_score,
+            ],
+        ]);
+    }
+
+    /**
+     * Scores of a player the member may see: the visible ones, or, for a
+     * private player (the member's own), those not hidden.
+     *
+     * @return Builder<Score>
+     */
+    private function ownScores(Player $player): Builder
+    {
+        return ($player->is_public ? Leaderboards::visibleScores() : Score::query()->visible())
+            ->where('scores.player_id', $player->id);
     }
 
     /** The PNG of a player the member may see, with its hash as ETag (D53). */

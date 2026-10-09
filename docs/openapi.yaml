@@ -1522,6 +1522,47 @@ paths:
         '500':
           $ref: '#/components/responses/ServerError'
 
+  /front/players/{playerId}/games/{romname}:
+    parameters:
+      - $ref: '#/components/parameters/PlayerId'
+      - name: romname
+        in: path
+        required: true
+        schema: {type: string, pattern: '^[a-z0-9_]{1,32}$'}
+    get:
+      tags: [Front]
+      operationId: frontPlayerGameHistory
+      summary: The progress of a player on a game
+      description: |
+        Each personal best of the player on the game, oldest first (D50
+        keeps them all), with the scores to reach: the leader's and the rank
+        just above (D69).
+      security:
+        - frontSession: []
+      parameters:
+        - $ref: '#/components/parameters/ScoreTable'
+      responses:
+        '200':
+          description: The history.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FrontPlayerGameHistoryResponse'
+        '404':
+          description: Unknown or hidden player (`player_not_found`), or unknown game (`game_not_found`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/FrontForbidden'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
   /front/events:
     get:
       tags: [Front]
@@ -2697,8 +2738,17 @@ components:
 
     FrontPlayerPageResponse:
       type: object
-      required: [player, stats, bests]
+      required: [player, stats, bests, activity]
       properties:
+        activity:
+          type: array
+          description: Days (UTC) with at least one personal best, oldest first.
+          items:
+            type: object
+            required: [date, bests]
+            properties:
+              date: {type: string, format: date}
+              bests: {type: integer}
         player:
           allOf:
             - $ref: '#/components/schemas/FrontPlayerRef'
@@ -2714,8 +2764,18 @@ components:
           description: The best of the player on each game and table, by game name.
           items:
             type: object
-            required: [game, table, score, rank, players, achieved_at]
+            required: [game, table, score, rank, players, achieved_at, above, below]
             properties:
+              above:
+                description: The rank just above, null for the leader and for a private player.
+                oneOf:
+                  - type: 'null'
+                  - $ref: '#/components/schemas/FrontScoreToReach'
+              below:
+                description: The rank just below, null for the last and for a private player.
+                oneOf:
+                  - type: 'null'
+                  - $ref: '#/components/schemas/FrontScoreToReach'
               game:
                 $ref: '#/components/schemas/FrontGameRef'
               table: {type: string}
@@ -2723,6 +2783,43 @@ components:
               rank: {type: [integer, 'null'], description: Null for a private player.}
               players: {type: [integer, 'null'], description: 'Players ranked on this leaderboard, null for a private player.'}
               achieved_at: {type: string, format: date-time}
+
+    FrontScoreToReach:
+      type: object
+      required: [player, score]
+      properties:
+        player:
+          $ref: '#/components/schemas/FrontPlayerRef'
+        score: {type: integer}
+
+    FrontPlayerGameHistoryResponse:
+      type: object
+      required: [game, table, rank, players, history, leader, above]
+      properties:
+        game:
+          $ref: '#/components/schemas/FrontGameRef'
+        table: {type: string}
+        rank: {type: [integer, 'null'], description: Null for a private player.}
+        players: {type: [integer, 'null']}
+        history:
+          type: array
+          description: The personal bests of the player on the game, oldest first.
+          items:
+            type: object
+            required: [score, achieved_at]
+            properties:
+              score: {type: integer}
+              achieved_at: {type: string, format: date-time}
+        leader:
+          description: First of the leaderboard, null without a visible score.
+          oneOf:
+            - type: 'null'
+            - $ref: '#/components/schemas/FrontScoreToReach'
+        above:
+          description: The rank just above the player's, null for the leader and for a private player.
+          oneOf:
+            - type: 'null'
+            - $ref: '#/components/schemas/FrontScoreToReach'
 
     FrontEventListResponse:
       type: object

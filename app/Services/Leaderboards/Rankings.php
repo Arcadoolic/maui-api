@@ -14,8 +14,10 @@ use Illuminate\Support\Facades\DB;
 final class Rankings
 {
     /**
-     * Columns of `scores`, plus `rank` and `players`. To be narrowed with
-     * `where()`: by game, by player...
+     * Columns of `scores`, plus `rank`, `players`, and the neighbours on the
+     * leaderboard: `above_player_id`, `above_score` (null for the leader),
+     * `below_player_id`, `below_score` (null for the last). To be narrowed
+     * with `where()`: by game, by player...
      */
     public function rows(): Builder
     {
@@ -34,6 +36,11 @@ final class Rankings
             ->selectRaw('bests.*')
             ->selectRaw('row_number() over (partition by bests.game_id, bests."table" order by bests.score desc, bests.achieved_at, bests.id) as "rank"')
             ->selectRaw('count(*) over (partition by bests.game_id, bests."table") as players');
+        foreach (['above' => 'lag', 'below' => 'lead'] as $neighbour => $function) {
+            foreach (['player_id', 'score'] as $column) {
+                $ranked->selectRaw("{$function}(bests.{$column}) over (partition by bests.game_id, bests.\"table\" order by bests.score desc, bests.achieved_at, bests.id) as {$neighbour}_{$column}");
+            }
+        }
 
         return DB::query()->fromSub($ranked, 'ranked');
     }

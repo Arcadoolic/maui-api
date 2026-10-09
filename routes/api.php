@@ -106,6 +106,7 @@ Route::prefix('front')->middleware('front')->group(function () {
         Route::get('players', [FrontPlayersController::class, 'index']);
         Route::get('players/{player}', [FrontPlayersController::class, 'show']);
         Route::get('players/{player}/avatar', [FrontPlayersController::class, 'avatar']);
+        Route::get('players/{player}/games/{romname}', [FrontPlayersController::class, 'history']);
         Route::get('events', [EventsController::class, 'index']);
     });
 });

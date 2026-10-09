@@ -222,8 +222,65 @@ describe('players', function () {
                 'game' => ['romname' => 'pacman', 'description' => 'Pac-Man'],
                 'table' => 'default', 'score' => 200, 'rank' => 2, 'players' => 2,
                 'achieved_at' => '2026-01-02T00:00:00+00:00',
+                'above' => ['player' => ['id' => Player::query()->where('pseudo_3', 'BOB')->value('uuid'), 'pseudo_3' => 'BOB', 'avatar' => null], 'score' => 300],
+                'below' => null,
             ]],
+            'activity' => [['date' => '2026-01-01', 'bests' => 1], ['date' => '2026-01-02', 'bests' => 1]],
         ]);
+    });
+
+    it('tells who is just above and just below on each leaderboard', function () {
+        $game = Game::factory()->create();
+        leaderboardScore($game, publicPlayer('TOP'), 900);
+        $mid = publicPlayer('MID');
+        leaderboardScore($game, $mid, 500);
+        leaderboardScore($game, publicPlayer('LOW'), 100);
+        leaderboardScore($game, Player::factory()->create(['pseudo_3' => 'PRV']), 600);
+
+        $this->getJson('/api/v1/front/players/'.$mid->uuid)
+            ->assertJsonPath('bests.0.above.player.pseudo_3', 'TOP')->assertJsonPath('bests.0.above.score', 900)
+            ->assertJsonPath('bests.0.below.player.pseudo_3', 'LOW')->assertJsonPath('bests.0.below.score', 100);
+    });
+
+    it('gives the history of a player on a game, with the scores to reach', function () {
+        $game = Game::factory()->create(['romname' => 'pacman', 'description' => 'Pac-Man']);
+        $ace = publicPlayer('ACE');
+        leaderboardScore($game, $ace, 200, attributes: ['achieved_at' => '2026-01-02 00:00:00']);
+        leaderboardScore($game, $ace, 100, attributes: ['achieved_at' => '2026-01-01 00:00:00']);
+        leaderboardScore($game, $ace, 999, attributes: ['achieved_at' => '2026-01-03 00:00:00', 'hidden_at' => now()]);
+        leaderboardScore($game, $ace, 50, attributes: ['table' => 'hard']);
+        leaderboardScore($game, publicPlayer('BOB'), 300);
+        leaderboardScore($game, publicPlayer('TOP'), 900);
+
+        $this->getJson('/api/v1/front/players/'.$ace->uuid.'/games/pacman')->assertOk()
+            ->assertJsonPath('game', ['romname' => 'pacman', 'description' => 'Pac-Man'])
+            ->assertJsonPath('table', 'default')
+            ->assertJsonPath('rank', 3)->assertJsonPath('players', 3)
+            ->assertJsonPath('history', [
+                ['score' => 100, 'achieved_at' => '2026-01-01T00:00:00+00:00'],
+                ['score' => 200, 'achieved_at' => '2026-01-02T00:00:00+00:00'],
+            ])
+            ->assertJsonPath('leader.player.pseudo_3', 'TOP')->assertJsonPath('leader.score', 900)
+            ->assertJsonPath('above.player.pseudo_3', 'BOB')->assertJsonPath('above.score', 300);
+
+        $this->getJson('/api/v1/front/players/'.$ace->uuid.'/games/pacman?table=hard')
+            ->assertJsonPath('history.0.score', 50)->assertJsonPath('rank', 1)->assertJsonPath('above', null);
+        $this->getJson('/api/v1/front/players/'.$ace->uuid.'/games/nothere')->assertNotFound()->assertJsonPath('code', 'game_not_found');
+        $this->getJson('/api/v1/front/players/'.Player::factory()->create()->uuid.'/games/pacman')->assertNotFound()->assertJsonPath('code', 'player_not_found');
+    });
+
+    it('gives a member the history of its own private player, without a rank', function () {
+        $game = Game::factory()->create(['romname' => 'pacman']);
+        $private = Player::factory()->create(['pseudo_3' => 'PRV']);
+        $this->member->players()->attach($private, ['linked_at' => now()]);
+        leaderboardScore($game, $private, 100);
+        leaderboardScore($game, publicPlayer('TOP'), 900);
+
+        $this->getJson('/api/v1/front/players/'.$private->uuid.'/games/pacman')->assertOk()
+            ->assertJsonPath('history.0.score', 100)
+            ->assertJsonPath('rank', null)->assertJsonPath('above', null)
+            ->assertJsonPath('leader.player.pseudo_3', 'TOP');
+        $this->getJson('/api/v1/front/players/'.$private->uuid)->assertJsonPath('activity.0.bests', 1);
     });
 
     it('hides a private or disabled player, but shows the member its own private player', function () {

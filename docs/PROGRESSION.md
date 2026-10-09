@@ -33,6 +33,15 @@ For why things are done this way, see `docs/DECISIONS.md`.
 - Releases by semantic-release on every push to `main` (D44): 0.1.0
   published on 2026-09-25.
 
+## Lot 3.4: player stats (in progress, D69)
+
+- `Rankings` rows say who is just above and just below.
+- `GET /front/players/{id}`: `above` and `below` on each best, `activity`
+  (days with a personal best).
+- `GET /front/players/{id}/games/{romname}`: the bests of the player on the
+  game over time, with the leader's score and the rank above.
+- Next: Lot 3.5 (global podium).
+
 ## Lot 3.3: complete game pages (in progress, D68)
 
 - `game_details` and `game_media`; `ScreenScraperClient`, `GameScraper`,

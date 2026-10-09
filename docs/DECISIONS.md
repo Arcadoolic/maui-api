@@ -837,3 +837,20 @@ panel (`couleurs`, one entry per control: `P1_JOYSTICK`, `P1_BUTTON1`...);
 some medias have no region; and each media URL of an answer carries the
 credentials of the request, so these URLs are downloaded at once and never
 stored nor logged.
+
+**D69: Player stats come from what is already stored.** (2026-10-09, Lot 3.4)
+The player page of the front shows a player's progress with four views,
+none of which needs new data. The progress on a game:
+`GET /front/players/{id}/games/{romname}` lists the personal bests of the
+player, oldest first (`scores` keeps each of them, D50), with the two scores
+to reach, the leader's and the rank just above. Games by rank (1st, 2nd,
+3rd, 4 to 9, 10 and more) are counted by the front from the bests it already
+has. Next targets and threats: each best of `GET /front/players/{id}` now
+says who is just above and just below, with their score (`lag` and `lead`
+over the leaderboard, in `Rankings`); the front sorts them by the smallest
+gap. The activity calendar: `activity`, the days (UTC) with at least one
+personal best. A private player, seen by its own member only, has its
+history and its activity but no rank, nobody above nor below. The charts
+are drawn by the front in SVG, without a chart library: three simple forms,
+and the look of the game screen to keep.
+
