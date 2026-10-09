@@ -161,7 +161,8 @@ final class ScreenScraperClient
     {
         foreach (is_array($texts) ? $texts : [] as $entry) {
             if (is_array($entry) && ($entry['langue'] ?? null) === $language && is_string($entry['text'] ?? null) && trim($entry['text']) !== '') {
-                return trim($entry['text']);
+                // Some texts come with HTML entities (`&quot;3D maze&quot;`): stored as plain text.
+                return trim(html_entity_decode($entry['text'], ENT_QUOTES | ENT_HTML5, 'UTF-8'));
             }
         }
 
@@ -169,7 +170,7 @@ final class ScreenScraperClient
     }
 
     /**
-     * The French names of the genres, the English ones failing that.
+     * The English names of the genres, as the front is in English; the French ones failing that.
      *
      * @return list<string>
      */
@@ -177,7 +178,7 @@ final class ScreenScraperClient
     {
         $names = [];
         foreach (is_array($genres) ? $genres : [] as $genre) {
-            $name = is_array($genre) ? (self::localized($genre['noms'] ?? null, 'fr') ?? self::localized($genre['noms'] ?? null, 'en')) : null;
+            $name = is_array($genre) ? (self::localized($genre['noms'] ?? null, 'en') ?? self::localized($genre['noms'] ?? null, 'fr')) : null;
             if ($name !== null) {
                 $names[] = mb_substr($name, 0, 128);
             }

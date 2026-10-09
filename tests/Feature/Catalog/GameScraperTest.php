@@ -54,12 +54,12 @@ function jeuInfos(array $overrides = []): array
             ['id' => '6', 'controle' => 'P1_BUTTON1', 'hexa' => 'FF0000'],
         ],
         'synopsis' => [
-            ['langue' => 'en', 'text' => 'Eat the pellets.'],
+            ['langue' => 'en', 'text' => 'Eat the &quot;pellets&quot; &amp; run.'],
             ['langue' => 'fr', 'text' => 'Mange les pastilles.'],
         ],
         'genres' => [
             ['id' => '1', 'noms' => [['langue' => 'en', 'text' => 'Maze'], ['langue' => 'fr', 'text' => 'Labyrinthe']]],
-            ['id' => '2', 'noms' => [['langue' => 'en', 'text' => 'Action']]],
+            ['id' => '2', 'noms' => [['langue' => 'fr', 'text' => 'Action']]],
         ],
         'medias' => [
             ['type' => 'ss', 'region' => 'us', 'url' => 'https://media.test/ss-us'],
@@ -91,7 +91,7 @@ describe('scraping a game', function () {
         expect($detail->found)->toBeTrue()
             ->and($detail->screenscraper_id)->toBe(4532)
             ->and($detail->synopsis_fr)->toBe('Mange les pastilles.')
-            ->and($detail->synopsis_en)->toBe('Eat the pellets.')
+            ->and($detail->synopsis_en)->toBe('Eat the "pellets" & run.')
             ->and($detail->developer)->toBe('Namco')
             ->and($detail->publisher)->toBe('Namco')
             ->and($detail->rating)->toBe(18)
@@ -100,7 +100,7 @@ describe('scraping a game', function () {
             ->and($detail->resolution)->toBe('224x288')
             ->and($detail->joystick)->toBeTrue()
             ->and($detail->buttons)->toBe(2)
-            ->and($detail->genres)->toBe(['Labyrinthe', 'Action']);
+            ->and($detail->genres)->toBe(['Maze', 'Action']);
 
         // The world picture first; no video; what is not an image is left out.
         $media = GameMedia::query()->where('game_id', $game->id)->orderBy('type')->get();
@@ -227,10 +227,10 @@ describe('game page', function () {
 
         $this->getJson('/api/v1/front/games/pacman')->assertOk()
             ->assertJsonPath('details', [
-                'synopsis' => ['fr' => 'Mange les pastilles.', 'en' => 'Eat the pellets.'],
+                'synopsis' => ['fr' => 'Mange les pastilles.', 'en' => 'Eat the "pellets" & run.'],
                 'developer' => 'Namco', 'publisher' => 'Namco', 'rating' => 18, 'players' => '1-2',
                 'rotation' => 90, 'resolution' => '224x288', 'controls' => ['joystick' => true, 'buttons' => 2],
-                'genres' => ['Labyrinthe', 'Action'],
+                'genres' => ['Maze', 'Action'],
             ])
             ->assertJsonPath('media', ['flyer' => $hash, 'logo' => $hash, 'marquee' => $hash, 'screenshot' => $hash]);
 
