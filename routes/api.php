@@ -11,7 +11,10 @@ use App\Http\Controllers\Api\ScoreEventsController;
 use App\Http\Controllers\Api\ScoresController;
 use App\Http\Controllers\Api\StartupController;
 use App\Http\Controllers\Front\AuthController;
+use App\Http\Controllers\Front\EventsController;
+use App\Http\Controllers\Front\GamesController;
 use App\Http\Controllers\Front\MeController;
+use App\Http\Controllers\Front\PlayersController as FrontPlayersController;
 use App\Services\Members\MemberInvitationIssuer;
 use Illuminate\Support\Facades\Route;
 
@@ -94,5 +97,14 @@ Route::prefix('front')->middleware('front')->group(function () {
         // Players of the member, linked with initials + PIN (docs/DECISIONS.md D66).
         Route::post('me/players', [MeController::class, 'linkPlayer'])->middleware('throttle:front-player-link');
         Route::delete('me/players/{player}', [MeController::class, 'unlinkPlayer']);
+
+        // Reading: games, players and the event feed (docs/DECISIONS.md D67).
+        Route::get('games', [GamesController::class, 'index']);
+        Route::get('games/filters', [GamesController::class, 'filters']);
+        Route::get('games/{romname}', [GamesController::class, 'show']);
+        Route::get('players', [FrontPlayersController::class, 'index']);
+        Route::get('players/{player}', [FrontPlayersController::class, 'show']);
+        Route::get('players/{player}/avatar', [FrontPlayersController::class, 'avatar']);
+        Route::get('events', [EventsController::class, 'index']);
     });
 });

@@ -13,7 +13,7 @@ For why things are done this way, see `docs/DECISIONS.md`.
 | 0 | Foundation: Docker Compose, Laravel 13 skeleton, CI | **Done**; staging deployed (D40, `docs/DEPLOYMENT.md`), production hosting undecided |
 | 1 | MAUI authentication, machine binding, telemetry, Filament BO | **Done**: API (PR #1 to #4, follow-ups #9, #11), MAUI slices 1 to 5 (`Arcadoolic/maui` PRs #88, #92, #93, #96, #97), end-to-end checked, see `docs/MAUI-INTEGRATION.md` |
 | 2 | Hiscores: catalog, players, scores, leaderboards | **In progress**: 2.1 catalog and 2.2 players merged (not on staging yet), 2.3 scores in progress |
-| 3 | Hiscores front end (`afronob/maui-hifront`) | **In progress**: 3.1 accounts, API side done (D64 to D66) |
+| 3 | Hiscores front end (`afronob/maui-hifront`) | **In progress**: 3.1 accounts done (D64 to D66, PR #55), 3.2 reading in progress (D67) |
 | Last | Anti-cheat | Not started, after Lot 3 |
 
 ## Done
@@ -32,6 +32,17 @@ For why things are done this way, see `docs/DECISIONS.md`.
     push.
 - Releases by semantic-release on every push to `main` (D44): 0.1.0
   published on 2026-09-25.
+
+## Lot 3.2: front reading (in progress, D67)
+
+- `Rankings`: every shared leaderboard in one query, rank and number of
+  ranked players on each row.
+- `GET /front/games` (filters, sorts, pages), `GET /front/games/filters`,
+  `GET /front/games/{romname}` (whole leaderboards, stats, latest events).
+- `GET /front/players`, `GET /front/players/{id}` (bests with their rank; a
+  member's own private player without ranks), `GET /front/players/{id}/avatar`.
+- `GET /front/events` (history, latest first, `before` cursor).
+- Next: Lot 3.3 (ScreenScraper, MAME fields).
 
 ## Lot 3.1: front members (in progress, D64, D65, D66)
 

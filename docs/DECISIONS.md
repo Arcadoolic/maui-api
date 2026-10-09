@@ -781,3 +781,26 @@ guessing initials tells nothing. Unlinking removes the link only. Both are
 recorded in the player's audit log (`player.member_linked`,
 `player.member_unlinked`) with the member as causer.
 
+**D67: The front reads every leaderboard at once, and sees what the leaderboards show.** (2026-10-09, Lot 3.2)
+The front lists games and players with their ranks, which the cabinets'
+endpoints (one leaderboard, top 9, D52) cannot give without a request per
+game. `Rankings` ranks every visible best in one query (the best of each
+player per game and table, then a window by leaderboard): each row has its
+rank and the number of ranked players, and the lists are aggregates of it
+(ranked players and latest best of a game; games, crowns, podiums and
+players beaten of a player). The same rule as `Leaderboards`, which keeps
+serving the cabinets and the bots. Computed on each request: a few thousand
+rows at most for now, to cache when it shows. `GET /front/games` lists the
+catalogued games, and those only known from a visible score; filters by
+text, catver genre (with its subgenres), manufacturer, year, simultaneous
+players, and scores (`with`, `mine`, `unranked`: with scores but none of the
+member's players), which is how a player finds where to play next.
+`GET /front/games/{romname}` gives the whole leaderboard of each table, not
+the top 9. Visibility is that of the shared leaderboards: public and active
+players, visible scores. One exception: a member sees the page of its own
+linked players even when they are private, with their bests and no rank,
+since they are on no leaderboard; nobody else sees them. `GET /front/events`
+is a history, latest first, with a `before` cursor: it includes the events
+too old to be announced (`announceable`, D60), which the bots' feed leaves
+out. Events are sent as the bots get them (`ScoreEvent::toApiArray()`).
+
