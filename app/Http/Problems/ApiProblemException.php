@@ -91,4 +91,24 @@ final class ApiProblemException extends RuntimeException
     {
         return new self(Response::HTTP_FORBIDDEN, 'pin_invalid', extra: ['attempts_left' => $attemptsLeft]);
     }
+
+    public static function originNotAllowed(): self
+    {
+        return new self(Response::HTTP_FORBIDDEN, 'origin_not_allowed', 'This request does not come from the hiscores front.');
+    }
+
+    public static function memberDisabled(): self
+    {
+        return new self(Response::HTTP_FORBIDDEN, 'member_disabled', 'This member has been disabled by an administrator.');
+    }
+
+    public static function invitationUnavailable(): self
+    {
+        return new self(Response::HTTP_NOT_FOUND, 'invitation_unavailable', 'This invitation does not exist or can no longer be used.');
+    }
+
+    public static function playerAlreadyLinked(): self
+    {
+        return new self(Response::HTTP_CONFLICT, 'player_already_linked', 'This player is linked to another member.');
+    }
 }

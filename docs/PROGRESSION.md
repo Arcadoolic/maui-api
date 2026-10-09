@@ -13,7 +13,7 @@ For why things are done this way, see `docs/DECISIONS.md`.
 | 0 | Foundation: Docker Compose, Laravel 13 skeleton, CI | **Done**; staging deployed (D40, `docs/DEPLOYMENT.md`), production hosting undecided |
 | 1 | MAUI authentication, machine binding, telemetry, Filament BO | **Done**: API (PR #1 to #4, follow-ups #9, #11), MAUI slices 1 to 5 (`Arcadoolic/maui` PRs #88, #92, #93, #96, #97), end-to-end checked, see `docs/MAUI-INTEGRATION.md` |
 | 2 | Hiscores: catalog, players, scores, leaderboards | **In progress**: 2.1 catalog and 2.2 players merged (not on staging yet), 2.3 scores in progress |
-| 3 | Hiscores front end | Not started |
+| 3 | Hiscores front end (`afronob/maui-hifront`) | **In progress**: 3.1 accounts, API side done (D64 to D66) |
 | Last | Anti-cheat | Not started, after Lot 3 |
 
 ## Done
@@ -32,6 +32,27 @@ For why things are done this way, see `docs/DECISIONS.md`.
     push.
 - Releases by semantic-release on every push to `main` (D44): 0.1.0
   published on 2026-09-25.
+
+## Lot 3.1: front members (in progress, D64, D65, D66)
+
+- Lot 3 is detailed in `docs/PLAN.md` (3.1 to 3.6).
+- `members` (Discord accounts), `member_invitations`, `member_player`;
+  session guard `member`, routes under `/api/v1/front` (group `front`:
+  cookies, session, `Origin` check).
+- Discord login without a package (`DiscordOAuth`): `GET /front/auth/discord`
+  and its callback, which always redirect to the front; `MemberAccess`
+  decides who enters (a member comes back freely, a new account needs a
+  usable invitation).
+- `GET /front/invitations/{token}`, `GET /front/me`, `POST /front/logout`,
+  `POST /front/me/players` (initials + PIN, same lock as on a cabinet),
+  `DELETE /front/me/players/{id}`.
+- Back office: "Front invitations" (create, link shown once, revoke) and
+  "Front members" (players, invitation, disable, enable), audited.
+- To set on a server: `FRONT_URL`, `FRONT_DISCORD_CLIENT_ID`,
+  `FRONT_DISCORD_CLIENT_SECRET`, and the redirect URI
+  `<FRONT_URL>/api/v1/front/auth/discord/callback` in the Discord
+  application.
+- Next: the front's skeleton (`maui-hifront`), then Lot 3.2 (reading).
 
 ## Follow-up of Lot 2.2: PIN issued by the origin cabinet only (D54)
 
