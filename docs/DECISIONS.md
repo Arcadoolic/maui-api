@@ -932,3 +932,17 @@ of one more TLS hop on the same host. Nothing else of the API is passed on.
 Production settings on the API's side: `FRONT_URL`, the Discord application
 (its redirect URI on the front's name), the ScreenScraper credentials.
 
+
+**D74: The catalog says whether a game's hiscores can be read; the front lists only those.** (2026-10-10, Lot 3, completes D47 and D67)
+The front listed every catalogued game, yet a cabinet reads the hiscores of
+a part of them only: the games mhiex has an extractor for. The others could
+never show a score. `games.hiscores` (boolean, `false` by default) holds
+it, sent by the catalog push as `hiscores`: maui-repository's `push-catalog`
+asks the mhiex version it installs. Left out of a push, the stored value is
+kept, the one exception to "each push describes a game completely": it
+describes mhiex, not the pack, and an older sender must not empty the
+front. `GET /front/games` and its filters keep the games with `hiscores`,
+plus the ones that already have a visible score (a cabinet on a newer mhiex
+than the last push). A game's page stays reachable by its address. After an
+mhiex release, the catalog is pushed again for the new games to appear.
+(D73 is the number of the flyers decision, not merged yet.)

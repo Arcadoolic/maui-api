@@ -4,7 +4,8 @@ namespace App\Services\Catalog;
 
 /**
  * One validated catalog entry. A field the push leaves out is null: each
- * push describes the game completely (docs/DECISIONS.md D47).
+ * push describes the game completely (docs/DECISIONS.md D47), except for
+ * `hiscores`, kept as it is stored when left out (D74).
  */
 final readonly class CatalogGameData
 {
@@ -20,6 +21,7 @@ final readonly class CatalogGameData
         public ?string $catverGenre = null,
         public ?string $catverSubgenre = null,
         public bool $mature = false,
+        public ?bool $hiscores = null,
     ) {}
 
     /**
@@ -39,6 +41,7 @@ final readonly class CatalogGameData
             catverGenre: self::string($game, 'catver_genre'),
             catverSubgenre: self::string($game, 'catver_subgenre'),
             mature: filter_var($game['mature'] ?? false, FILTER_VALIDATE_BOOLEAN),
+            hiscores: isset($game['hiscores']) ? filter_var($game['hiscores'], FILTER_VALIDATE_BOOLEAN) : null,
         );
     }
 

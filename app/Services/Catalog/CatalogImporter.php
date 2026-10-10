@@ -69,6 +69,8 @@ final class CatalogImporter
                 : null,
             'catver_category_id' => $this->catverCategoryId($data),
             'mature' => $data->mature,
+            // Left out by a sender that does not know: the stored value stays (D74).
+            ...($data->hiscores !== null ? ['hiscores' => $data->hiscores] : []),
         ];
     }
 
