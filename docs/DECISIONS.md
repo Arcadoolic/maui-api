@@ -967,3 +967,44 @@ migration of the tokens for nothing gained. Deleting a cabinet deletes its
 opinions. The back office shows thumbs up, thumbs down and plays per game,
 and the detail per cabinet on a game's page. What is made of it (popularity
 index, front) comes with 4.2 and after.
+
+**D76: Popularity of a game: its votes as a Bayesian average, plus its activity; one label at most.** (2026-10-10, Lot 4.2)
+What the cabinets report (D75) becomes one number per game, 0 to 100, and
+at most one label. Three parts, in `App\Services\Popularity\Popularity`:
+
+- Opinion, 0 to 1: thumbs up among the votes, neutral aside, with
+  `prior_votes` imaginary votes at the fleet's own share of thumbs up. One
+  thumbs up does not make a game the best liked one, and a game nobody
+  voted on sits at the average: such games are sorted by their activity.
+- Activity, 0 to 1. A thumbs up can only mean "keep it": what is played
+  must count. Per cabinet ln(1 + plays), so that one cabinet playing a game
+  500 times weighs less than eight playing it 10 times; plus the cabinets
+  that played it within `recent_days`; both divided by the number of
+  cabinets that report, so that the scale holds for 2 cabinets as for 200;
+  plus ln(1 + ranked players). Then x / (x + `activity_half`): no maximum
+  of the day to compare with, so a game's activity does not move when
+  another game is played.
+- Index: 100 x (`opinion_weight` x opinion + `activity_weight` x activity),
+  60/40 to start with.
+
+Labels, from `min_votes` votes for the ones about votes: `missed_date`
+(thumbs down only), `divisive` (both votes, their gap within
+`divisive_margin` of the votes), `hit` (`liked_share` of thumbs up and
+activity from `active_from`), `hidden_gem` (liked, less played);
+`addictive` (played, without the votes to call it liked) needs no vote. In
+that order: a game gets the first that fits. A game with a visible score
+and no report has an activity from its players alone.
+
+Computed at each call, from one grouped query and the game totals of the
+leaderboards: a few hundred games. A cache or a nightly snapshot comes
+with the endpoints of 4.3 if the cost asks for it. Nothing is exposed yet.
+
+The settings are in `config/hiscores.php` (`popularity`), `min_votes` also
+by `HISCORES_POPULARITY_MIN_VOTES`. They were made on a simulated fleet,
+the real one being too small: `php artisan dev:simulate-fleet` (local and
+testing only) creates `sim_NN` cabinets with votes and plays by kind of
+game, the same for the same seed, and `--reset` removes them alone. `php
+artisan hiscores:popularity` prints the ranking with what it is made of,
+with the settings in force or the ones given as options, as
+`hiscores:ranking` does for the podium (D70): to run on production data
+before changing the settings.
