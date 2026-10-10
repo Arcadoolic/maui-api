@@ -2939,8 +2939,18 @@ components:
 
     FrontGamePageResponse:
       type: object
-      required: [game, details, media, flyers, popularity, leaderboards, stats, events]
+      required: [game, previous, next, details, media, flyers, popularity, leaderboards, stats, events]
       properties:
+        previous:
+          description: The game before this one in the list sorted by name (D81); null for the first.
+          oneOf:
+            - type: 'null'
+            - $ref: '#/components/schemas/FrontGameRef'
+        next:
+          description: The game after this one in the list sorted by name; null for the last.
+          oneOf:
+            - type: 'null'
+            - $ref: '#/components/schemas/FrontGameRef'
         popularity:
           description: |
             The game's popularity and what the cabinets report of it (D76,

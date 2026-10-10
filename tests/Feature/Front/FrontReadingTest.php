@@ -199,6 +199,31 @@ describe('game list', function () {
 });
 
 describe('game page', function () {
+    it('gives the games before and after it in the list, by name', function () {
+        Game::factory()->create(['romname' => 'galaga', 'description' => 'Galaga']);
+        Game::factory()->create(['romname' => 'pacman', 'description' => 'Pac-Man']);
+        Game::factory()->create(['romname' => 'pacmanb', 'description' => 'Pac-Man']);
+        Game::factory()->create(['romname' => 'zaxxon', 'description' => 'Zaxxon']);
+        // Not in the list: no cabinet can read its hiscores, and nobody scored on it (D74).
+        Game::factory()->withoutHiscores()->create(['romname' => 'hasamu', 'description' => 'Hasamu']);
+
+        $this->getJson('/api/v1/front/games/galaga')->assertOk()
+            ->assertJsonPath('previous', null)
+            ->assertJsonPath('next', ['romname' => 'pacman', 'description' => 'Pac-Man']);
+        // Two games of the same name: by romname.
+        $this->getJson('/api/v1/front/games/pacman')
+            ->assertJsonPath('previous.romname', 'galaga')
+            ->assertJsonPath('next.romname', 'pacmanb');
+        $this->getJson('/api/v1/front/games/pacmanb')
+            ->assertJsonPath('previous.romname', 'pacman')
+            ->assertJsonPath('next.romname', 'zaxxon');
+        $this->getJson('/api/v1/front/games/zaxxon')->assertJsonPath('next', null);
+        // A game the list leaves out still has its place between two of them.
+        $this->getJson('/api/v1/front/games/hasamu')
+            ->assertJsonPath('previous.romname', 'galaga')
+            ->assertJsonPath('next.romname', 'pacman');
+    });
+
     it('shows the game, its whole leaderboards, stats and events', function () {
         $parent = Game::factory()->create(['romname' => 'puckman', 'description' => 'Puck Man']);
         $game = Game::factory()->create(['romname' => 'pacman', 'description' => 'Pac-Man', 'parent_romname' => 'puckman', 'player_alt' => 2]);
