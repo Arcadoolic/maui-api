@@ -11,6 +11,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property int $id
  * @property int $game_id
  * @property string $type One of TYPES.
+ * @property int $position 0 for the picture of its type; 1 and up for the other flyers (D73).
  * @property string $path On the `local` disk.
  * @property string $mime
  * @property string $hash SHA-256 of the file.
@@ -27,6 +28,9 @@ class GameMedia extends Model
         'marquee' => 'marquee',
         'flyer' => 'flyer',
     ];
+
+    /** Flyers kept per game at most: the first one and its other sides or regions. */
+    public const MAX_FLYERS = 8;
 
     protected $table = 'game_media';
 

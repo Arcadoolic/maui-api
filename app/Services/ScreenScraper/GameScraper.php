@@ -70,8 +70,11 @@ final class GameScraper
                 'scraped_at' => now(),
             ]);
             foreach ($scraped->mediaUrls as $type => $url) {
-                $this->storeMedia($game, $type, $url);
+                if ($type !== 'flyer') {
+                    $this->storeMedia($game, $type, $url);
+                }
             }
+            $this->storeFlyers($game, $scraped->flyerUrls);
         }
 
         return $result;
@@ -80,20 +83,64 @@ final class GameScraper
     /** A media that cannot be had, or is not an image, is left as it was. */
     private function storeMedia(Game $game, string $type, string $url): void
     {
-        $content = $this->client->download($url);
-        $mime = $content === null ? null : (new \finfo(FILEINFO_MIME_TYPE))->buffer($content);
-        if ($content === null || ! is_string($mime) || ! isset(self::IMAGES[$mime])) {
+        $image = $this->image($url);
+        if ($image !== null) {
+            $this->store($game, $type, 0, ...$image);
+        }
+    }
+
+    /**
+     * Every flyer of the game (D73), in the order given: the same picture twice (one file under
+     * two regions) is kept once, and the flyers of a former answer past the last one are removed.
+     * When none can be had, the former ones stay.
+     *
+     * @param  list<string>  $urls
+     */
+    private function storeFlyers(Game $game, array $urls): void
+    {
+        $hashes = [];
+        foreach (array_slice($urls, 0, GameMedia::MAX_FLYERS) as $url) {
+            $image = $this->image($url);
+            if ($image !== null && ! in_array($hash = hash('sha256', $image[0]), $hashes, true)) {
+                $this->store($game, 'flyer', count($hashes), ...$image);
+                $hashes[] = $hash;
+            }
+        }
+        if ($hashes === []) {
             return;
         }
+        $stale = GameMedia::query()->where('game_id', $game->id)->where('type', 'flyer')->where('position', '>=', count($hashes))->get();
+        foreach ($stale as $media) {
+            Storage::disk(GameMedia::DISK)->delete($media->path);
+            $media->delete();
+        }
+    }
 
-        $path = "game-media/{$game->romname}/{$type}.".self::IMAGES[$mime];
-        $former = GameMedia::query()->where('game_id', $game->id)->where('type', $type)->value('path');
+    /**
+     * The downloaded file and its type, null when it cannot be had or is not an image.
+     *
+     * @return array{string, string}|null
+     */
+    private function image(string $url): ?array
+    {
+        $content = $this->client->download($url);
+        $mime = $content === null ? null : (new \finfo(FILEINFO_MIME_TYPE))->buffer($content);
+
+        return $content === null || ! is_string($mime) || ! isset(self::IMAGES[$mime]) ? null : [$content, $mime];
+    }
+
+    private function store(Game $game, string $type, int $position, string $content, string $mime): void
+    {
+        // The first picture keeps the name it always had; the others are numbered.
+        $name = $position === 0 ? $type : "{$type}-{$position}";
+        $path = "game-media/{$game->romname}/{$name}.".self::IMAGES[$mime];
+        $former = GameMedia::query()->where('game_id', $game->id)->where('type', $type)->where('position', $position)->value('path');
         if (is_string($former) && $former !== $path) {
             Storage::disk(GameMedia::DISK)->delete($former);
         }
         Storage::disk(GameMedia::DISK)->put($path, $content);
         GameMedia::query()->updateOrCreate(
-            ['game_id' => $game->id, 'type' => $type],
+            ['game_id' => $game->id, 'type' => $type, 'position' => $position],
             ['path' => $path, 'mime' => $mime, 'hash' => hash('sha256', $content)],
         );
     }

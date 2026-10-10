@@ -116,6 +116,37 @@ describe('scraping a game', function () {
             && $request['devid'] === 'dev' && $request['ssid'] === 'user' && $request['output'] === 'json');
     });
 
+    it('keeps every flyer of a game, in order and once each (D73)', function () {
+        $flyers = fn (array $names): array => array_map(fn (array $flyer): array => ['type' => 'flyer', 'region' => $flyer[0], 'url' => 'https://media.test/'.$flyer[1]], $names);
+        // Three different pictures: the same bytes with a different tail.
+        $picture = fn (string $tail): string => tinyPng().$tail;
+        Http::fake([
+            ScreenScraperClient::GAME_URL.'*' => Http::sequence()
+                ->push(jeuInfos(['medias' => $flyers([['jp', 'jp'], ['wor', 'front'], ['wor', 'back'], ['us', 'front-again']])]))
+                ->push(jeuInfos(['medias' => $flyers([['wor', 'front']])])),
+            'https://media.test/front' => Http::response($picture('front')),
+            'https://media.test/front-again' => Http::response($picture('front')),
+            'https://media.test/back' => Http::response($picture('back')),
+            'https://media.test/jp' => Http::response($picture('jp')),
+        ]);
+        $game = Game::factory()->create(['romname' => 'pengo']);
+        $stored = fn () => GameMedia::query()->where('game_id', $game->id)->orderBy('position')->get();
+
+        app(GameScraper::class)->scrape($game);
+
+        // The world's first, in ScreenScraper's order, then Japan's; the one sent twice is kept once.
+        expect($stored()->pluck('path')->all())->toBe(['game-media/pengo/flyer.png', 'game-media/pengo/flyer-1.png', 'game-media/pengo/flyer-2.png'])
+            ->and($stored()->pluck('hash')->all())->toBe(array_map(fn (string $tail): string => hash('sha256', $picture($tail)), ['front', 'back', 'jp']));
+
+        // A later answer with fewer flyers: the others go, with their files.
+        app(GameScraper::class)->scrape($game);
+
+        expect($stored()->pluck('position')->all())->toBe([0]);
+        Storage::disk('local')->assertExists('game-media/pengo/flyer.png');
+        Storage::disk('local')->assertMissing('game-media/pengo/flyer-1.png');
+        Storage::disk('local')->assertMissing('game-media/pengo/flyer-2.png');
+    });
+
     it('remembers a game ScreenScraper does not know', function () {
         Http::fake([ScreenScraperClient::GAME_URL.'*' => Http::response('Erreur : Rom/Iso/Dossier non trouvée !', 404)]);
         $game = Game::factory()->create();
