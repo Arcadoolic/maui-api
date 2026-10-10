@@ -1,3 +1,14 @@
+## [0.11.0](https://github.com/Arcadoolic/maui-api/compare/0.10.0...0.11.0) (2026-10-10)
+
+### Features
+
+* **admin:** list the cabinets and the service accounts apart ([896a5f6](https://github.com/Arcadoolic/maui-api/commit/896a5f67688f4fe2f8400d14fb8f08146f2ed7c2))
+* **catalog:** keep every flyer of a game, not only the first ([1c35055](https://github.com/Arcadoolic/maui-api/commit/1c350551d4c12067a82a4c0647bf7dc40bede3fd))
+
+### Bug Fixes
+
+* **popularity:** a game must be played more to count as played ([e8c0bb6](https://github.com/Arcadoolic/maui-api/commit/e8c0bb6d84ad09342289849b2c57937a72a22832))
+
 ## [0.10.0](https://github.com/Arcadoolic/maui-api/compare/0.9.0...0.10.0) (2026-10-10)
 
 ### Features
