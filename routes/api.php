@@ -3,6 +3,7 @@
 use App\Http\Controllers\Api\CatalogGamesController;
 use App\Http\Controllers\Api\HeartbeatController;
 use App\Http\Controllers\Api\LeaderboardsController;
+use App\Http\Controllers\Api\OpinionsController;
 use App\Http\Controllers\Api\PingController;
 use App\Http\Controllers\Api\PlayersController;
 use App\Http\Controllers\Api\RepositoryAuthorizeController;
@@ -43,6 +44,8 @@ Route::middleware(['throttle:cabinet', 'cabinet:players'])->group(function () {
 // Scores of the cabinet's players: personal bests only (docs/DECISIONS.md D50).
 Route::middleware(['throttle:cabinet', 'cabinet:scores:write'])->group(function () {
     Route::post('scores', [ScoresController::class, 'store']);
+    // Votes and play counts of the cabinet's games (docs/DECISIONS.md D75).
+    Route::put('opinions', OpinionsController::class);
 });
 
 // Shared leaderboards, with an ETag (docs/DECISIONS.md D52).

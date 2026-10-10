@@ -5,6 +5,7 @@ namespace App\Filament\Resources\Games\Tables;
 use App\Enums\CategorySource;
 use App\Models\Category;
 use App\Models\Game;
+use App\Models\GameOpinion;
 use Filament\Actions\ViewAction;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
@@ -17,7 +18,14 @@ class GamesTable
     public static function configure(Table $table): Table
     {
         return $table
-            ->modifyQueryUsing(fn (Builder $query) => $query->with(['genreCategory', 'catverCategory.parent']))
+            ->modifyQueryUsing(fn (Builder $query) => $query
+                ->with(['genreCategory', 'catverCategory.parent'])
+                // What the cabinets report of the game (docs/DECISIONS.md D75).
+                ->withCount([
+                    'opinions as thumbs_up' => fn (Builder $opinions) => $opinions->where('vote', GameOpinion::VOTE_UP),
+                    'opinions as thumbs_down' => fn (Builder $opinions) => $opinions->where('vote', GameOpinion::VOTE_DOWN),
+                ])
+                ->withSum('opinions as plays', 'play_count'))
             ->defaultSort('romname')
             ->columns([
                 TextColumn::make('romname')->searchable()->sortable()->fontFamily('mono'),
@@ -33,6 +41,9 @@ class GamesTable
                     ->state(fn (Game $record): ?string => $record->catverCategory?->fullName())
                     ->placeholder('-')
                     ->toggleable(),
+                TextColumn::make('thumbs_up')->label(__('Thumbs up'))->numeric()->sortable()->toggleable(),
+                TextColumn::make('thumbs_down')->label(__('Thumbs down'))->numeric()->sortable()->toggleable(),
+                TextColumn::make('plays')->label(__('Plays'))->numeric()->default(0)->sortable()->toggleable(),
                 TextColumn::make('catalogued_at')->since()->sortable()->placeholder(__('Score only'))->toggleable(isToggledHiddenByDefault: true),
             ])
             ->filters([

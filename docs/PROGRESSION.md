@@ -14,6 +14,7 @@ For why things are done this way, see `docs/DECISIONS.md`.
 | 1 | MAUI authentication, machine binding, telemetry, Filament BO | **Done**: API (PR #1 to #4, follow-ups #9, #11), MAUI slices 1 to 5 (`Arcadoolic/maui` PRs #88, #92, #93, #96, #97), end-to-end checked, see `docs/MAUI-INTEGRATION.md` |
 | 2 | Hiscores: catalog, players, scores, leaderboards | **In progress**: 2.1 catalog and 2.2 players merged (not on staging yet), 2.3 scores in progress |
 | 3 | Hiscores front end (`afronob/maui-hifront`) | **In progress**: 3.1 accounts done (D64 to D66, PR #55), 3.2 reading in progress (D67) |
+| 4 | Game popularity from the cabinets' votes and plays | **In progress**: 4.1 report from the cabinets (D75), API side written |
 | Last | Anti-cheat | Not started, after Lot 3 |
 
 ## Done
@@ -32,6 +33,21 @@ For why things are done this way, see `docs/DECISIONS.md`.
     push.
 - Releases by semantic-release on every push to `main` (D44): 0.1.0
   published on 2026-09-25.
+
+## Lot 4.1: votes and plays reported by the cabinets (in progress, D75)
+
+- `PUT /opinions`: a cabinet's vote and play count per game, into
+  `game_opinions` (one row per cabinet and game, replaced by each report).
+- Back office: thumbs up, thumbs down and plays on the games list, the
+  detail per cabinet on a game's page.
+- MAUI side (`Arcadoolic/maui`): report on change and at startup.
+- Next: Lot 4.2, the popularity index.
+
+## Catalog: games whose hiscores can be read (merged, D74)
+
+- `games.hiscores`, sent by maui-repository's `push-catalog` (mhiex);
+  `GET /front/games` and its filters list those games, plus the ones with
+  a visible score.
 
 ## Lot 3.6: deployment (in progress, D72)
 

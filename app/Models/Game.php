@@ -91,6 +91,16 @@ class Game extends Model
         return $this->hasMany(Score::class);
     }
 
+    /**
+     * What the cabinets think of the game and how much they play it (D75).
+     *
+     * @return HasMany<GameOpinion, $this>
+     */
+    public function opinions(): HasMany
+    {
+        return $this->hasMany(GameOpinion::class);
+    }
+
     public function isCatalogued(): bool
     {
         return $this->catalogued_at !== null;
