@@ -81,7 +81,9 @@ return [
         'recent_weight' => 1.0,
         'players_weight' => 0.5,
         'recent_days' => 30,
-        'activity_half' => 1.5,
+        // 2.5 since the first real cabinets: on a young fleet every game was
+        // played lately, and 1.5 called a game played 3 times a hit (D80).
+        'activity_half' => (float) env('HISCORES_POPULARITY_ACTIVITY_HALF', 2.5),
         // Front, "trending" (D77): days of plays and scores counted.
         'trending_days' => 7,
     ],
