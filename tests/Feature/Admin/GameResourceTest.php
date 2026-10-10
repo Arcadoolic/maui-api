@@ -95,3 +95,14 @@ it('filters the games with scores', function () {
         ->assertCanSeeTableRecords([$played])
         ->assertCanNotSeeTableRecords([$never]);
 });
+
+it('shows what the cabinets report of a game', function () {
+    $game = Game::factory()->create();
+    [$cabinet] = cabinetWithToken(['name' => 'broken_terry_bogard']);
+    $game->opinions()->create(['client_id' => $cabinet->id, 'vote' => -1, 'play_count' => 7]);
+
+    livewire(ListGames::class)->assertCanSeeTableRecords([$game])->assertTableColumnStateSet('thumbs_down', 1, $game);
+    livewire(ViewGame::class, ['record' => $game->getRouteKey()])
+        ->assertSee('broken_terry_bogard')
+        ->assertSee('Thumbs down');
+});
