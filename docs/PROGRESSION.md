@@ -34,6 +34,14 @@ For why things are done this way, see `docs/DECISIONS.md`.
 - Releases by semantic-release on every push to `main` (D44): 0.1.0
   published on 2026-09-25.
 
+## Lot 4.3: popularity on the front (in progress, D77)
+
+- `GET /front/games`: `popularity` per game, `sort=popularity`, `label`
+  filter; labels in the filters; popularity block on a game's page.
+- `GET /front/games/highlights`: `discover` and `trending`.
+- Front side in `afronob/maui-hifront`.
+- Next: Lot 4.4, the "missed date" category.
+
 ## Lot 4.2: popularity index (in progress, D76)
 
 - `Popularity` service: opinion (Bayesian average of the votes), activity

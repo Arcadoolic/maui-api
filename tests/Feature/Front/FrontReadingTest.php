@@ -170,6 +170,7 @@ describe('game list', function () {
 
         $this->getJson('/api/v1/front/games/filters')->assertOk()->assertExactJson([
             'genres' => ['Maze', 'Shooter'],
+            'labels' => [],
             'manufacturers' => ['Atari', 'Namco'],
             'years' => ['1979', '1980'],
         ]);

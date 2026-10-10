@@ -70,7 +70,7 @@ return [
         // `hit`, `hidden_gem`: thumbs up among the votes, at least.
         'liked_share' => 0.75,
         // `divisive`: both votes present, their gap within this share of the votes.
-        'divisive_margin' => 0.34,
+        'divisive_margin' => 0.25,
         // `hit`, `addictive`: activity (0 to 1) from which a game is "played".
         'active_from' => 0.5,
         // Activity: (sum per cabinet of ln(1 + plays), times `plays_weight`,
@@ -82,6 +82,8 @@ return [
         'players_weight' => 0.5,
         'recent_days' => 30,
         'activity_half' => 1.5,
+        // Front, "trending" (D77): days of plays and scores counted.
+        'trending_days' => 7,
     ],
 
 ];

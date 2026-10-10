@@ -1008,3 +1008,24 @@ artisan hiscores:popularity` prints the ranking with what it is made of,
 with the settings in force or the ones given as options, as
 `hiscores:ranking` does for the podium (D70): to run on production data
 before changing the settings.
+
+**D77: The front shows the popularity: a sort, a label, what the cabinets liked, two highlights.** (2026-10-10, Lot 4.3)
+`GET /front/games` gives each game its `popularity` (`index`, `label`),
+sorts by it (`sort=popularity`, the games nobody reported nor scored on
+last) and filters by `label`; the filters list the labels the listed games
+have. A game's page adds `thumbs_up`, `votes`, `cabinets` and `plays`: the
+front says "liked by 6 of 8 cabinets". Thumbs down are not given as such,
+and no cabinet is named: the front shows no list of the worst games, a
+disliked game only goes down the sort, or gets `divisive` or `missed_date`
+(the user's choice, 2026-10-10). `GET /front/games/highlights` gives two
+short lists for the home page: `discover`, the liked games (`hit`,
+`hidden_gem`) the member's player has no visible score on, the most
+popular first, which is the main use with this many games; `trending`,
+the games with the most cabinets that played them and visible scores made
+within `trending_days` (7). The cabinets report a total of plays, not
+their dates: "trending" is therefore who played lately, not a rise. Both
+lists keep to the games the front lists (D74). The `divisive` margin goes
+from 0.34 to 0.25: 6 thumbs up for 3 down is not "about as many". The
+popularity is computed at each request, as in D76; a cache comes if the
+cost asks for it. English names on the front: Hit, Hidden Gem, Addictive,
+Divisive, Missed Date.

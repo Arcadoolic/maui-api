@@ -1345,8 +1345,13 @@ paths:
           schema: {type: string, enum: [with, mine, unranked]}
         - name: sort
           in: query
-          description: '`name` (default), `year`, `players` (most ranked players first), `activity` (latest best first).'
-          schema: {type: string, enum: [name, year, players, activity]}
+          description: '`name` (default), `year`, `players` (most ranked players first), `activity` (latest best first), `popularity` (most popular first, D76; the games nobody reported nor scored on last).'
+          schema: {type: string, enum: [name, year, players, activity, popularity]}
+        - name: label
+          in: query
+          description: Only the games with this popularity label (D76).
+          schema:
+            $ref: '#/components/schemas/PopularityLabel'
         - {name: page, in: query, schema: {type: integer, minimum: 1, default: 1}}
         - {name: per_page, in: query, schema: {type: integer, minimum: 1, maximum: 100, default: 24}}
       responses:
@@ -1367,12 +1372,46 @@ paths:
         '500':
           $ref: '#/components/responses/ServerError'
 
+  /front/games/highlights:
+    get:
+      tags: [Front]
+      operationId: frontGameHighlights
+      summary: Games to put forward
+      description: |
+        Two short lists among the games the front lists (D77). `discover`:
+        the games the cabinets liked (labels `hit` and `hidden_gem`) on
+        which the member's player has no visible score, the most popular
+        first; every liked game for a member without a player. `trending`:
+        the games with the most cabinets that played them and visible
+        scores made within the last 7 days, the most first.
+      security:
+        - frontSession: []
+      parameters:
+        - {name: limit, in: query, schema: {type: integer, minimum: 1, maximum: 24, default: 6}, description: Games of each list.}
+      responses:
+        '200':
+          description: The two lists.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FrontGameHighlightsResponse'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/FrontForbidden'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
   /front/games/filters:
     get:
       tags: [Front]
       operationId: frontGameFilters
       summary: What the game list can be filtered by
-      description: Only values that catalogued games have.
+      description: Only values that the listed games have.
       security:
         - frontSession: []
       responses:
@@ -2722,10 +2761,12 @@ components:
       allOf:
         - $ref: '#/components/schemas/FrontGame'
         - type: object
-          required: [ranked_players, last_score_at, leader, screenshot]
+          required: [ranked_players, last_score_at, leader, screenshot, popularity]
           properties:
             ranked_players: {type: integer}
             last_score_at: {type: [string, 'null'], format: date-time}
+            popularity:
+              $ref: '#/components/schemas/FrontPopularity'
             screenshot:
               type: [string, 'null']
               description: >-
@@ -2741,6 +2782,53 @@ components:
                     player:
                       $ref: '#/components/schemas/FrontPlayerRef'
                     score: {type: integer}
+
+    PopularityLabel:
+      type: string
+      enum: [hit, hidden_gem, addictive, divisive, missed_date]
+      description: |
+        What the cabinets' votes and plays say of a game (D76): `hit` liked
+        and played, `hidden_gem` liked and less played, `addictive` played
+        without the votes to call it liked, `divisive` about as many thumbs
+        up as thumbs down, `missed_date` thumbs down from every cabinet
+        that voted.
+
+    FrontPopularity:
+      description: Null when no cabinet reported the game and it has no visible score.
+      oneOf:
+        - type: 'null'
+        - type: object
+          required: [index, label]
+          properties:
+            index: {type: number, minimum: 0, maximum: 100, description: 'What `sort=popularity` orders by.'}
+            label:
+              oneOf:
+                - type: 'null'
+                - $ref: '#/components/schemas/PopularityLabel'
+
+    FrontGameCard:
+      allOf:
+        - $ref: '#/components/schemas/FrontGame'
+        - type: object
+          required: [ranked_players, screenshot, popularity]
+          properties:
+            ranked_players: {type: integer}
+            screenshot: {type: [string, 'null'], description: As in the game list.}
+            popularity:
+              $ref: '#/components/schemas/FrontPopularity'
+
+    FrontGameHighlightsResponse:
+      type: object
+      required: [discover, trending]
+      properties:
+        discover:
+          type: array
+          items:
+            $ref: '#/components/schemas/FrontGameCard'
+        trending:
+          type: array
+          items:
+            $ref: '#/components/schemas/FrontGameCard'
 
     FrontGameListResponse:
       type: object
@@ -2760,9 +2848,14 @@ components:
 
     FrontGameFiltersResponse:
       type: object
-      required: [genres, manufacturers, years]
+      required: [genres, labels, manufacturers, years]
       properties:
         genres: {type: array, items: {type: string}}
+        labels:
+          type: array
+          description: Popularity labels a listed game has.
+          items:
+            $ref: '#/components/schemas/PopularityLabel'
         manufacturers: {type: array, items: {type: string}}
         years: {type: array, items: {type: string}}
 
@@ -2787,8 +2880,27 @@ components:
 
     FrontGamePageResponse:
       type: object
-      required: [game, details, media, leaderboards, stats, events]
+      required: [game, details, media, popularity, leaderboards, stats, events]
       properties:
+        popularity:
+          description: |
+            The game's popularity and what the cabinets report of it (D76,
+            D77); null when no cabinet reported it and it has no visible
+            score. Thumbs down are not given as such.
+          oneOf:
+            - type: 'null'
+            - type: object
+              required: [index, label, thumbs_up, votes, cabinets, plays]
+              properties:
+                index: {type: number, minimum: 0, maximum: 100}
+                label:
+                  oneOf:
+                    - type: 'null'
+                    - $ref: '#/components/schemas/PopularityLabel'
+                thumbs_up: {type: integer, description: Cabinets that gave a thumbs up.}
+                votes: {type: integer, description: 'Cabinets that voted, thumbs up or down.'}
+                cabinets: {type: integer, description: Cabinets that voted on the game or played it.}
+                plays: {type: integer, description: 'Games started, all cabinets together.'}
         details:
           description: What ScreenScraper knows of the game (D68); null until it was asked, or when it does not know the game.
           oneOf:
