@@ -1029,3 +1029,19 @@ from 0.34 to 0.25: 6 thumbs up for 3 down is not "about as many". The
 popularity is computed at each request, as in D76; a cache comes if the
 cost asks for it. English names on the front: Hit, Hidden Gem, Addictive,
 Divisive, Missed Date.
+
+**D78: "Missed Date": a page for the games every cabinet turned down.** (2026-10-10, Lot 4.4)
+The user wanted the turned-down games shown as a category of their own,
+in a light tone, rather than hidden. `GET /front/games/missed-dates`
+gives `missed`, the games with the `missed_date` label (D76), and `saved`,
+the games a single thumbs up keeps out of it (one thumbs up, at least
+`min_votes` thumbs down): a game leaves the first list as soon as one
+cabinet likes it, and showing it apart gives the page a small stake. Both
+among every game, not only the ones the list shows (D74): a thumbs down
+removes the game from the cabinet, so these games have few scores and
+often no hiscores to read, and the page would be nearly empty. `listed`
+tells the front which ones have a place in the list. No cabinet is named,
+as in D77, the one that saved a game included. No history is kept:
+`saved` is read from the current votes. For the packs, the back office's
+games list gets a "Turned down by every cabinet" filter, the candidates
+to leave a pack.

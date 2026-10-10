@@ -34,6 +34,13 @@ For why things are done this way, see `docs/DECISIONS.md`.
 - Releases by semantic-release on every push to `main` (D44): 0.1.0
   published on 2026-09-25.
 
+## Lot 4.4: "Missed Date" (in progress, D78)
+
+- `GET /front/games/missed-dates`: `missed` and `saved`, among every game.
+- Back office: "Turned down by every cabinet" filter on the games.
+- Front side in `afronob/maui-hifront`.
+- Next: Lot 4.5, back to the cabinet (MAUI).
+
 ## Lot 4.3: popularity on the front (in progress, D77)
 
 - `GET /front/games`: `popularity` per game, `sort=popularity`, `label`

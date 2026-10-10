@@ -135,6 +135,44 @@ final class GamesController
         ]);
     }
 
+    /**
+     * The games every cabinet that voted turned down, and the ones a single cabinet saved from
+     * it (D78). Among every game, the ones the list leaves out included (D74): a game turned
+     * down is removed from the cabinets, and seldom has hiscores to read.
+     */
+    public function missedDates(): JsonResponse
+    {
+        $popularity = $this->popularity->all();
+        $minVotes = Popularity::rules()['min_votes'];
+        $missed = $popularity->filter(fn (GamePopularity $game): bool => $game->label === PopularityLabel::MissedDate);
+        $saved = $popularity->filter(fn (GamePopularity $game): bool => $game->thumbsUp === 1 && $game->thumbsDown >= $minVotes);
+
+        $games = Game::query()->whereIn('id', $missed->keys()->merge($saved->keys())->all())
+            ->with(['catverCategory.parent', 'media' => fn ($media) => $media->where('type', 'screenshot')])
+            ->get()
+            ->keyBy('id');
+        $cards = function (Collection $group) use ($games): array {
+            $cards = [];
+            foreach ($group as $popularity) {
+                $game = $games->get($popularity->gameId);
+                if ($game !== null) {
+                    $cards[] = [
+                        ...self::summary($game),
+                        'screenshot' => $game->media->first()?->hash,
+                        'listed' => $game->hiscores || $popularity->rankedPlayers > 0,
+                        'votes' => $popularity->votes(),
+                    ];
+                }
+            }
+            // The most cabinets first, then by name.
+            usort($cards, fn (array $a, array $b): int => [$b['votes'], $a['description'], $a['romname']] <=> [$a['votes'], $b['description'], $b['romname']]);
+
+            return $cards;
+        };
+
+        return new JsonResponse(['missed' => $cards($missed), 'saved' => $cards($saved), 'min_votes' => $minVotes]);
+    }
+
     /** What the list can be filtered by: only values that games with readable hiscores have. */
     public function filters(): JsonResponse
     {

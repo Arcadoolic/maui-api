@@ -6,6 +6,7 @@ use App\Enums\CategorySource;
 use App\Models\Category;
 use App\Models\Game;
 use App\Models\GameOpinion;
+use App\Services\Popularity\Popularity;
 use Filament\Actions\ViewAction;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
@@ -74,6 +75,13 @@ class GamesTable
                         true: fn (Builder $query) => $query->whereHas('scores'),
                         false: fn (Builder $query) => $query->whereDoesntHave('scores'),
                     ),
+                // Candidates to leave the packs: thumbs down from every cabinet that voted (D78).
+                TernaryFilter::make('missed_date')
+                    ->label(__('Turned down by every cabinet'))
+                    ->queries(
+                        true: fn (Builder $query) => self::missedDates($query),
+                        false: fn (Builder $query) => $query->whereNotIn('games.id', self::missedDates(Game::query())->select('games.id')),
+                    ),
                 TernaryFilter::make('catalogued')
                     ->label(__('Catalogued'))
                     ->nullable()
@@ -82,6 +90,20 @@ class GamesTable
             ->recordActions([
                 ViewAction::make(),
             ]);
+    }
+
+    /**
+     * Games with thumbs down from at least the minimum of votes and no thumbs up: what the
+     * popularity labels `missed_date` (App\Services\Popularity\Popularity::label()).
+     *
+     * @param  Builder<Game>  $query
+     * @return Builder<Game>
+     */
+    private static function missedDates(Builder $query): Builder
+    {
+        return $query
+            ->whereHas('opinions', fn (Builder $opinions) => $opinions->where('vote', GameOpinion::VOTE_DOWN), '>=', Popularity::rules()['min_votes'])
+            ->whereDoesntHave('opinions', fn (Builder $opinions) => $opinions->where('vote', GameOpinion::VOTE_UP));
     }
 
     /**

@@ -106,3 +106,21 @@ it('shows what the cabinets report of a game', function () {
         ->assertSee('broken_terry_bogard')
         ->assertSee('Thumbs down');
 });
+
+it('filters the games every cabinet that voted turned down', function () {
+    $down = fn (Game $game, int $vote) => $game->opinions()->create(['client_id' => cabinetWithToken()[0]->id, 'vote' => $vote]);
+    $missed = Game::factory()->create();
+    $saved = Game::factory()->create();
+    $few = Game::factory()->create();
+    foreach (range(1, 3) as $ignored) {
+        $down($missed, -1);
+        $down($saved, -1);
+    }
+    $down($saved, 1);
+    $down($few, -1);
+
+    livewire(ListGames::class)
+        ->filterTable('missed_date')
+        ->assertCanSeeTableRecords([$missed])
+        ->assertCanNotSeeTableRecords([$saved, $few]);
+});

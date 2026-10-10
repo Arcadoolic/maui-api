@@ -1406,6 +1406,35 @@ paths:
         '500':
           $ref: '#/components/responses/ServerError'
 
+  /front/games/missed-dates:
+    get:
+      tags: [Front]
+      operationId: frontMissedDates
+      summary: Games every cabinet turned down
+      description: |
+        `missed`: the games with the `missed_date` label (D76), thumbs down
+        from every cabinet that voted, from `min_votes` votes. `saved`: the
+        games a single thumbs up keeps out of it. Both among every game,
+        the ones the list leaves out included (D74), the most votes first,
+        then by name. No cabinet is named (D78).
+      security:
+        - frontSession: []
+      responses:
+        '200':
+          description: The two lists.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FrontMissedDatesResponse'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/FrontForbidden'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
   /front/games/filters:
     get:
       tags: [Front]
@@ -2829,6 +2858,30 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/FrontGameCard'
+
+    FrontMissedDate:
+      allOf:
+        - $ref: '#/components/schemas/FrontGame'
+        - type: object
+          required: [screenshot, listed, votes]
+          properties:
+            screenshot: {type: [string, 'null'], description: As in the game list.}
+            listed: {type: boolean, description: 'Whether the game list has the game (D74).'}
+            votes: {type: integer, description: 'Cabinets that voted: all thumbs down in `missed`, all but one in `saved`.'}
+
+    FrontMissedDatesResponse:
+      type: object
+      required: [missed, saved, min_votes]
+      properties:
+        missed:
+          type: array
+          items:
+            $ref: '#/components/schemas/FrontMissedDate'
+        saved:
+          type: array
+          items:
+            $ref: '#/components/schemas/FrontMissedDate'
+        min_votes: {type: integer, description: Votes from which a game can be in either list.}
 
     FrontGameListResponse:
       type: object
