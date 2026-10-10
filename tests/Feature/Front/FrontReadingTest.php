@@ -91,6 +91,27 @@ describe('game list', function () {
             ->assertJsonPath('games.1.screenshot', str_repeat('a', 64));
     });
 
+    it('lists every flyer of a game on its page, and serves each (D73)', function () {
+        Storage::fake('local');
+        $pengo = Game::factory()->create(['romname' => 'pengo']);
+        foreach ([1 => 'back', 0 => 'front'] as $position => $side) {
+            $path = 'game-media/pengo/flyer'.($position === 0 ? '' : "-{$position}").'.png';
+            Storage::disk('local')->put($path, $side);
+            GameMedia::query()->create([
+                'game_id' => $pengo->id, 'type' => 'flyer', 'position' => $position, 'path' => $path,
+                'mime' => 'image/png', 'hash' => hash('sha256', $side),
+            ]);
+        }
+
+        $this->getJson('/api/v1/front/games/pengo')->assertOk()
+            ->assertJsonPath('media.flyer', hash('sha256', 'front'))
+            ->assertJsonPath('flyers', [hash('sha256', 'front'), hash('sha256', 'back')]);
+        expect($this->get('/api/v1/front/games/pengo/media/flyer')->assertOk()->streamedContent())->toBe('front')
+            ->and($this->get('/api/v1/front/games/pengo/media/flyer?n=1')->assertOk()->streamedContent())->toBe('back');
+        $this->getJson('/api/v1/front/games/pengo/media/flyer?n=2')->assertNotFound()->assertJsonPath('code', 'media_not_found');
+        $this->getJson('/api/v1/front/games/pengo/media/flyer?n=abc')->assertNotFound()->assertJsonPath('code', 'media_not_found');
+    });
+
     it('leaves out an uncatalogued game without a visible score', function () {
         Game::factory()->uncatalogued()->create(['romname' => 'ghost']);
         $known = Game::factory()->uncatalogued()->create(['romname' => 'played']);

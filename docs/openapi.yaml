@@ -1521,6 +1521,12 @@ paths:
         - frontSession: []
       parameters:
         - $ref: '#/components/parameters/IfNoneMatch'
+        - name: n
+          in: query
+          description: >-
+            Which picture of this type, from 0: a game can have several flyers
+            (D73), listed by the game's page (`flyers`). The first one without it.
+          schema: {type: integer, minimum: 0, maximum: 99, default: 0}
       responses:
         '200':
           description: The picture.
@@ -2933,7 +2939,7 @@ components:
 
     FrontGamePageResponse:
       type: object
-      required: [game, details, media, popularity, leaderboards, stats, events]
+      required: [game, details, media, flyers, popularity, leaderboards, stats, events]
       properties:
         popularity:
           description: |
@@ -2968,6 +2974,13 @@ components:
             enum: [screenshot, title, logo, marquee, flyer]
           additionalProperties:
             type: string
+        flyers:
+          type: array
+          description: |
+            The SHA-256 of every flyer of the game, in order (D73), the one of
+            `media` first: `GET /front/games/{romname}/media/flyer?n=<index>`.
+            Empty without any.
+          items: {type: string}
         game:
           allOf:
             - $ref: '#/components/schemas/FrontGame'

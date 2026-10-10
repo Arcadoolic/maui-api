@@ -932,6 +932,21 @@ of one more TLS hop on the same host. Nothing else of the API is passed on.
 Production settings on the API's side: `FRONT_URL`, the Discord application
 (its redirect URI on the front's name), the ScreenScraper credentials.
 
+**D73: Every flyer of a game is kept, not only the first.** (2026-10-09)
+ScreenScraper often has several flyers for a game: the two sides of the
+sheet, or one per region (Pengo has three). D68 kept one picture per type;
+the game pages now show them all, one after the other. `game_media` gets a
+`position` (0 for the picture each type had until now, so nothing moves for
+the other types, nor for the first flyer); the scraper downloads every
+flyer, the preferred regions first and in ScreenScraper's order within a
+region, keeps a picture sent under two regions once, eight at most, and
+removes those a later answer no longer has. Files: `flyer.<ext>` as before,
+then `flyer-1.<ext>`, `flyer-2.<ext>`. The page of a game lists their hashes
+(`flyers`, the one of `media.flyer` first) and
+`GET /front/games/{romname}/media/flyer?n=<index>` serves each: a query
+parameter rather than a new route, the first flyer keeping the URL it had.
+The games already asked only get their other flyers when they are asked
+again: `catalog:scrape --force`, or after the 30 days of D68.
 
 **D74: The catalog says whether a game's hiscores can be read; the front lists only those.** (2026-10-10, Lot 3, completes D47 and D67)
 The front listed every catalogued game, yet a cabinet reads the hiscores of
@@ -945,7 +960,6 @@ front. `GET /front/games` and its filters keep the games with `hiscores`,
 plus the ones that already have a visible score (a cabinet on a newer mhiex
 than the last push). A game's page stays reachable by its address. After an
 mhiex release, the catalog is pushed again for the new games to appear.
-(D73 is the number of the flyers decision, not merged yet.)
 
 **D75: Each cabinet reports its vote and its number of plays per game.** (2026-10-10, Lot 4.1)
 A cabinet has a vote on each game (thumbs up, neutral, thumbs down: one per

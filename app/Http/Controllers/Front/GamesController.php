@@ -238,7 +238,9 @@ final class GamesController
             ],
             'details' => self::details($game->detail),
             // By type, the hash of each picture: GET /front/games/{romname}/media/{type}.
-            'media' => (object) $game->media->pluck('hash', 'type')->all(),
+            'media' => (object) $game->media->where('position', 0)->pluck('hash', 'type')->all(),
+            // Every flyer, the one of `media` first: GET /front/games/{romname}/media/flyer?n=<index>.
+            'flyers' => $game->media->where('type', 'flyer')->sortBy('position')->pluck('hash')->values()->all(),
             'popularity' => self::popularityDetails($this->popularity->all()->get($game->id)),
             'leaderboards' => $leaderboards->all(),
             'stats' => [
@@ -258,11 +260,13 @@ final class GamesController
         ]);
     }
 
-    /** A picture of the game, with its hash as ETag (D68). */
+    /** A picture of the game, with its hash as ETag (D68); `n` picks one of its flyers (D73). */
     public function media(Request $request, string $romname, string $type): Response
     {
-        $media = preg_match(self::ROMNAME, $romname) === 1 && isset(GameMedia::TYPES[$type])
-            ? GameMedia::query()->where('type', $type)->whereHas('game', fn (Builder $game) => $game->where('romname', $romname))->first()
+        $position = $request->query('n', '0');
+        $media = preg_match(self::ROMNAME, $romname) === 1 && isset(GameMedia::TYPES[$type]) && is_string($position) && preg_match('/^\d{1,2}$/', $position) === 1
+            ? GameMedia::query()->where('type', $type)->where('position', (int) $position)
+                ->whereHas('game', fn (Builder $game) => $game->where('romname', $romname))->first()
             : null;
         if ($media === null || ! Storage::disk(GameMedia::DISK)->exists($media->path)) {
             throw ApiProblemException::mediaNotFound();
