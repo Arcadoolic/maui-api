@@ -147,3 +147,36 @@ describe('highlights', function () {
         $this->getJson('/api/v1/front/games/highlights')->assertUnauthorized();
     });
 });
+
+describe('missed dates', function () {
+    it('lists the games every cabinet that voted turned down, the unlisted ones included', function () {
+        fleetReported(frontGame('four', 'B'), [...array_fill(0, 4, [-1, 1, 200]), [0, 1, 200]]);
+        fleetReported(Game::factory()->withoutHiscores()->create(['romname' => 'six', 'description' => 'A']), array_fill(0, 6, [-1, 1, 200]));
+        fleetReported(Game::factory()->uncatalogued()->create(['romname' => 'bare']), array_fill(0, 4, [-1, 1, 200]));
+        fleetReported(frontGame('two', 'C'), array_fill(0, 2, [-1, 1, 200]));
+        fleetReported(frontGame('hit', 'D'), array_fill(0, 8, [1, 30, 2]));
+
+        $this->getJson('/api/v1/front/games/missed-dates')->assertOk()
+            ->assertJsonPath('missed.*.romname', ['six', 'four', 'bare'])
+            ->assertJsonPath('missed.*.votes', [6, 4, 4])
+            ->assertJsonPath('missed.*.listed', [false, true, false])
+            ->assertJsonPath('saved', [])
+            ->assertJsonPath('min_votes', 3);
+    });
+
+    it('sets apart the games a single cabinet saved', function () {
+        fleetReported(frontGame('saved', 'A'), [...array_fill(0, 4, [-1, 1, 200]), [1, 3, 5]]);
+        fleetReported(frontGame('shared', 'B'), [...array_fill(0, 3, [-1, 1, 200]), [1, 3, 5], [1, 3, 5]]);
+
+        $this->getJson('/api/v1/front/games/missed-dates')
+            ->assertJsonPath('missed', [])
+            ->assertJsonPath('saved.*.romname', ['saved'])
+            ->assertJsonPath('saved.0.votes', 5);
+    });
+
+    it('needs a member', function () {
+        auth('member')->logout();
+
+        $this->getJson('/api/v1/front/games/missed-dates')->assertUnauthorized();
+    });
+});

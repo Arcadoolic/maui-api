@@ -106,6 +106,7 @@ Route::prefix('front')->middleware('front')->group(function () {
         Route::get('games', [GamesController::class, 'index']);
         Route::get('games/filters', [GamesController::class, 'filters']);
         Route::get('games/highlights', [GamesController::class, 'highlights']);
+        Route::get('games/missed-dates', [GamesController::class, 'missedDates']);
         Route::get('games/{romname}', [GamesController::class, 'show']);
         Route::get('games/{romname}/media/{type}', [GamesController::class, 'media']);
         Route::get('players', [FrontPlayersController::class, 'index']);
