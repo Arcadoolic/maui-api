@@ -105,6 +105,7 @@ Route::prefix('front')->middleware('front')->group(function () {
         // Reading: games, players and the event feed (docs/DECISIONS.md D67).
         Route::get('games', [GamesController::class, 'index']);
         Route::get('games/filters', [GamesController::class, 'filters']);
+        Route::get('games/highlights', [GamesController::class, 'highlights']);
         Route::get('games/{romname}', [GamesController::class, 'show']);
         Route::get('games/{romname}/media/{type}', [GamesController::class, 'media']);
         Route::get('players', [FrontPlayersController::class, 'index']);
