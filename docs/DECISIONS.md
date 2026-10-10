@@ -1087,3 +1087,14 @@ plays on one cabinet no longer make an `addictive`. The value is also read
 from `HISCORES_POPULARITY_ACTIVITY_HALF`, like `min_votes`: the next
 adjustment needs no release. Two cabinets are little to tune on: to review
 as the fleet grows, with `hiscores:popularity --activity-half=`.
+
+**D81: A game's page names the games before and after it in the list.** (2026-10-10)
+To go through the games one page after the other, without coming back to
+the list. `GET /front/games/{romname}` gives `previous` and `next`, a
+romname and a description each, null at either end: the neighbours in the
+list as it comes by default, by name then romname, among the games the
+list has (D74). A game the list leaves out, reached by its address or from
+"Missed dates", still gets the two it would stand between. The filters
+and the sort of the list are not followed: a page does not know which list
+the member came from, and the order by name is the one that always exists.
+Two more queries per page, each on the first row of an ordered scan.

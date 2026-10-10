@@ -236,6 +236,9 @@ final class GamesController
                 'clones' => Game::query()->where('parent_romname', $game->romname)->orderBy('description')->get()
                     ->map(fn (Game $clone): array => ['romname' => $clone->romname, 'description' => $clone->description])->all(),
             ],
+            // The games before and after this one in the list, by name (D81).
+            'previous' => $this->neighbour($game, '<'),
+            'next' => $this->neighbour($game, '>'),
             'details' => self::details($game->detail),
             // By type, the hash of each picture: GET /front/games/{romname}/media/{type}.
             'media' => (object) $game->media->where('position', 0)->pluck('hash', 'type')->all(),
@@ -280,6 +283,27 @@ final class GamesController
         $response->isNotModified($request);
 
         return $response;
+    }
+
+    /**
+     * The game next to this one in the list as it comes by default, by name then romname: the one
+     * before (`<`) or after (`>`), null at either end. Among the games the list has, whether this
+     * one is in it or not.
+     *
+     * @param  '<'|'>'  $side
+     * @return array{romname: string, description: string}|null
+     */
+    private function neighbour(Game $game, string $side): ?array
+    {
+        $direction = $side === '<' ? 'desc' : 'asc';
+        // One comparison on both columns, in the collation the list is sorted with.
+        $neighbour = $this->listed()
+            ->whereRaw($side === '<' ? '(games.description, games.romname) < (?, ?)' : '(games.description, games.romname) > (?, ?)', [$game->description, $game->romname])
+            ->orderBy('games.description', $direction)
+            ->orderBy('games.romname', $direction)
+            ->first();
+
+        return $neighbour === null ? null : ['romname' => $neighbour->romname, 'description' => $neighbour->description];
     }
 
     /**
