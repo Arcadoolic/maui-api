@@ -8,6 +8,10 @@ use App\Filament\Resources\Clients\Pages\CreateClient;
 use App\Filament\Resources\Clients\Pages\ListClients;
 use App\Filament\Resources\Clients\Pages\ViewClient;
 use App\Filament\Resources\Clients\RelationManagers\StartupsRelationManager;
+use App\Filament\Resources\ServiceAccounts\Pages\CreateServiceAccount;
+use App\Filament\Resources\ServiceAccounts\Pages\ListServiceAccounts;
+use App\Filament\Resources\ServiceAccounts\Pages\ViewServiceAccount;
+use App\Filament\Resources\ServiceAccounts\ServiceAccountResource;
 use App\Models\Client;
 use App\Models\Score;
 use App\Models\User;
@@ -18,10 +22,30 @@ beforeEach(function () {
     $this->actingAs(User::factory()->withAppAuthentication()->create());
 });
 
-it('lists clients', function () {
-    $clients = Client::factory()->count(3)->create();
+// Cabinets and service accounts each have their list (docs/DECISIONS.md D79).
+it('lists the cabinets, without the service accounts', function () {
+    $cabinets = Client::factory()->count(3)->create();
+    $accounts = [Client::factory()->service()->create(), Client::factory()->bot()->create()];
 
-    livewire(ListClients::class)->assertCanSeeTableRecords($clients);
+    livewire(ListClients::class)->assertCanSeeTableRecords($cabinets)->assertCanNotSeeTableRecords($accounts);
+});
+
+it('lists the service accounts and the bots, without the cabinets', function () {
+    $cabinet = Client::factory()->create();
+    $accounts = [Client::factory()->service()->create(), Client::factory()->bot()->create()];
+
+    livewire(ListServiceAccounts::class)->assertCanSeeTableRecords($accounts)->assertCanNotSeeTableRecords([$cabinet]);
+    $this->get(ServiceAccountResource::getUrl('index'))->assertOk()->assertSee('Service accounts');
+});
+
+it('opens a client under its own list only', function () {
+    $cabinet = Client::factory()->create();
+    $account = Client::factory()->service()->create();
+
+    $this->get(ClientResource::getUrl('view', ['record' => $cabinet]))->assertOk();
+    $this->get(ServiceAccountResource::getUrl('view', ['record' => $account]))->assertOk();
+    $this->get(ClientResource::getUrl('view', ['record' => $account]))->assertNotFound();
+    $this->get(ServiceAccountResource::getUrl('edit', ['record' => $cabinet]))->assertNotFound();
 });
 
 it('creates a cabinet with a generated name', function () {
@@ -29,7 +53,6 @@ it('creates a cabinet with a generated name', function () {
         ->fillForm([
             'owner_name' => 'Jane Doe',
             'email' => 'owner@example.test',
-            'type' => ClientType::Maui->value,
             'notes' => 'Garage',
         ])
         ->call('create')
@@ -43,7 +66,7 @@ it('creates a cabinet with a generated name', function () {
 });
 
 it('creates a service account with the descriptive name given by the admin', function () {
-    livewire(CreateClient::class)
+    livewire(CreateServiceAccount::class)
         ->fillForm([
             'owner_name' => 'Catalog team',
             'email' => 'catalog@example.test',
@@ -59,7 +82,7 @@ it('creates a service account with the descriptive name given by the admin', fun
 it('requires a valid, free name for a service account', function (mixed $name, string $rule) {
     Client::factory()->create(['name' => 'catalog_importer']);
 
-    livewire(CreateClient::class)
+    livewire(CreateServiceAccount::class)
         ->fillForm([
             'owner_name' => 'Catalog team',
             'email' => 'catalog@example.test',
@@ -75,20 +98,28 @@ it('requires a valid, free name for a service account', function (mixed $name, s
 ]);
 
 it('only asks for a name when creating a service account', function () {
-    livewire(CreateClient::class)
-        ->fillForm(['type' => ClientType::Maui->value])
-        ->assertFormFieldHidden('name')
-        ->fillForm(['type' => ClientType::Service->value])
-        ->assertFormFieldVisible('name')
-        ->fillForm(['type' => ClientType::Bot->value])
-        ->assertFormFieldVisible('name');
+    livewire(CreateClient::class)->assertFormFieldHidden('name')->assertFormFieldDoesNotExist('type');
+    livewire(CreateServiceAccount::class)->assertFormFieldVisible('name')->assertFormFieldVisible('type');
+});
+
+it('creates a bot from the service accounts, never a cabinet', function () {
+    livewire(CreateServiceAccount::class)
+        ->fillForm(['owner_name' => 'Discord', 'email' => 'bot@example.test', 'type' => ClientType::Bot->value, 'name' => 'discord_bot'])
+        ->call('create')
+        ->assertHasNoFormErrors();
+    expect(Client::query()->where('name', 'discord_bot')->firstOrFail()->type)->toBe(ClientType::Bot);
+
+    livewire(CreateServiceAccount::class)
+        ->fillForm(['owner_name' => 'Jane Doe', 'email' => 'owner@example.test', 'type' => ClientType::Maui->value, 'name' => 'not_a_cabinet'])
+        ->call('create')
+        ->assertHasFormErrors(['type']);
 });
 
 it('lets one owner have several cabinets with the same email', function () {
     Client::factory()->create(['owner_name' => 'Jane Doe', 'email' => 'owner@example.test']);
 
     livewire(CreateClient::class)
-        ->fillForm(['owner_name' => 'Jane Doe', 'email' => 'owner@example.test', 'type' => ClientType::Maui->value])
+        ->fillForm(['owner_name' => 'Jane Doe', 'email' => 'owner@example.test'])
         ->call('create')
         ->assertHasNoFormErrors();
 
@@ -100,7 +131,7 @@ it('lets one owner have several cabinets with the same email', function () {
 
 it('validates the client form', function (string $field, mixed $value, string $rule) {
     livewire(CreateClient::class)
-        ->fillForm(['owner_name' => 'Jane Doe', 'email' => 'owner@example.test', 'type' => ClientType::Maui->value, $field => $value])
+        ->fillForm(['owner_name' => 'Jane Doe', 'email' => 'owner@example.test', $field => $value])
         ->call('create')
         ->assertHasFormErrors([$field => $rule]);
 })->with([
@@ -228,7 +259,7 @@ describe('service account actions', function () {
     it('issues a token shown once, and no invitation', function (ClientType $type) {
         $client = Client::factory()->service()->create(['type' => $type]);
 
-        livewire(ViewClient::class, ['record' => $client->getRouteKey()])
+        livewire(ViewServiceAccount::class, ['record' => $client->getRouteKey()])
             ->assertActionHidden('invite')
             ->assertActionHidden('renew')
             ->callAction('issueServiceToken')
@@ -278,12 +309,12 @@ it('shows the startup history of a cabinet', function () {
 it('shows when a service account last used its token (D43)', function () {
     [$client, $token] = serviceWithToken();
 
-    livewire(ViewClient::class, ['record' => $client->getRouteKey()])->assertSee('Never used');
+    livewire(ViewServiceAccount::class, ['record' => $client->getRouteKey()])->assertSee('Never used');
 
     $this->putJson('/api/v1/catalog/games', ['games' => [['romname' => 'dkong', 'description' => 'Donkey Kong']]], serviceHeaders($client, $token))
         ->assertOk();
 
-    livewire(ViewClient::class, ['record' => $client->fresh()->getRouteKey()])
+    livewire(ViewServiceAccount::class, ['record' => $client->fresh()->getRouteKey()])
         ->assertSee('Token last used')
         ->assertDontSee('Never used');
 });

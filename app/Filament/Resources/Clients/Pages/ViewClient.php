@@ -153,7 +153,8 @@ class ViewClient extends ViewRecord
             ->action(function (): void {
                 app(ClientAdministration::class)->delete($this->client());
                 Notification::make()->title(__('Client deleted'))->success()->send();
-                $this->redirect(ClientResource::getUrl('index'));
+                // Back to the list this page belongs to: cabinets or service accounts.
+                $this->redirect(static::getResource()::getUrl('index'));
             });
     }
 
