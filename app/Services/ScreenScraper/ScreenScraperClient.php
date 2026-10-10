@@ -124,6 +124,7 @@ final class ScreenScraperClient
             buttons: $controls === [] ? null : count(array_filter($controls, fn (string $control): bool => str_starts_with($control, 'BUTTON'))),
             genres: self::genres($game['genres'] ?? null),
             mediaUrls: $urls,
+            flyerUrls: self::mediaUrls($medias, GameMedia::TYPES['flyer']),
         );
     }
 
@@ -192,19 +193,29 @@ final class ScreenScraperClient
      */
     private static function mediaUrl(array $medias, string $type): ?string
     {
+        return self::mediaUrls($medias, $type)[0] ?? null;
+    }
+
+    /**
+     * Every media of a type, the preferred regions first, in ScreenScraper's order within one
+     * (a flyer's front before its back).
+     *
+     * @param  array<int|string, mixed>  $medias
+     * @return list<string>
+     */
+    private static function mediaUrls(array $medias, string $type): array
+    {
         $candidates = array_values(array_filter($medias, fn (mixed $media): bool => is_array($media)
             && ($media['type'] ?? null) === $type
             && is_string($media['url'] ?? null)
             && str_starts_with($media['url'], 'https://')));
-        foreach (self::REGIONS as $region) {
-            foreach ($candidates as $media) {
-                if (($media['region'] ?? null) === $region) {
-                    return $media['url'];
-                }
-            }
-        }
+        $rank = fn (array $media): int => ($index = array_search($media['region'] ?? null, self::REGIONS, true)) === false
+            ? count(self::REGIONS)
+            : $index;
+        // A stable sort: PHP keeps the order of equal elements.
+        usort($candidates, fn (array $a, array $b): int => $rank($a) <=> $rank($b));
 
-        return $candidates[0]['url'] ?? null;
+        return array_values(array_unique(array_column($candidates, 'url')));
     }
 
     private function throttle(): void

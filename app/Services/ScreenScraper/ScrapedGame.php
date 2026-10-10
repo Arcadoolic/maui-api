@@ -8,6 +8,7 @@ final readonly class ScrapedGame
     /**
      * @param  list<string>  $genres
      * @param  array<string, string>  $mediaUrls  By our media type (GameMedia::TYPES).
+     * @param  list<string>  $flyerUrls  Every flyer, the one of `$mediaUrls` first.
      */
     public function __construct(
         public ?int $id,
@@ -23,5 +24,6 @@ final readonly class ScrapedGame
         public ?int $buttons,
         public array $genres,
         public array $mediaUrls,
+        public array $flyerUrls = [],
     ) {}
 }

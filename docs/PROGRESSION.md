@@ -34,6 +34,19 @@ For why things are done this way, see `docs/DECISIONS.md`.
 - Releases by semantic-release on every push to `main` (D44): 0.1.0
   published on 2026-09-25.
 
+## Back office: cabinets and service accounts apart (in progress, D79)
+
+- Two lists on the same `clients` table: "Cabinets" (`/admin/clients`) and
+  "Service accounts" (`/admin/service-accounts`, bots included).
+
+## Game pages: every flyer (in progress, D73)
+
+- `game_media.position`; the scraper keeps every flyer of a game, eight at
+  most; `flyers` on a game's page, `GET .../media/flyer?n=<index>`.
+- The games already asked get their other flyers when asked again:
+  `catalog:scrape --force`, or after the 30 days of D68.
+- Front side in `afronob/maui-hifront`: a carousel on the game page.
+
 ## Lot 4.4: "Missed Date" (in progress, D78)
 
 - `GET /front/games/missed-dates`: `missed` and `saved`, among every game.

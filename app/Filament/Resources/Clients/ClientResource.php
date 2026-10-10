@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Clients;
 
+use App\Enums\ClientType;
 use App\Filament\Resources\Clients\Pages\CreateClient;
 use App\Filament\Resources\Clients\Pages\EditClient;
 use App\Filament\Resources\Clients\Pages\ListClients;
@@ -17,10 +18,13 @@ use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Model;
 
 /**
- * Cabinets and service accounts. No delete: disabling keeps the audit trail
- * (and, from Lot 2, the scores) consistent (docs/DECISIONS.md D31).
+ * The cabinets: the clients of type `maui`. The technical accounts have their
+ * own list (ServiceAccountResource, docs/DECISIONS.md D79). Disabling is the
+ * usual way to stop one; deleting is irreversible (D63).
  */
 class ClientResource extends Resource
 {
@@ -29,6 +33,21 @@ class ClientResource extends Resource
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedComputerDesktop;
 
     protected static ?string $recordTitleAttribute = 'name';
+
+    protected static ?string $modelLabel = 'cabinet';
+
+    protected static ?string $pluralModelLabel = 'cabinets';
+
+    protected static ?string $navigationLabel = 'Cabinets';
+
+    // The address the cabinets always had in the back office.
+    protected static ?string $slug = 'clients';
+
+    /** @return Builder<Model> */
+    public static function getEloquentQuery(): Builder
+    {
+        return parent::getEloquentQuery()->where('type', ClientType::Maui);
+    }
 
     public static function form(Schema $schema): Schema
     {

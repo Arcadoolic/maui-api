@@ -3,7 +3,6 @@
 namespace App\Filament\Resources\Clients\Tables;
 
 use App\Enums\ClientStatus;
-use App\Enums\ClientType;
 use App\Models\Client;
 use Filament\Actions\EditAction;
 use Filament\Actions\ViewAction;
@@ -22,7 +21,6 @@ class ClientsTable
             ->columns([
                 TextColumn::make('name')->searchable()->sortable()->fontFamily('mono'),
                 TextColumn::make('owner_name')->label(__('Owner'))->searchable()->sortable(),
-                TextColumn::make('type')->badge(),
                 TextColumn::make('status')->badge(),
                 IconColumn::make('online')
                     ->state(fn (Client $record): bool => $record->isOnline())
@@ -34,7 +32,6 @@ class ClientsTable
                 TextColumn::make('email')->searchable()->toggleable(),
             ])
             ->filters([
-                SelectFilter::make('type')->options(ClientType::class),
                 SelectFilter::make('status')->options(ClientStatus::class),
             ])
             ->recordActions([

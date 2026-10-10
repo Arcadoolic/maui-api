@@ -932,6 +932,21 @@ of one more TLS hop on the same host. Nothing else of the API is passed on.
 Production settings on the API's side: `FRONT_URL`, the Discord application
 (its redirect URI on the front's name), the ScreenScraper credentials.
 
+**D73: Every flyer of a game is kept, not only the first.** (2026-10-09)
+ScreenScraper often has several flyers for a game: the two sides of the
+sheet, or one per region (Pengo has three). D68 kept one picture per type;
+the game pages now show them all, one after the other. `game_media` gets a
+`position` (0 for the picture each type had until now, so nothing moves for
+the other types, nor for the first flyer); the scraper downloads every
+flyer, the preferred regions first and in ScreenScraper's order within a
+region, keeps a picture sent under two regions once, eight at most, and
+removes those a later answer no longer has. Files: `flyer.<ext>` as before,
+then `flyer-1.<ext>`, `flyer-2.<ext>`. The page of a game lists their hashes
+(`flyers`, the one of `media.flyer` first) and
+`GET /front/games/{romname}/media/flyer?n=<index>` serves each: a query
+parameter rather than a new route, the first flyer keeping the URL it had.
+The games already asked only get their other flyers when they are asked
+again: `catalog:scrape --force`, or after the 30 days of D68.
 
 **D74: The catalog says whether a game's hiscores can be read; the front lists only those.** (2026-10-10, Lot 3, completes D47 and D67)
 The front listed every catalogued game, yet a cabinet reads the hiscores of
@@ -945,7 +960,6 @@ front. `GET /front/games` and its filters keep the games with `hiscores`,
 plus the ones that already have a visible score (a cabinet on a newer mhiex
 than the last push). A game's page stays reachable by its address. After an
 mhiex release, the catalog is pushed again for the new games to appear.
-(D73 is the number of the flyers decision, not merged yet.)
 
 **D75: Each cabinet reports its vote and its number of plays per game.** (2026-10-10, Lot 4.1)
 A cabinet has a vote on each game (thumbs up, neutral, thumbs down: one per
@@ -1045,3 +1059,31 @@ as in D77, the one that saved a game included. No history is kept:
 `saved` is read from the current votes. For the packs, the back office's
 games list gets a "Turned down by every cabinet" filter, the candidates
 to leave a pack.
+
+**D79: The back office lists the cabinets and the service accounts apart.** (2026-10-10)
+One "Clients" list held the cabinets with the service accounts and the bots
+(D39, D57), with columns that only make sense for a cabinet: online, last
+seen, MAUI, MAME and OS versions. They are two lists now, on the same
+`clients` table and `Client` model: "Cabinets" (type `maui`, at
+`/admin/clients` as before) and "Service accounts" (every other type, at
+`/admin/service-accounts`), each one a Filament resource scoped by type. A
+client only opens under its own list: the other answers 404. A cabinet is
+created from the first, without a type to choose; a service account or a
+bot from the second, with its descriptive name (D39) and its type, which
+cannot be `maui`. The service accounts' list shows when the token was last
+used, their only "last seen" (D43), and has no startup history. The page
+of a client and its operations stay one class: each action already shows
+for the types it is for. Nothing changes in the API nor in the database.
+
+**D80: Popularity: the activity worth half the scale goes from 1.5 to 2.5, and can be set by the environment.** (2026-10-10, adjusts D76)
+The first production figures, from two cabinets, showed what the simulated
+fleet could not: on a young fleet every game was played within the last 30
+days, so the "recent cabinets" part alone brought the activity close to the
+`active_from` threshold. Two games liked by both cabinets and played three
+times in all were `hit`, where `hidden_gem` is the word. With
+`activity_half` at 2.5 they are, the games played 10 and 33 times stay
+`hit`, the one played 55 times on one cabinet stays `addictive`, and 8
+plays on one cabinet no longer make an `addictive`. The value is also read
+from `HISCORES_POPULARITY_ACTIVITY_HALF`, like `min_votes`: the next
+adjustment needs no release. Two cabinets are little to tune on: to review
+as the fleet grows, with `hiscores:popularity --activity-half=`.
