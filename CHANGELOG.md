@@ -1,3 +1,11 @@
+## [0.10.0](https://github.com/Arcadoolic/maui-api/compare/0.9.0...0.10.0) (2026-10-10)
+
+### Features
+
+* **front:** "Missed Date", the games every cabinet turned down ([743cd89](https://github.com/Arcadoolic/maui-api/commit/743cd892be807bb9a9d295305f119e67a3b81c16))
+* **front:** popularity of the games on the front's endpoints ([2c0cfcb](https://github.com/Arcadoolic/maui-api/commit/2c0cfcbc24af34ccc2781b9feac695fcb43a6ca2))
+* **popularity:** popularity index and label of a game, from the cabinets' votes and plays ([9b03b68](https://github.com/Arcadoolic/maui-api/commit/9b03b68f164f69a9c860a331dcf43756b9e8105f))
+
 ## [0.9.0](https://github.com/Arcadoolic/maui-api/compare/0.8.0...0.9.0) (2026-10-10)
 
 ### Features
