@@ -1,3 +1,10 @@
+## [0.9.0](https://github.com/Arcadoolic/maui-api/compare/0.8.0...0.9.0) (2026-10-10)
+
+### Features
+
+* **catalog:** flag the games whose hiscores can be read, list only those on the front ([ab6b7ae](https://github.com/Arcadoolic/maui-api/commit/ab6b7ae000bda0f663b65ddf0e65afbad0b68ba5))
+* **opinions:** take each cabinet's vote and play count per game ([8558fb4](https://github.com/Arcadoolic/maui-api/commit/8558fb45e32b13162e5082c8f303ec1266e587e2))
+
 ## [0.8.0](https://github.com/Arcadoolic/maui-api/compare/0.7.1...0.8.0) (2026-10-09)
 
 ### Features
