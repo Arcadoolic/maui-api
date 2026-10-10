@@ -1059,3 +1059,18 @@ as in D77, the one that saved a game included. No history is kept:
 `saved` is read from the current votes. For the packs, the back office's
 games list gets a "Turned down by every cabinet" filter, the candidates
 to leave a pack.
+
+**D79: The back office lists the cabinets and the service accounts apart.** (2026-10-10)
+One "Clients" list held the cabinets with the service accounts and the bots
+(D39, D57), with columns that only make sense for a cabinet: online, last
+seen, MAUI, MAME and OS versions. They are two lists now, on the same
+`clients` table and `Client` model: "Cabinets" (type `maui`, at
+`/admin/clients` as before) and "Service accounts" (every other type, at
+`/admin/service-accounts`), each one a Filament resource scoped by type. A
+client only opens under its own list: the other answers 404. A cabinet is
+created from the first, without a type to choose; a service account or a
+bot from the second, with its descriptive name (D39) and its type, which
+cannot be `maui`. The service accounts' list shows when the token was last
+used, their only "last seen" (D43), and has no startup history. The page
+of a client and its operations stay one class: each action already shows
+for the types it is for. Nothing changes in the API nor in the database.
