@@ -1,3 +1,9 @@
+## [0.12.0](https://github.com/Arcadoolic/maui-api/compare/0.11.0...0.12.0) (2026-10-10)
+
+### Features
+
+* **front:** a game's page names the games before and after it in the list ([70326dc](https://github.com/Arcadoolic/maui-api/commit/70326dc8d58f0d637d3389a89d4d3d65358b1d24))
+
 ## [0.11.0](https://github.com/Arcadoolic/maui-api/compare/0.10.0...0.11.0) (2026-10-10)
 
 ### Features
