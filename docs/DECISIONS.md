@@ -1074,3 +1074,16 @@ cannot be `maui`. The service accounts' list shows when the token was last
 used, their only "last seen" (D43), and has no startup history. The page
 of a client and its operations stay one class: each action already shows
 for the types it is for. Nothing changes in the API nor in the database.
+
+**D80: Popularity: the activity worth half the scale goes from 1.5 to 2.5, and can be set by the environment.** (2026-10-10, adjusts D76)
+The first production figures, from two cabinets, showed what the simulated
+fleet could not: on a young fleet every game was played within the last 30
+days, so the "recent cabinets" part alone brought the activity close to the
+`active_from` threshold. Two games liked by both cabinets and played three
+times in all were `hit`, where `hidden_gem` is the word. With
+`activity_half` at 2.5 they are, the games played 10 and 33 times stay
+`hit`, the one played 55 times on one cabinet stays `addictive`, and 8
+plays on one cabinet no longer make an `addictive`. The value is also read
+from `HISCORES_POPULARITY_ACTIVITY_HALF`, like `min_votes`: the next
+adjustment needs no release. Two cabinets are little to tune on: to review
+as the fleet grows, with `hiscores:popularity --activity-half=`.
