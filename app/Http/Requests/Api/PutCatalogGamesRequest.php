@@ -32,6 +32,7 @@ final class PutCatalogGamesRequest extends FormRequest
             'games.*.catver_genre' => ['nullable', 'required_with:games.*.catver_subgenre', 'string', 'max:128'],
             'games.*.catver_subgenre' => ['nullable', 'string', 'max:128'],
             'games.*.mature' => ['sometimes', 'boolean'],
+            'games.*.hiscores' => ['sometimes', 'boolean'],
         ];
     }
 

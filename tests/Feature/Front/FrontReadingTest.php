@@ -99,6 +99,15 @@ describe('game list', function () {
         $this->getJson('/api/v1/front/games')->assertJsonPath('games.*.romname', ['played']);
     });
 
+    it('leaves out a game whose hiscores no cabinet can read, unless it has a visible score', function () {
+        Game::factory()->create(['romname' => 'readable', 'description' => 'A']);
+        Game::factory()->withoutHiscores()->create(['romname' => 'silent', 'description' => 'B']);
+        $newer = Game::factory()->withoutHiscores()->create(['romname' => 'played', 'description' => 'C']);
+        leaderboardScore($newer, publicPlayer('ACE'), 100);
+
+        $this->getJson('/api/v1/front/games')->assertJsonPath('games.*.romname', ['readable', 'played']);
+    });
+
     it('filters by text, genre, manufacturer, year and players', function () {
         Game::factory()->create(['romname' => 'pacman', 'description' => 'Pac-Man', 'manufacturer' => 'Namco', 'year' => '1980', 'player_sim' => 2, 'catver_category_id' => catverCategory('Maze', 'Collect')->id]);
         Game::factory()->create(['romname' => 'galaga', 'description' => 'Galaga', 'manufacturer' => 'Namco', 'year' => '1981', 'player_sim' => 1, 'catver_category_id' => catverCategory('Shooter')->id]);
@@ -152,10 +161,11 @@ describe('game list', function () {
         $this->getJson('/api/v1/front/games?per_page=101')->assertUnprocessable();
     });
 
-    it('offers the filters catalogued games have', function () {
+    it('offers the filters games with readable hiscores have', function () {
         Game::factory()->create(['manufacturer' => 'Namco', 'year' => '1980', 'catver_category_id' => catverCategory('Maze', 'Collect')->id]);
         Game::factory()->create(['manufacturer' => 'Atari', 'year' => '1979', 'catver_category_id' => catverCategory('Shooter')->id]);
         Game::factory()->uncatalogued()->create();
+        Game::factory()->withoutHiscores()->create(['manufacturer' => 'Silent', 'year' => '1999']);
         catverCategory('Unused');
 
         $this->getJson('/api/v1/front/games/filters')->assertOk()->assertExactJson([

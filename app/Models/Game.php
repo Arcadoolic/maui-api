@@ -24,6 +24,7 @@ use Illuminate\Support\Carbon;
  * @property int|null $genre_category_id
  * @property int|null $catver_category_id
  * @property bool $mature
+ * @property bool $hiscores Whether a cabinet can read its hiscores (D74).
  * @property Carbon|null $catalogued_at Null while the game is only known from a score.
  * @property Carbon $created_at
  * @property Carbon $updated_at
@@ -37,11 +38,12 @@ class Game extends Model
 
     protected $fillable = [
         'romname', 'description', 'manufacturer', 'year', 'parent_romname',
-        'player_sim', 'player_alt', 'genre_category_id', 'catver_category_id', 'mature',
+        'player_sim', 'player_alt', 'genre_category_id', 'catver_category_id', 'mature', 'hiscores',
     ];
 
     protected $attributes = [
         'mature' => false,
+        'hiscores' => false,
     ];
 
     protected function casts(): array
@@ -50,6 +52,7 @@ class Game extends Model
             'player_sim' => 'integer',
             'player_alt' => 'integer',
             'mature' => 'boolean',
+            'hiscores' => 'boolean',
             'catalogued_at' => 'datetime',
         ];
     }

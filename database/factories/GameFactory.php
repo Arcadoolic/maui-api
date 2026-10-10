@@ -20,7 +20,14 @@ class GameFactory extends Factory
             'manufacturer' => fake()->company(),
             'year' => (string) fake()->numberBetween(1978, 2005),
             'catalogued_at' => now(),
+            'hiscores' => true,
         ];
+    }
+
+    /** Catalogued, but no cabinet can read its hiscores (D74). */
+    public function withoutHiscores(): static
+    {
+        return $this->state(['hiscores' => false]);
     }
 
     /** Known from a score only: romname as description, nothing else (D47). */
@@ -31,6 +38,7 @@ class GameFactory extends Factory
             'manufacturer' => null,
             'year' => null,
             'catalogued_at' => null,
+            'hiscores' => false,
         ]);
     }
 }

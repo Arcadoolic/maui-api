@@ -861,7 +861,8 @@ paths:
         sending the same batch again changes nothing. A game missing from a
         push is never deleted, since scores may reference it. Each push
         describes a game completely: a field left out is stored as `null`
-        (`false` for `mature`).
+        (`false` for `mature`). `hiscores` is the exception: left out, the
+        stored value is kept (D74).
 
         Categories are created on the fly: `genre` (genre.ini) on one level,
         `catver_genre` and `catver_subgenre` (catver.ini) as a genre and its
@@ -1282,8 +1283,8 @@ paths:
       operationId: frontListGames
       summary: List the games
       description: |
-        Catalogued games, and the games only known from a visible score, by
-        name. Each one with the number of ranked players, its latest best and
+        Games whose hiscores a cabinet can read (`hiscores` of the catalog,
+        D74), and the games that already have a visible score, by name. Each one with the number of ranked players, its latest best and
         the leader of its default table (D67).
       security:
         - frontSession: []
@@ -2379,6 +2380,13 @@ components:
           type: boolean
           default: false
           description: catver.ini `* Mature *` flag.
+        hiscores:
+          type: boolean
+          description: |
+            Whether a cabinet can read the game's hiscores (an mhiex extractor
+            exists). The hiscores front only lists these games, and the ones
+            that already have a visible score. Left out, the stored value is
+            kept; a game is created with `false`.
 
     CatalogGamesRequest:
       type: object
