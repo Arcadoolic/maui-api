@@ -55,8 +55,8 @@ final class GamesController
         $query = Game::query()
             ->leftJoinSub($this->rankings->gameTotals(), 'totals', 'totals.game_id', '=', 'games.id')
             ->select('games.*', 'totals.ranked_players', 'totals.last_score_at')
-            // A game nobody catalogued is only worth listing for its scores.
-            ->where(fn (Builder $game) => $game->whereNotNull('games.catalogued_at')->orWhereNotNull('totals.game_id'));
+            // A game no cabinet can read the hiscores of is only worth listing for its scores (D74).
+            ->where(fn (Builder $game) => $game->where('games.hiscores', true)->orWhereNotNull('totals.game_id'));
         $this->filter($query, $filters, array_map(intval(...), AuthenticateMember::member($request)->players()->pluck('players.id')->all()));
 
         $total = (clone $query)->count('games.id');
@@ -86,19 +86,19 @@ final class GamesController
         ]);
     }
 
-    /** What the list can be filtered by: only values that catalogued games have. */
+    /** What the list can be filtered by: only values that games with readable hiscores have. */
     public function filters(): JsonResponse
     {
-        $catalogued = fn () => Game::query()->whereNotNull('catalogued_at');
-        $genreIds = $catalogued()->whereNotNull('catver_category_id')->distinct()->pluck('catver_category_id');
+        $listed = fn () => Game::query()->where('hiscores', true);
+        $genreIds = $listed()->whereNotNull('catver_category_id')->distinct()->pluck('catver_category_id');
         $genres = Category::query()->whereIn('id', $genreIds)->with('parent')->get()
             ->map(fn (Category $category): string => $category->parent->name ?? $category->name)
             ->unique()->sort()->values();
 
         return new JsonResponse([
             'genres' => $genres->all(),
-            'manufacturers' => $catalogued()->whereNotNull('manufacturer')->distinct()->orderBy('manufacturer')->pluck('manufacturer')->all(),
-            'years' => $catalogued()->whereNotNull('year')->distinct()->orderBy('year')->pluck('year')->all(),
+            'manufacturers' => $listed()->whereNotNull('manufacturer')->distinct()->orderBy('manufacturer')->pluck('manufacturer')->all(),
+            'years' => $listed()->whereNotNull('year')->distinct()->orderBy('year')->pluck('year')->all(),
         ]);
     }
 

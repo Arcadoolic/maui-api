@@ -107,8 +107,9 @@ tags:
       or email is ever sent. Requires the `players` ability.
   - name: Scores
     description: |
-      Scores of the cabinet's players, personal bests only (D50). Requires
-      the `scores:write` ability.
+      Scores of the cabinet's players, personal bests only (D50), and the
+      cabinet's votes and play counts (D75). Requires the `scores:write`
+      ability.
   - name: Leaderboards
     description: |
       Shared leaderboards (D52): the best visible score of each player.
@@ -625,6 +626,50 @@ paths:
         '500':
           $ref: '#/components/responses/ServerError'
 
+  /opinions:
+    put:
+      tags: [Scores]
+      operationId: putOpinions
+      summary: Report the cabinet's votes and play counts
+      description: |
+        What the calling cabinet thinks of its games and how much they are
+        played there (D75), up to 500 games. Each entry replaces what this
+        cabinet had reported for the game: `play_count` is the cabinet's
+        total, not an increment. Idempotent: the same report again changes
+        nothing. A game left out keeps what was known, so a cabinet sends
+        the games that changed, and all of them once at startup, the games
+        it removed included. A `romname` outside the catalog creates a bare
+        game.
+
+        The report is validated as a whole (`422`, nothing written).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OpinionsRequest'
+      responses:
+        '200':
+          description: What the report changed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OpinionsResponse'
+        '400':
+          $ref: '#/components/responses/MachineFingerprintMissing'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/MachineMismatch'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
   /leaderboards:
     get:
       tags: [Leaderboards]
@@ -861,7 +906,8 @@ paths:
         sending the same batch again changes nothing. A game missing from a
         push is never deleted, since scores may reference it. Each push
         describes a game completely: a field left out is stored as `null`
-        (`false` for `mature`).
+        (`false` for `mature`). `hiscores` is the exception: left out, the
+        stored value is kept (D74).
 
         Categories are created on the fly: `genre` (genre.ini) on one level,
         `catver_genre` and `catver_subgenre` (catver.ini) as a genre and its
@@ -1282,8 +1328,8 @@ paths:
       operationId: frontListGames
       summary: List the games
       description: |
-        Catalogued games, and the games only known from a visible score, by
-        name. Each one with the number of ranked players, its latest best and
+        Games whose hiscores a cabinet can read (`hiscores` of the catalog,
+        D74), and the games that already have a visible score, by name. Each one with the number of ranked players, its latest best and
         the leader of its default table (D67).
       security:
         - frontSession: []
@@ -2379,6 +2425,13 @@ components:
           type: boolean
           default: false
           description: catver.ini `* Mature *` flag.
+        hiscores:
+          type: boolean
+          description: |
+            Whether a cabinet can read the game's hiscores (an mhiex extractor
+            exists). The hiscores front only lists these games, and the ones
+            that already have a visible score. Left out, the stored value is
+            kept; a game is created with `false`.
 
     CatalogGamesRequest:
       type: object
@@ -2412,6 +2465,62 @@ components:
         created: 12
         updated: 3
         unchanged: 485
+
+    GameOpinion:
+      type: object
+      required: [romname, vote, play_count]
+      additionalProperties: false
+      properties:
+        romname:
+          type: string
+          pattern: '^[a-z0-9_]{1,32}$'
+          examples: [dkong]
+        vote:
+          type: integer
+          enum: [-1, 0, 1]
+          description: '`1` thumbs up, `0` neutral or not voted yet, `-1` thumbs down. One vote per cabinet.'
+        play_count:
+          type: integer
+          minimum: 0
+          maximum: 2147483647
+          description: Games started on this cabinet, in total.
+        last_played_at:
+          type: [string, 'null']
+          format: date-time
+          description: The cabinet's clock; not in the future.
+
+    OpinionsRequest:
+      type: object
+      required: [opinions]
+      additionalProperties: false
+      properties:
+        opinions:
+          type: array
+          minItems: 1
+          maxItems: 500
+          description: One entry per game, each `romname` once.
+          items:
+            $ref: '#/components/schemas/GameOpinion'
+
+    OpinionsResponse:
+      type: object
+      required: [received, created, updated, unchanged]
+      additionalProperties: false
+      properties:
+        received:
+          type: integer
+        created:
+          type: integer
+          description: Games this cabinet reports for the first time.
+        updated:
+          type: integer
+        unchanged:
+          type: integer
+      example:
+        received: 120
+        created: 2
+        updated: 5
+        unchanged: 113
 
     BotLeaderboardListResponse:
       type: object

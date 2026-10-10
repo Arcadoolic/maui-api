@@ -211,3 +211,18 @@ it('caps the batch size', function () {
         ->assertUnprocessable()
         ->assertJsonStructure(['errors' => ['games']]);
 });
+
+it('stores whether the hiscores can be read, and keeps it when a push leaves it out', function () {
+    putCatalog([catalogGame(), catalogGame(['romname' => 'pong', 'hiscores' => true])])->assertOk();
+    expect(Game::query()->where('romname', 'dkong')->firstOrFail()->hiscores)->toBeFalse()
+        ->and(Game::query()->where('romname', 'pong')->firstOrFail()->hiscores)->toBeTrue();
+
+    putCatalog([catalogGame(['hiscores' => true]), catalogGame(['romname' => 'pong'])])
+        ->assertExactJson(['received' => 2, 'created' => 0, 'updated' => 1, 'unchanged' => 1]);
+    expect(Game::query()->where('romname', 'dkong')->firstOrFail()->hiscores)->toBeTrue()
+        ->and(Game::query()->where('romname', 'pong')->firstOrFail()->hiscores)->toBeTrue();
+
+    putCatalog([catalogGame(['hiscores' => false])])->assertOk();
+    expect(Game::query()->where('romname', 'dkong')->firstOrFail()->hiscores)->toBeFalse();
+    putCatalog([catalogGame(['hiscores' => 'yes'])])->assertUnprocessable();
+});

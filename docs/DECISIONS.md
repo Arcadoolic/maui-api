@@ -932,3 +932,38 @@ of one more TLS hop on the same host. Nothing else of the API is passed on.
 Production settings on the API's side: `FRONT_URL`, the Discord application
 (its redirect URI on the front's name), the ScreenScraper credentials.
 
+
+**D74: The catalog says whether a game's hiscores can be read; the front lists only those.** (2026-10-10, Lot 3, completes D47 and D67)
+The front listed every catalogued game, yet a cabinet reads the hiscores of
+a part of them only: the games mhiex has an extractor for. The others could
+never show a score. `games.hiscores` (boolean, `false` by default) holds
+it, sent by the catalog push as `hiscores`: maui-repository's `push-catalog`
+asks the mhiex version it installs. Left out of a push, the stored value is
+kept, the one exception to "each push describes a game completely": it
+describes mhiex, not the pack, and an older sender must not empty the
+front. `GET /front/games` and its filters keep the games with `hiscores`,
+plus the ones that already have a visible score (a cabinet on a newer mhiex
+than the last push). A game's page stays reachable by its address. After an
+mhiex release, the catalog is pushed again for the new games to appear.
+(D73 is the number of the flyers decision, not merged yet.)
+
+**D75: Each cabinet reports its vote and its number of plays per game.** (2026-10-10, Lot 4.1)
+A cabinet has a vote on each game (thumbs up, neutral, thumbs down: one per
+cabinet, not per player) and counts the games started. Both stay on the
+cabinet, so nothing says which games the fleet likes or plays. `PUT
+/opinions` takes them, up to 500 games per call, into `game_opinions`: one
+row per cabinet and game, replaced by each report. The play count is the
+cabinet's total, not an increment: a report sent twice, or after a cut,
+counts once. A game left out keeps what was known, so the cabinet sends
+what changed, and everything once at startup. A thumbs down removes the
+game from the cabinet (MAUI's default): its row stays there with the vote,
+and the cabinet keeps reporting it, or the fleet would lose exactly the
+negative votes. A romname outside the catalog creates a bare game, as a
+first score does (D47). `voted_at` is this server's clock when the vote
+last changed, null while neutral: the cabinet does not date its votes. No
+new ability: `scores:write`, which every cabinet token already holds
+(abilities are copied into the tokens, D60), since a new one would need a
+migration of the tokens for nothing gained. Deleting a cabinet deletes its
+opinions. The back office shows thumbs up, thumbs down and plays per game,
+and the detail per cabinet on a game's page. What is made of it (popularity
+index, front) comes with 4.2 and after.

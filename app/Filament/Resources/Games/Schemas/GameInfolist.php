@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\Games\Schemas;
 
 use App\Models\Game;
+use App\Models\GameOpinion;
 use App\Models\Score;
 use App\Services\Leaderboards\Leaderboards;
 use Filament\Infolists\Components\IconEntry;
@@ -67,6 +68,37 @@ class GameInfolist
                                 TextEntry::make('score')->numeric(),
                                 TextEntry::make('cabinet'),
                                 TextEntry::make('achieved_at')->dateTime(),
+                            ]),
+                    ]),
+                // One row per cabinet that voted or played (docs/DECISIONS.md D75).
+                Section::make(__('Cabinets'))
+                    ->schema([
+                        RepeatableEntry::make('opinions')
+                            ->hiddenLabel()
+                            ->state(fn (Game $record): array => $record->opinions()->with('client')->get()
+                                ->sortBy(fn (GameOpinion $opinion): string => $opinion->client->name)
+                                ->map(fn (GameOpinion $opinion): array => [
+                                    'cabinet' => $opinion->client->name,
+                                    'vote' => match ($opinion->vote) {
+                                        GameOpinion::VOTE_UP => __('Thumbs up'),
+                                        GameOpinion::VOTE_DOWN => __('Thumbs down'),
+                                        default => __('Neutral'),
+                                    },
+                                    'play_count' => $opinion->play_count,
+                                    'last_played_at' => $opinion->last_played_at,
+                                ])->values()->all())
+                            ->placeholder(__('No cabinet reported this game yet.'))
+                            ->table([
+                                TableColumn::make(__('Cabinet')),
+                                TableColumn::make(__('Vote')),
+                                TableColumn::make(__('Plays')),
+                                TableColumn::make(__('Last played')),
+                            ])
+                            ->schema([
+                                TextEntry::make('cabinet'),
+                                TextEntry::make('vote'),
+                                TextEntry::make('play_count')->numeric(),
+                                TextEntry::make('last_played_at')->dateTime()->placeholder('-'),
                             ]),
                     ]),
             ]);
