@@ -14,7 +14,7 @@ For why things are done this way, see `docs/DECISIONS.md`.
 | 1 | MAUI authentication, machine binding, telemetry, Filament BO | **Done**: API (PR #1 to #4, follow-ups #9, #11), MAUI slices 1 to 5 (`Arcadoolic/maui` PRs #88, #92, #93, #96, #97), end-to-end checked, see `docs/MAUI-INTEGRATION.md` |
 | 2 | Hiscores: catalog, players, scores, leaderboards | **In progress**: 2.1 catalog and 2.2 players merged (not on staging yet), 2.3 scores in progress |
 | 3 | Hiscores front end (`afronob/maui-hifront`) | **In progress**: 3.1 accounts done (D64 to D66, PR #55), 3.2 reading in progress (D67) |
-| 4 | Game popularity from the cabinets' votes and plays | **In progress**: 4.1 report from the cabinets (D75), API side written |
+| 4 | Game popularity from the cabinets' votes and plays | **In progress**: 4.1 report from the cabinets in production (D75), 4.2 popularity index written (D76) |
 | Last | Anti-cheat | Not started, after Lot 3 |
 
 ## Done
@@ -34,7 +34,32 @@ For why things are done this way, see `docs/DECISIONS.md`.
 - Releases by semantic-release on every push to `main` (D44): 0.1.0
   published on 2026-09-25.
 
-## Lot 4.1: votes and plays reported by the cabinets (in progress, D75)
+## Lot 4.4: "Missed Date" (in progress, D78)
+
+- `GET /front/games/missed-dates`: `missed` and `saved`, among every game.
+- Back office: "Turned down by every cabinet" filter on the games.
+- Front side in `afronob/maui-hifront`.
+- Next: Lot 4.5, back to the cabinet (MAUI).
+
+## Lot 4.3: popularity on the front (in progress, D77)
+
+- `GET /front/games`: `popularity` per game, `sort=popularity`, `label`
+  filter; labels in the filters; popularity block on a game's page.
+- `GET /front/games/highlights`: `discover` and `trending`.
+- Front side in `afronob/maui-hifront`.
+- Next: Lot 4.4, the "missed date" category.
+
+## Lot 4.2: popularity index (in progress, D76)
+
+- `Popularity` service: opinion (Bayesian average of the votes), activity
+  (plays per cabinet, recent cabinets, ranked players), index 0 to 100 and
+  one label (`hit`, `hidden_gem`, `addictive`, `divisive`, `missed_date`).
+- Settings in `config/hiscores.php` (`popularity`), first values made on a
+  simulated fleet.
+- `dev:simulate-fleet` (local, testing) and `hiscores:popularity` (tuning).
+- Nothing exposed yet. Next: Lot 4.3, the front.
+
+## Lot 4.1: votes and plays reported by the cabinets (merged, in production with 0.9.0, D75)
 
 - `PUT /opinions`: a cabinet's vote and play count per game, into
   `game_opinions` (one row per cabinet and game, replaced by each report).

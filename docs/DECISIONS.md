@@ -967,3 +967,81 @@ migration of the tokens for nothing gained. Deleting a cabinet deletes its
 opinions. The back office shows thumbs up, thumbs down and plays per game,
 and the detail per cabinet on a game's page. What is made of it (popularity
 index, front) comes with 4.2 and after.
+
+**D76: Popularity of a game: its votes as a Bayesian average, plus its activity; one label at most.** (2026-10-10, Lot 4.2)
+What the cabinets report (D75) becomes one number per game, 0 to 100, and
+at most one label. Three parts, in `App\Services\Popularity\Popularity`:
+
+- Opinion, 0 to 1: thumbs up among the votes, neutral aside, with
+  `prior_votes` imaginary votes at the fleet's own share of thumbs up. One
+  thumbs up does not make a game the best liked one, and a game nobody
+  voted on sits at the average: such games are sorted by their activity.
+- Activity, 0 to 1. A thumbs up can only mean "keep it": what is played
+  must count. Per cabinet ln(1 + plays), so that one cabinet playing a game
+  500 times weighs less than eight playing it 10 times; plus the cabinets
+  that played it within `recent_days`; both divided by the number of
+  cabinets that report, so that the scale holds for 2 cabinets as for 200;
+  plus ln(1 + ranked players). Then x / (x + `activity_half`): no maximum
+  of the day to compare with, so a game's activity does not move when
+  another game is played.
+- Index: 100 x (`opinion_weight` x opinion + `activity_weight` x activity),
+  60/40 to start with.
+
+Labels, from `min_votes` votes for the ones about votes: `missed_date`
+(thumbs down only), `divisive` (both votes, their gap within
+`divisive_margin` of the votes), `hit` (`liked_share` of thumbs up and
+activity from `active_from`), `hidden_gem` (liked, less played);
+`addictive` (played, without the votes to call it liked) needs no vote. In
+that order: a game gets the first that fits. A game with a visible score
+and no report has an activity from its players alone.
+
+Computed at each call, from one grouped query and the game totals of the
+leaderboards: a few hundred games. A cache or a nightly snapshot comes
+with the endpoints of 4.3 if the cost asks for it. Nothing is exposed yet.
+
+The settings are in `config/hiscores.php` (`popularity`), `min_votes` also
+by `HISCORES_POPULARITY_MIN_VOTES`. They were made on a simulated fleet,
+the real one being too small: `php artisan dev:simulate-fleet` (local and
+testing only) creates `sim_NN` cabinets with votes and plays by kind of
+game, the same for the same seed, and `--reset` removes them alone. `php
+artisan hiscores:popularity` prints the ranking with what it is made of,
+with the settings in force or the ones given as options, as
+`hiscores:ranking` does for the podium (D70): to run on production data
+before changing the settings.
+
+**D77: The front shows the popularity: a sort, a label, what the cabinets liked, two highlights.** (2026-10-10, Lot 4.3)
+`GET /front/games` gives each game its `popularity` (`index`, `label`),
+sorts by it (`sort=popularity`, the games nobody reported nor scored on
+last) and filters by `label`; the filters list the labels the listed games
+have. A game's page adds `thumbs_up`, `votes`, `cabinets` and `plays`: the
+front says "liked by 6 of 8 cabinets". Thumbs down are not given as such,
+and no cabinet is named: the front shows no list of the worst games, a
+disliked game only goes down the sort, or gets `divisive` or `missed_date`
+(the user's choice, 2026-10-10). `GET /front/games/highlights` gives two
+short lists for the home page: `discover`, the liked games (`hit`,
+`hidden_gem`) the member's player has no visible score on, the most
+popular first, which is the main use with this many games; `trending`,
+the games with the most cabinets that played them and visible scores made
+within `trending_days` (7). The cabinets report a total of plays, not
+their dates: "trending" is therefore who played lately, not a rise. Both
+lists keep to the games the front lists (D74). The `divisive` margin goes
+from 0.34 to 0.25: 6 thumbs up for 3 down is not "about as many". The
+popularity is computed at each request, as in D76; a cache comes if the
+cost asks for it. English names on the front: Hit, Hidden Gem, Addictive,
+Divisive, Missed Date.
+
+**D78: "Missed Date": a page for the games every cabinet turned down.** (2026-10-10, Lot 4.4)
+The user wanted the turned-down games shown as a category of their own,
+in a light tone, rather than hidden. `GET /front/games/missed-dates`
+gives `missed`, the games with the `missed_date` label (D76), and `saved`,
+the games a single thumbs up keeps out of it (one thumbs up, at least
+`min_votes` thumbs down): a game leaves the first list as soon as one
+cabinet likes it, and showing it apart gives the page a small stake. Both
+among every game, not only the ones the list shows (D74): a thumbs down
+removes the game from the cabinet, so these games have few scores and
+often no hiscores to read, and the page would be nearly empty. `listed`
+tells the front which ones have a place in the list. No cabinet is named,
+as in D77, the one that saved a game included. No history is kept:
+`saved` is read from the current votes. For the packs, the back office's
+games list gets a "Turned down by every cabinet" filter, the candidates
+to leave a pack.

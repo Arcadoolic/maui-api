@@ -51,4 +51,39 @@ return [
         'best_results' => 15,
     ],
 
+    /*
+    | Popularity of the games, from the cabinets' votes and plays and from
+    | the ranked players (docs/DECISIONS.md D76, App\Services\Popularity).
+    | First settings, made on a simulated fleet: to tune with
+    | `php artisan hiscores:popularity` once real cabinets report.
+    */
+    'popularity' => [
+        // Share of the index given by the opinion and by the activity.
+        'opinion_weight' => 0.6,
+        'activity_weight' => 0.4,
+        // Imaginary votes at the fleet's average added to each game: the
+        // higher, the more votes a game needs to leave the average.
+        'prior_votes' => 3,
+        // Votes from which a game gets a label about its votes. Low while
+        // the cabinets are few: to raise as they come.
+        'min_votes' => (int) env('HISCORES_POPULARITY_MIN_VOTES', 3),
+        // `hit`, `hidden_gem`: thumbs up among the votes, at least.
+        'liked_share' => 0.75,
+        // `divisive`: both votes present, their gap within this share of the votes.
+        'divisive_margin' => 0.25,
+        // `hit`, `addictive`: activity (0 to 1) from which a game is "played".
+        'active_from' => 0.5,
+        // Activity: (sum per cabinet of ln(1 + plays), times `plays_weight`,
+        // plus the cabinets that played within `recent_days`, times
+        // `recent_weight`) / cabinets of the fleet, plus `players_weight` x
+        // ln(1 + ranked players). `activity_half` is the activity worth 0.5.
+        'plays_weight' => 1.0,
+        'recent_weight' => 1.0,
+        'players_weight' => 0.5,
+        'recent_days' => 30,
+        'activity_half' => 1.5,
+        // Front, "trending" (D77): days of plays and scores counted.
+        'trending_days' => 7,
+    ],
+
 ];

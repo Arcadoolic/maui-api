@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Front;
 
+use App\Enums\PopularityLabel;
 use App\Http\Middleware\AuthenticateMember;
 use App\Http\Problems\ApiProblemException;
 use App\Models\Category;
@@ -12,11 +13,14 @@ use App\Models\Player;
 use App\Models\ScoreEvent;
 use App\Services\Leaderboards\Leaderboards;
 use App\Services\Leaderboards\Rankings;
+use App\Services\Popularity\GamePopularity;
+use App\Services\Popularity\Popularity;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 use Symfony\Component\HttpFoundation\Response;
@@ -31,9 +35,17 @@ final class GamesController
     /** Events shown on a game's page. */
     public const PAGE_EVENTS = 10;
 
+    /** Games of each list of the highlights, unless asked otherwise. */
+    public const DEFAULT_HIGHLIGHTS = 6;
+
+    public const MAX_HIGHLIGHTS = 24;
+
     private const ROMNAME = '/^[a-z0-9_]{1,32}$/';
 
-    public function __construct(private readonly Rankings $rankings) {}
+    /** The labels of a game its cabinets liked (D76). */
+    private const LIKED = [PopularityLabel::Hit, PopularityLabel::HiddenGem];
+
+    public function __construct(private readonly Rankings $rankings, private readonly Popularity $popularity) {}
 
     public function index(Request $request): JsonResponse
     {
@@ -45,25 +57,29 @@ final class GamesController
             'players' => ['sometimes', 'integer', 'min:1', 'max:8'],
             // with: any visible score; mine: one of my players is ranked; unranked: scores, but none of mine.
             'scores' => ['sometimes', Rule::in(['with', 'mine', 'unranked'])],
-            'sort' => ['sometimes', Rule::in(['name', 'year', 'players', 'activity'])],
+            'label' => ['sometimes', Rule::enum(PopularityLabel::class)],
+            'sort' => ['sometimes', Rule::in(['name', 'year', 'players', 'activity', 'popularity'])],
             'page' => ['sometimes', 'integer', 'min:1'],
             'per_page' => ['sometimes', 'integer', 'min:1', 'max:'.self::MAX_PER_PAGE],
         ]);
         $perPage = (int) ($filters['per_page'] ?? self::DEFAULT_PER_PAGE);
         $page = (int) ($filters['page'] ?? 1);
 
-        $query = Game::query()
-            ->leftJoinSub($this->rankings->gameTotals(), 'totals', 'totals.game_id', '=', 'games.id')
-            ->select('games.*', 'totals.ranked_players', 'totals.last_score_at')
-            // A game no cabinet can read the hiscores of is only worth listing for its scores (D74).
-            ->where(fn (Builder $game) => $game->where('games.hiscores', true)->orWhereNotNull('totals.game_id'));
-        $this->filter($query, $filters, array_map(intval(...), AuthenticateMember::member($request)->players()->pluck('players.id')->all()));
+        $popularity = $this->popularity->all();
+        $query = $this->listed();
+        $this->filter($query, $filters, self::myPlayerIds($request));
+        if (isset($filters['label'])) {
+            $query->whereIn('games.id', $popularity
+                ->filter(fn (GamePopularity $game): bool => $game->label?->value === $filters['label'])->keys()->all());
+        }
 
         $total = (clone $query)->count('games.id');
         match ($filters['sort'] ?? 'name') {
             'year' => $query->orderByRaw('games.year is null')->orderBy('games.year'),
             'players' => $query->orderByRaw('coalesce(totals.ranked_players, 0) desc'),
             'activity' => $query->orderByRaw('totals.last_score_at desc nulls last'),
+            // The most popular first (D76), then the games nobody reported nor scored on.
+            'popularity' => self::orderByIds($query, $popularity->keys()->all()),
             default => $query,
         };
         $games = $query->orderBy('games.description')->orderBy('games.romname')
@@ -81,9 +97,80 @@ final class GamesController
                 'leader' => $leaders->get($game->id),
                 // Its hash: GET /front/games/{romname}/media/screenshot.
                 'screenshot' => $game->media->first()?->hash,
+                'popularity' => self::popularitySummary($popularity->get($game->id)),
             ])->all(),
             'meta' => ['page' => $page, 'per_page' => $perPage, 'total' => $total],
         ]);
+    }
+
+    /**
+     * Games to put forward (D77): `discover`, the liked games the member's player has no score
+     * on, the most popular first; `trending`, the games most played and scored on lately.
+     */
+    public function highlights(Request $request): JsonResponse
+    {
+        $limit = (int) ($request->validate([
+            'limit' => ['sometimes', 'integer', 'min:1', 'max:'.self::MAX_HIGHLIGHTS],
+        ])['limit'] ?? self::DEFAULT_HIGHLIGHTS);
+        $popularity = $this->popularity->all();
+
+        $liked = $popularity->filter(fn (GamePopularity $game): bool => in_array($game->label, self::LIKED, true))->keys()->all();
+        $mine = $this->rankings->rows()->whereIn('ranked.player_id', self::myPlayerIds($request))->select('ranked.game_id');
+        $discover = self::orderByIds($this->listed()->whereIn('games.id', $liked)->whereNotIn('games.id', $mine), $liked);
+
+        $since = now()->subDays(max(1, (int) config('hiscores.popularity.trending_days')));
+        $recent = DB::table('game_opinions')->where('last_played_at', '>=', $since)
+            ->groupBy('game_id')->selectRaw('game_id, count(*) as recent')->pluck('recent', 'game_id');
+        $scored = Leaderboards::visibleScores()->where('scores.achieved_at', '>=', $since)
+            ->groupBy('scores.game_id')->selectRaw('scores.game_id, count(*) as recent')->pluck('recent', 'scores.game_id');
+        $moves = $recent->keys()->merge($scored->keys())->unique()
+            ->mapWithKeys(fn (int|string $id): array => [(int) $id => (int) ($recent[$id] ?? 0) + (int) ($scored[$id] ?? 0)])
+            // At equal moves, the more popular game first.
+            ->sortBy(fn (int $count, int $id): array => [-$count, $popularity->keys()->search($id)]);
+        $trending = self::orderByIds($this->listed()->whereIn('games.id', $moves->keys()->all()), $moves->keys()->all());
+
+        return new JsonResponse([
+            'discover' => self::cards($discover, $limit, $popularity),
+            'trending' => self::cards($trending, $limit, $popularity),
+        ]);
+    }
+
+    /**
+     * The games every cabinet that voted turned down, and the ones a single cabinet saved from
+     * it (D78). Among every game, the ones the list leaves out included (D74): a game turned
+     * down is removed from the cabinets, and seldom has hiscores to read.
+     */
+    public function missedDates(): JsonResponse
+    {
+        $popularity = $this->popularity->all();
+        $minVotes = Popularity::rules()['min_votes'];
+        $missed = $popularity->filter(fn (GamePopularity $game): bool => $game->label === PopularityLabel::MissedDate);
+        $saved = $popularity->filter(fn (GamePopularity $game): bool => $game->thumbsUp === 1 && $game->thumbsDown >= $minVotes);
+
+        $games = Game::query()->whereIn('id', $missed->keys()->merge($saved->keys())->all())
+            ->with(['catverCategory.parent', 'media' => fn ($media) => $media->where('type', 'screenshot')])
+            ->get()
+            ->keyBy('id');
+        $cards = function (Collection $group) use ($games): array {
+            $cards = [];
+            foreach ($group as $popularity) {
+                $game = $games->get($popularity->gameId);
+                if ($game !== null) {
+                    $cards[] = [
+                        ...self::summary($game),
+                        'screenshot' => $game->media->first()?->hash,
+                        'listed' => $game->hiscores || $popularity->rankedPlayers > 0,
+                        'votes' => $popularity->votes(),
+                    ];
+                }
+            }
+            // The most cabinets first, then by name.
+            usort($cards, fn (array $a, array $b): int => [$b['votes'], $a['description'], $a['romname']] <=> [$a['votes'], $b['description'], $b['romname']]);
+
+            return $cards;
+        };
+
+        return new JsonResponse(['missed' => $cards($missed), 'saved' => $cards($saved), 'min_votes' => $minVotes]);
     }
 
     /** What the list can be filtered by: only values that games with readable hiscores have. */
@@ -95,8 +182,13 @@ final class GamesController
             ->map(fn (Category $category): string => $category->parent->name ?? $category->name)
             ->unique()->sort()->values();
 
+        $labels = $this->popularity->all()->only($listed()->pluck('id')->all())
+            ->map(fn (GamePopularity $game): ?string => $game->label?->value)->filter()->unique();
+
         return new JsonResponse([
             'genres' => $genres->all(),
+            // In the order of the enum, the ones a listed game has.
+            'labels' => array_values(array_intersect(array_column(PopularityLabel::cases(), 'value'), $labels->all())),
             'manufacturers' => $listed()->whereNotNull('manufacturer')->distinct()->orderBy('manufacturer')->pluck('manufacturer')->all(),
             'years' => $listed()->whereNotNull('year')->distinct()->orderBy('year')->pluck('year')->all(),
         ]);
@@ -147,6 +239,7 @@ final class GamesController
             'details' => self::details($game->detail),
             // By type, the hash of each picture: GET /front/games/{romname}/media/{type}.
             'media' => (object) $game->media->pluck('hash', 'type')->all(),
+            'popularity' => self::popularityDetails($this->popularity->all()->get($game->id)),
             'leaderboards' => $leaderboards->all(),
             'stats' => [
                 'ranked_players' => $rows->pluck('player_id')->unique()->count(),
@@ -183,6 +276,95 @@ final class GamesController
         $response->isNotModified($request);
 
         return $response;
+    }
+
+    /**
+     * The games the front lists, with their totals (columns ranked_players, last_score_at).
+     *
+     * @return Builder<Game>
+     */
+    private function listed(): Builder
+    {
+        return Game::query()
+            ->leftJoinSub($this->rankings->gameTotals(), 'totals', 'totals.game_id', '=', 'games.id')
+            ->select('games.*', 'totals.ranked_players', 'totals.last_score_at')
+            // A game no cabinet can read the hiscores of is only worth listing for its scores (D74).
+            ->where(fn (Builder $game) => $game->where('games.hiscores', true)->orWhereNotNull('totals.game_id'));
+    }
+
+    /**
+     * The first games of a highlight, as the front draws them.
+     *
+     * @param  Builder<Game>  $query
+     * @param  Collection<int, GamePopularity>  $popularity
+     * @return list<array<string, mixed>>
+     */
+    private static function cards(Builder $query, int $limit, Collection $popularity): array
+    {
+        $games = $query->orderBy('games.description')->orderBy('games.romname')
+            ->with(['catverCategory.parent', 'media' => fn ($media) => $media->where('type', 'screenshot')])
+            ->limit($limit)
+            ->get();
+        $cards = [];
+        foreach ($games as $game) {
+            $cards[] = [
+                ...self::summary($game),
+                'ranked_players' => (int) ($game->getAttribute('ranked_players') ?? 0),
+                'screenshot' => $game->media->first()?->hash,
+                'popularity' => self::popularitySummary($popularity->get($game->id)),
+            ];
+        }
+
+        return $cards;
+    }
+
+    /** @return array<int> */
+    private static function myPlayerIds(Request $request): array
+    {
+        return array_map(intval(...), AuthenticateMember::member($request)->players()->pluck('players.id')->all());
+    }
+
+    /**
+     * Orders by the place of the game in `$ids`, the games out of it last.
+     *
+     * @param  Builder<Game>  $query
+     * @param  array<int, int|string>  $ids
+     * @return Builder<Game>
+     */
+    private static function orderByIds(Builder $query, array $ids): Builder
+    {
+        // One binding: the ids as a PostgreSQL array literal.
+        return $ids === []
+            ? $query
+            : $query->orderByRaw('array_position(?::bigint[], games.id) nulls last', ['{'.implode(',', array_map(intval(...), $ids)).'}']);
+    }
+
+    /**
+     * What a list shows of a game's popularity (D76); null when nobody reported nor scored on it.
+     *
+     * @return array{index: float, label: string|null}|null
+     */
+    private static function popularitySummary(?GamePopularity $popularity): ?array
+    {
+        return $popularity === null ? null : ['index' => $popularity->index, 'label' => $popularity->label?->value];
+    }
+
+    /**
+     * What a game's page shows of its popularity. Thumbs down are not given: `votes` minus
+     * `thumbs_up` tells them, and the front only says how many cabinets liked the game (D77).
+     *
+     * @return array<string, mixed>|null
+     */
+    private static function popularityDetails(?GamePopularity $popularity): ?array
+    {
+        return $popularity === null ? null : [
+            'index' => $popularity->index,
+            'label' => $popularity->label?->value,
+            'thumbs_up' => $popularity->thumbsUp,
+            'votes' => $popularity->votes(),
+            'cabinets' => $popularity->cabinets,
+            'plays' => $popularity->plays,
+        ];
     }
 
     /**
