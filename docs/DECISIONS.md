@@ -1098,3 +1098,19 @@ list has (D74). A game the list leaves out, reached by its address or from
 and the sort of the list are not followed: a page does not know which list
 the member came from, and the order by name is the one that always exists.
 Two more queries per page, each on the first row of an ordered scan.
+
+**D82: The cabinets read the score events, to show them while nobody plays.** (2026-10-11, Lot 5.2)
+An idle cabinet shows messages on a band, and the sentences are the ones
+the bots announce and the front lists (D60), not ones of its own: a second
+wording would drift from the first. `GET /events` gives a cabinet the
+latest events of the whole fleet, newest first, with the `scores:read`
+ability every cabinet token already has: nothing to grant, and a cabinet
+older than this decision never calls it. Same visibility as the front
+(D67): not retracted, a player still public and active; a score sent late
+is still news on a cabinet, so `announceable` does not count here. What
+counts is the age: the events of the last `hiscores.events.cabinet_days`
+days (14, `HISCORES_EVENTS_CABINET_DAYS`, 0 for no limit, which a
+development database of old scores needs), so that a cabinet does not tell
+last year's scores. `min_importance` lets the cabinet leave the small
+improvements out. No cursor: the cabinet reads a short list again each time
+it turns idle, and shows it in a loop.
