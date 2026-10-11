@@ -9,6 +9,9 @@ use App\Models\Client;
 use App\Models\Player;
 use App\Models\User;
 use App\Services\Players\PlayerAdministration;
+use App\Services\Players\PlayerAvatars;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
 use Spatie\Activitylog\Models\Activity;
 
 use function Pest\Livewire\livewire;
@@ -172,5 +175,54 @@ describe('origin cabinet (D54)', function () {
             ->assertForbidden()
             ->assertJsonPath('code', 'not_origin_cabinet');
         $this->postJson("/api/v1/players/{$player->uuid}/pin", [], cabinetHeaders($second, $secondToken))->assertOk();
+    });
+});
+
+// docs/DECISIONS.md D83.
+describe('avatar', function () {
+    beforeEach(fn () => Storage::fake('local'));
+
+    it('lets an admin change the avatar of a player, recorded with the admin', function () {
+        $player = Player::factory()->create();
+        $png = UploadedFile::fake()->createWithContent('new.png', pngBytes(256));
+
+        livewire(ViewPlayer::class, ['record' => $player->getRouteKey()])
+            ->callAction('changeAvatar', ['avatar' => $png])
+            ->assertHasNoActionErrors();
+
+        $player->refresh();
+        expect($player->avatar_hash)->toBe(hash('sha256', pngBytes(256)))
+            ->and($player->avatar_by_admin)->toBeTrue()
+            ->and(Storage::disk('local')->get("avatars/{$player->uuid}.png"))->toBe(pngBytes(256))
+            ->and(playerAudit($player, 'player.avatar_changed')?->causer?->is($this->admin))->toBeTrue();
+    });
+
+    it('refuses what is no picture', function () {
+        $player = Player::factory()->create();
+
+        livewire(ViewPlayer::class, ['record' => $player->getRouteKey()])
+            ->callAction('changeAvatar', ['avatar' => UploadedFile::fake()->createWithContent('new.png', 'GIF89a nope')])
+            ->assertNotified(__('A PNG, JPEG or WebP image.'));
+
+        expect($player->refresh()->avatar_hash)->toBeNull();
+    });
+
+    it('shows the avatar of a player, and says who set it', function () {
+        $player = Player::factory()->create();
+        app(PlayerAvatars::class)->storeByAdmin($player, pngBytes(256));
+
+        livewire(ViewPlayer::class, ['record' => $player->getRouteKey()])
+            ->assertSeeHtml('data:image/png;base64,'.base64_encode(pngBytes(256)))
+            ->assertSee('An administrator');
+    });
+
+    it('gives the page of a player, and no other, the crop tool held to 256 pixels', function () {
+        $player = Player::factory()->create();
+
+        $this->get(PlayerResource::getUrl('view', ['record' => $player]))
+            ->assertOk()
+            ->assertSee('<script data-avatar-crop>', false)
+            ->assertSee('const MIN_SIDE = 256;', false);
+        $this->get(PlayerResource::getUrl('index'))->assertOk()->assertDontSee('data-avatar-crop', false);
     });
 });

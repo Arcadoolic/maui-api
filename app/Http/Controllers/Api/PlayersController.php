@@ -94,6 +94,11 @@ final class PlayersController
         if (! $linked->isOrigin(AuthenticateCabinet::client($request))) {
             throw ApiProblemException::avatarNotFromOriginCabinet();
         }
+        // An administrator changed the picture since (D83): the cabinet must have seen that one
+        // before it replaces it, or it would send its previous own again at every synchronisation.
+        if ($linked->avatar_by_admin && $request->input('replaces') !== $linked->avatar_hash) {
+            throw ApiProblemException::avatarChangedByAdmin();
+        }
         $file = $request->file('avatar');
         assert($file instanceof UploadedFile);
         $avatars->store(AuthenticateCabinet::client($request), $linked, $file);

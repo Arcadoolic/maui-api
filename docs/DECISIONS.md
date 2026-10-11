@@ -1114,3 +1114,52 @@ development database of old scores needs), so that a cabinet does not tell
 last year's scores. `min_importance` lets the cabinet leave the small
 improvements out. No cursor: the cabinet reads a short list again each time
 it turns idle, and shows it in a loop.
+
+**D83: An administrator may change a player's avatar too.** (2026-10-11, widens D56)
+Requested by the project owner: an avatar is changed from the back office
+as well as from the cabinet the player was created on (to give a player its
+picture without going to the cabinet, or to replace one). The player's page
+shows the avatar and who set it, and has a "Change avatar" action: a
+picture stored as a cabinet's is (made to fit first, D84), recorded as
+`player.avatar_changed` with the administrator as causer.
+The origin cabinet used to send its own PNG again whenever it differed from
+the server's (D53), which would undo the administrator's change at the next
+synchronisation. So `players.avatar_by_admin` says where the current avatar
+comes from, cabinets read it with each player, and
+`POST /players/{id}/avatar` takes `replaces`, the hash of the avatar the
+cabinet knows the player by: while the avatar is an administrator's, an
+upload that does not name it is refused, `409 avatar_changed_by_admin`.
+The cabinet then downloads the picture as the other cabinets do, and a
+picture chosen on the cabinet afterwards replaces the administrator's
+again: the last change wins, wherever it is made. A cabinet older than this
+decision never sends `replaces`: it is refused for as long as the avatar is
+an administrator's, keeps its own picture locally and shows the new one in
+the leaderboards, until it is updated. An upload accepted from a cabinet
+clears the flag. Removing an avatar is not part of this decision.
+
+**D84: A picture given in the back office is made an avatar by the API.** (2026-10-11, completes D83)
+Requested by the project owner: an administrator gives whatever picture is
+at hand, a photo straight from a phone included, and the API makes it fit
+instead of refusing it. `AvatarImage` takes a PNG, a JPEG or a WebP, turns a
+photo the way its camera held it (EXIF orientation, which a PNG cannot
+carry), keeps its centre square, and scales it down to 512 pixels, then
+further (384, 256... 64) until the PNG is within the 256 KB of D53. Never
+scaled up; a PNG that is already a fitting square is stored byte for byte.
+A picture of more than 50 megapixels is refused from its header, before
+anything is decoded.
+The square is the centre one unless the administrator chooses it: the
+upload field has Filament's image editor, held to 1:1, which crops in the
+browser before the upload. What arrives goes through `AvatarImage` either
+way. The square kept is 256 pixels wide at least (requested by the project
+owner): below that an avatar is a blur on a cabinet's screen, so the API
+refuses it rather than scaling it up, and the crop tool starts from a
+square of that size in the middle of the picture and does not go under it
+(a script on the player's page only, since Filament's editor has no such
+setting).
+The image gains the `gd` and `exif` extensions (CI runs with them), and PHP
+takes uploads of 16 MB; the back office takes 12 MB, Livewire's own limit.
+The cabinets' `POST /players/{id}/avatar` is unchanged and still refuses
+what does not fit: a cabinet compares the hash of its own file with the
+server's to know whether to send it again (D53), so a picture the API
+rewrote would be sent at every synchronisation. MAUI scales its avatars
+down itself before sending them.

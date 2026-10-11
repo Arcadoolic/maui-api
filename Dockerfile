@@ -3,8 +3,11 @@
 # FrankenPHP (Caddy + PHP) in classic mode, see docs/DECISIONS.md D9.
 FROM dunglas/frankenphp:1-php8.4 AS base
 
+# exif and gd: avatars given in the back office are turned, cropped and scaled (D84).
 RUN install-php-extensions \
         bcmath \
+        exif \
+        gd \
         intl \
         opcache \
         pcntl \
