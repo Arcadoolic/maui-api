@@ -71,6 +71,7 @@ info:
     | 403 | `pin_invalid` | Wrong PIN, `attempts_left` before the player is locked. |
     | 403 | `not_origin_cabinet` | New PIN asked (D54) or avatar sent (D56) from a cabinet the player was not created on. |
     | 404 | `avatar_not_found` | The player has no avatar (D53). |
+    | 409 | `avatar_changed_by_admin` | Avatar sent without `replaces` naming the one an administrator set (D83): download it first. |
     | 403 | `player_disabled` | Player disabled by an admin. |
     | 404 | `player_not_found` | No such initials, or a player not linked to this cabinet. |
     | 409 | `initials_taken` | Initials of another player: offer to link with the PIN. |
@@ -866,6 +867,12 @@ paths:
         player is linked to gets `403 not_origin_cabinet` (D56). A PNG (the
         content is checked), 256 KB and 1024 x 1024 px at most, as multipart
         field `avatar` (D53). Replaces the previous one.
+
+        When the current avatar was set by an administrator (`avatar_by_admin`,
+        D83), `replaces` must be its hash, or the answer is
+        `409 avatar_changed_by_admin`: the cabinet downloads that avatar,
+        shows it, and only replaces it when the picture is changed on the
+        cabinet afterwards. `replaces` is ignored otherwise.
       requestBody:
         required: true
         content:
@@ -877,6 +884,10 @@ paths:
                 avatar:
                   type: string
                   format: binary
+                replaces:
+                  type: [string, 'null']
+                  pattern: '^[0-9a-f]{64}$'
+                  description: SHA-256 of the avatar the cabinet knows the player by (D83).
       responses:
         '200':
           description: Avatar stored.
@@ -901,7 +912,11 @@ paths:
         '404':
           $ref: '#/components/responses/PlayerNotFound'
         '409':
-          $ref: '#/components/responses/MachineMismatch'
+          description: '`machine_mismatch`, or `avatar_changed_by_admin` (D83).'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
         '422':
           $ref: '#/components/responses/ValidationFailed'
         '429':
@@ -2196,7 +2211,7 @@ components:
 
     Player:
       type: object
-      required: [id, pseudo_3, is_public, status, is_origin, avatar]
+      required: [id, pseudo_3, is_public, status, is_origin, avatar, avatar_by_admin]
       additionalProperties: false
       properties:
         id:
@@ -2216,6 +2231,9 @@ components:
         avatar:
           type: [string, 'null']
           description: SHA-256 of the player's avatar (D53), null without one. Send the PNG again when the cabinet's differs.
+        avatar_by_admin:
+          type: boolean
+          description: The avatar was set by an administrator (D83). The cabinet the player was created on downloads it instead of sending its own, unless its picture was changed since it last had the same as the server.
 
     PlayerResponse:
       type: object

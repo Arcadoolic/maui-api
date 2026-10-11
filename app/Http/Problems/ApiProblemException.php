@@ -97,6 +97,14 @@ final class ApiProblemException extends RuntimeException
         );
     }
 
+    public static function avatarChangedByAdmin(): self
+    {
+        return new self(
+            Response::HTTP_CONFLICT, 'avatar_changed_by_admin',
+            'An administrator changed this avatar: download it before sending another one.',
+        );
+    }
+
     public static function pinInvalid(int $attemptsLeft): self
     {
         return new self(Response::HTTP_FORBIDDEN, 'pin_invalid', extra: ['attempts_left' => $attemptsLeft]);

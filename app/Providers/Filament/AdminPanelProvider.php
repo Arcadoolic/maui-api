@@ -4,8 +4,10 @@ namespace App\Providers\Filament;
 
 use App\Filament\Auth\AppAuthentication;
 use App\Filament\Pages\Auth\EditProfile;
+use App\Filament\Resources\Players\Pages\ViewPlayer;
 use App\Filament\Widgets\CabinetsOverview;
 use App\Filament\Widgets\LatestScores;
+use App\Services\Players\AvatarImage;
 use App\Support\AdminMfa;
 use Filament\Http\Middleware\Authenticate;
 use Filament\Http\Middleware\AuthenticateSession;
@@ -15,7 +17,9 @@ use Filament\Pages\Dashboard;
 use Filament\Panel;
 use Filament\PanelProvider;
 use Filament\Support\Colors\Color;
+use Filament\View\PanelsRenderHook;
 use Filament\Widgets\AccountWidget;
+use Illuminate\Contracts\View\View;
 use Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse;
 use Illuminate\Cookie\Middleware\EncryptCookies;
 use Illuminate\Foundation\Http\Middleware\PreventRequestForgery;
@@ -33,6 +37,12 @@ class AdminPanelProvider extends PanelProvider
             ->path('admin')
             ->login()
             ->profile(EditProfile::class)
+            // The crop tool of a player's "Change avatar" action (D84).
+            ->renderHook(
+                PanelsRenderHook::BODY_END,
+                fn (): View => view('filament.avatar-crop', ['minSide' => AvatarImage::MIN_SIDE]),
+                scopes: ViewPlayer::class,
+            )
             // No registration: admins are created with `php artisan make:filament-user`.
             // Required (D35), labelled after the server, and off on demand outside production (D55).
             ->multiFactorAuthentication(

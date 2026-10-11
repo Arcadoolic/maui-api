@@ -55,6 +55,16 @@ For why things are done this way, see `docs/DECISIONS.md`.
 - Front side in `afronob/maui-hifront`.
 - Next: Lot 4.5, back to the cabinet (MAUI).
 
+## Player avatars changed by an administrator (D83)
+
+- Back office: the player's page shows the avatar and has "Change avatar",
+  which takes any PNG, JPEG or WebP and makes it a square PNG that fits
+  (D84; the image gains `gd` and `exif`).
+- `players.avatar_by_admin`, given to the cabinets with each player;
+  `POST /players/{id}/avatar` takes `replaces` and answers
+  `409 avatar_changed_by_admin` to a cabinet that has not seen the change.
+- MAUI side: the origin cabinet downloads an administrator's avatar.
+
 ## Lot 5.2: score events for the cabinets (D82)
 
 - `GET /events`: the latest score events of the fleet for a cabinet, which

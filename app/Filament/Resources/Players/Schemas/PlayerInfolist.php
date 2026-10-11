@@ -3,11 +3,14 @@
 namespace App\Filament\Resources\Players\Schemas;
 
 use App\Models\Player;
+use App\Services\Players\PlayerAvatars;
 use Filament\Infolists\Components\IconEntry;
+use Filament\Infolists\Components\ImageEntry;
 use Filament\Infolists\Components\TextEntry;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
 use Filament\Support\Enums\FontFamily;
+use Illuminate\Support\Facades\Storage;
 
 class PlayerInfolist
 {
@@ -31,6 +34,27 @@ class PlayerInfolist
                             ->placeholder(__('Unknown: only admins can issue a new PIN'))
                             ->helperText(__('The only cabinet that can issue a new PIN.')),
                         TextEntry::make('created_at')->dateTime(),
+                    ]),
+                Section::make(__('Avatar'))
+                    ->columns(2)
+                    ->schema([
+                        // Kept on a private disk: shown from its bytes, 256 KB at most.
+                        ImageEntry::make('avatar')
+                            ->hiddenLabel()
+                            ->state(fn (Player $record): ?string => PlayerAvatars::exists($record)
+                                ? 'data:image/png;base64,'.base64_encode((string) Storage::disk(PlayerAvatars::DISK)->get(PlayerAvatars::path($record)))
+                                : null)
+                            ->imageSize(128)
+                            ->placeholder(__('None')),
+                        TextEntry::make('avatar_by_admin')
+                            ->label(__('Set by'))
+                            ->state(fn (Player $record): ?string => match (true) {
+                                $record->avatar_hash === null => null,
+                                $record->avatar_by_admin => (string) __('An administrator'),
+                                default => (string) __('The cabinet the player was created on'),
+                            })
+                            ->placeholder('-')
+                            ->helperText(__('An administrator\'s picture replaces the one of that cabinet, until the cabinet changes it again.')),
                     ]),
             ]);
     }

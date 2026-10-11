@@ -5,8 +5,11 @@ namespace App\Filament\Resources\Players\Pages;
 use App\Filament\Resources\Players\PlayerResource;
 use App\Models\Client;
 use App\Models\Player;
+use App\Services\Players\AvatarImage;
 use App\Services\Players\PlayerAdministration;
+use App\Services\Players\PlayerAvatars;
 use Filament\Actions\Action;
+use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Components\Select;
 use Filament\Infolists\Components\TextEntry;
 use Filament\Notifications\Notification;
@@ -14,10 +17,15 @@ use Filament\Resources\Pages\ViewRecord;
 use Filament\Support\Enums\FontFamily;
 use Filament\Support\Enums\TextSize;
 use Filament\Support\Icons\Heroicon;
+use Illuminate\Validation\ValidationException;
+use Livewire\Features\SupportFileUploads\TemporaryUploadedFile;
 
 class ViewPlayer extends ViewRecord
 {
     protected static string $resource = PlayerResource::class;
+
+    /** Kilobytes: a photo straight from a phone; PHP takes 16 MB (docker/php). */
+    private const MAX_UPLOAD_KB = 12 * 1024;
 
     protected function getHeaderActions(): array
     {
@@ -26,6 +34,7 @@ class ViewPlayer extends ViewRecord
             $this->regeneratePinAction(),
             $this->unlockAction(),
             $this->setOriginAction(),
+            $this->changeAvatarAction(),
             $this->disableAction(),
             $this->enableAction(),
         ];
@@ -114,6 +123,39 @@ class ViewPlayer extends ViewRecord
                     : null;
                 app(PlayerAdministration::class)->setOrigin($this->player(), $origin);
                 $this->notifyDone(__('Origin cabinet changed'));
+            });
+    }
+
+    /** An administrator's picture for the player (D83), which every cabinet then shows. */
+    public function changeAvatarAction(): Action
+    {
+        return Action::make('changeAvatar')
+            ->label(__('Change avatar'))
+            ->icon(Heroicon::OutlinedPhoto)
+            ->color('gray')
+            ->modalDescription(__('Replaces the player\'s picture on every cabinet and on the hiscores front, the cabinet it was created on included. That cabinet can change it again afterwards.'))
+            ->schema([
+                FileUpload::make('avatar')
+                    ->label(__('Image'))
+                    ->helperText(__('PNG, JPEG or WebP, a photo included, :side pixels wide and high at least. Use the pencil on the picture to choose the square to keep (:side x :side at least); without it, the centre is kept. The picture is then scaled down.', ['side' => AvatarImage::MIN_SIDE]))
+                    ->acceptedFileTypes(['image/png', 'image/jpeg', 'image/webp'])
+                    // The square is chosen in the browser, before the upload; what arrives is
+                    // made to fit all the same (AvatarImage).
+                    ->imageEditor()
+                    ->imageEditorAspectRatioOptions(['1:1'])
+                    ->maxSize(self::MAX_UPLOAD_KB)
+                    ->storeFiles(false)
+                    ->required(),
+            ])
+            ->action(function (array $data, Action $action): void {
+                $file = $data['avatar'] ?? null;
+                try {
+                    app(PlayerAvatars::class)->storeByAdmin($this->player(), $file instanceof TemporaryUploadedFile ? (string) $file->get() : '');
+                } catch (ValidationException $exception) {
+                    Notification::make()->title($exception->getMessage())->danger()->send();
+                    $action->halt();
+                }
+                $this->notifyDone(__('Avatar changed'));
             });
     }
 

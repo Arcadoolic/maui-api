@@ -3,24 +3,14 @@
 use App\Models\Game;
 use App\Models\Player;
 use App\Models\Score;
+use App\Services\Players\PlayerAvatars;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\ValidationException;
 
 // Player avatars (docs/DECISIONS.md D53).
 
 beforeEach(fn () => Storage::fake('local'));
-
-/** A real PNG, square, grey, built by hand: the image has no GD. */
-function pngBytes(int $size): string
-{
-    $chunk = fn (string $type, string $data): string => pack('N', strlen($data)).$type.$data.pack('N', crc32($type.$data));
-    $rows = str_repeat("\0".str_repeat("\x80", $size), $size);
-
-    return "\x89PNG\r\n\x1a\n"
-        .$chunk('IHDR', pack('NNCCCCC', $size, $size, 8, 0, 0, 0, 0))
-        .$chunk('IDAT', (string) gzcompress($rows))
-        .$chunk('IEND', '');
-}
 
 function avatarPng(int $size = 64): UploadedFile
 {
@@ -131,5 +121,80 @@ describe('download', function () {
 
         $this->getJson('/api/v1/leaderboards/dkong', cabinetHeaders($client, $token))
             ->assertJsonPath('entries.0.player.avatar', str_repeat('b', 64));
+    });
+});
+
+// An administrator may change an avatar too (docs/DECISIONS.md D83).
+describe('avatar changed by an administrator', function () {
+    it('tells the cabinets whose picture comes from an administrator', function () {
+        [$client, $token] = cabinetWithToken();
+        $player = linkedPlayer($client);
+        $headers = [...cabinetHeaders($client, $token), 'Accept' => 'application/json'];
+
+        $this->post("/api/v1/players/{$player->uuid}/avatar", ['avatar' => avatarPng()], $headers)
+            ->assertOk()
+            ->assertJsonPath('player.avatar_by_admin', false);
+
+        app(PlayerAvatars::class)->storeByAdmin($player, pngBytes(256));
+
+        $this->getJson('/api/v1/players', cabinetHeaders($client, $token))
+            ->assertOk()
+            ->assertJsonPath('players.0.avatar', hash('sha256', pngBytes(256)))
+            ->assertJsonPath('players.0.avatar_by_admin', true);
+    });
+
+    it('refuses the picture of a cabinet that has not seen the administrator\'s one', function () {
+        [$client, $token] = cabinetWithToken();
+        $player = linkedPlayer($client);
+        $headers = [...cabinetHeaders($client, $token), 'Accept' => 'application/json'];
+        app(PlayerAvatars::class)->storeByAdmin($player, pngBytes(256));
+        $admins = hash('sha256', pngBytes(256));
+
+        // As a cabinet older than this decision sends it: nothing about what it replaces.
+        $this->post("/api/v1/players/{$player->uuid}/avatar", ['avatar' => avatarPng()], $headers)
+            ->assertConflict()
+            ->assertJsonPath('code', 'avatar_changed_by_admin');
+        $this->post("/api/v1/players/{$player->uuid}/avatar", ['avatar' => avatarPng(), 'replaces' => str_repeat('a', 64)], $headers)
+            ->assertConflict();
+        expect($player->refresh()->avatar_hash)->toBe($admins)
+            ->and($player->avatar_by_admin)->toBeTrue();
+    });
+
+    it('takes the picture of the cabinet that replaces the administrator\'s one knowingly', function () {
+        [$client, $token] = cabinetWithToken();
+        $player = linkedPlayer($client);
+        $headers = [...cabinetHeaders($client, $token), 'Accept' => 'application/json'];
+        app(PlayerAvatars::class)->storeByAdmin($player, pngBytes(256));
+
+        $this->post("/api/v1/players/{$player->uuid}/avatar", ['avatar' => avatarPng(), 'replaces' => hash('sha256', pngBytes(256))], $headers)
+            ->assertOk()
+            ->assertJsonPath('avatar', hash('sha256', pngBytes(64)))
+            ->assertJsonPath('player.avatar_by_admin', false);
+        expect($player->refresh()->avatar_by_admin)->toBeFalse();
+    });
+
+    it('validates what a cabinet says it replaces', function () {
+        [$client, $token] = cabinetWithToken();
+        $player = linkedPlayer($client);
+
+        $this->post("/api/v1/players/{$player->uuid}/avatar", ['avatar' => avatarPng(), 'replaces' => 'nope'], [...cabinetHeaders($client, $token), 'Accept' => 'application/json'])
+            ->assertUnprocessable();
+    });
+
+    it('refuses from an administrator what is no picture', function () {
+        $player = Player::factory()->create();
+
+        expect(fn () => app(PlayerAvatars::class)->storeByAdmin($player, 'GIF89a not a picture'))->toThrow(ValidationException::class);
+        expect($player->refresh()->avatar_hash)->toBeNull();
+    });
+
+    it('makes an administrator\'s picture fit, however large (D84)', function () {
+        $player = Player::factory()->create();
+
+        app(PlayerAvatars::class)->storeByAdmin($player, pngBytes(PlayerAvatars::MAX_DIMENSION + 1));
+
+        $stored = (string) Storage::disk('local')->get("avatars/{$player->uuid}.png");
+        expect(getimagesizefromstring($stored))->toMatchArray([0 => 512, 1 => 512, 2 => IMAGETYPE_PNG])
+            ->and($player->refresh()->avatar_hash)->toBe(hash('sha256', $stored));
     });
 });
