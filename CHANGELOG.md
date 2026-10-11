@@ -1,3 +1,9 @@
+## [0.14.0](https://github.com/Arcadoolic/maui-api/compare/0.13.0...0.14.0) (2026-10-11)
+
+### Features
+
+* **players:** let an administrator change a player's avatar ([c2d585c](https://github.com/Arcadoolic/maui-api/commit/c2d585c63991bea7cb9adc5940cfd5a06c5e4f6f))
+
 ## [0.13.0](https://github.com/Arcadoolic/maui-api/compare/0.12.0...0.13.0) (2026-10-11)
 
 ### Features
