@@ -28,6 +28,7 @@ use Spatie\Activitylog\Models\Activity;
  * @property int $pin_failed_attempts
  * @property Carbon|null $pin_locked_at
  * @property string|null $avatar_hash SHA-256 of the avatar PNG, null without one (D53).
+ * @property bool $avatar_by_admin The avatar was set by an administrator (D83).
  * @property Carbon $created_at
  * @property Carbon $updated_at
  * @property-read Client|null $originClient
@@ -48,6 +49,7 @@ class Player extends Model
         'is_public' => false,
         'status' => 'active',
         'pin_failed_attempts' => 0,
+        'avatar_by_admin' => false,
     ];
 
     /**
@@ -64,6 +66,7 @@ class Player extends Model
     {
         return [
             'is_public' => 'boolean',
+            'avatar_by_admin' => 'boolean',
             'pin' => 'encrypted',
             'status' => PlayerStatus::class,
             'pin_failed_attempts' => 'integer',
@@ -186,6 +189,8 @@ class Player extends Model
             'is_origin' => $this->isOrigin($client),
             // SHA-256 of the avatar (D53): the cabinet sends its PNG again when it differs.
             'avatar' => $this->avatar_hash,
+            // Set by an administrator (D83): the cabinet it was created on takes it.
+            'avatar_by_admin' => $this->avatar_by_admin,
         ];
     }
 

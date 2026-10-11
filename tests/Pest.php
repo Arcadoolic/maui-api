@@ -165,3 +165,15 @@ function fakeDiscord(array $user): void
         DiscordOAuth::USER_URL => Http::response(['global_name' => null, 'avatar' => null, ...$user]),
     ]);
 }
+
+/** A real PNG, square, grey, built by hand: the image has no GD. */
+function pngBytes(int $size): string
+{
+    $chunk = fn (string $type, string $data): string => pack('N', strlen($data)).$type.$data.pack('N', crc32($type.$data));
+    $rows = str_repeat("\0".str_repeat("\x80", $size), $size);
+
+    return "\x89PNG\r\n\x1a\n"
+        .$chunk('IHDR', pack('NNCCCCC', $size, $size, 8, 0, 0, 0, 0))
+        .$chunk('IDAT', (string) gzcompress($rows))
+        .$chunk('IEND', '');
+}

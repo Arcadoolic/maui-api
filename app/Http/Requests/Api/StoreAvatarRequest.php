@@ -20,6 +20,8 @@ final class StoreAvatarRequest extends FormRequest
                 'required', 'file', 'mimetypes:image/png', 'max:'.PlayerAvatars::MAX_SIZE,
                 "dimensions:max_width={$max},max_height={$max}",
             ],
+            // SHA-256 of the avatar the cabinet knows the player by (D83).
+            'replaces' => ['sometimes', 'nullable', 'string', 'regex:/^[0-9a-f]{64}$/'],
         ];
     }
 }
