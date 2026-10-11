@@ -1,3 +1,9 @@
+## [0.13.0](https://github.com/Arcadoolic/maui-api/compare/0.12.0...0.13.0) (2026-10-11)
+
+### Features
+
+* **events:** let the cabinets read the score events ([c104020](https://github.com/Arcadoolic/maui-api/commit/c104020b42862ab059b7478583fc49bcbe01c3c4))
+
 ## [0.12.0](https://github.com/Arcadoolic/maui-api/compare/0.11.0...0.12.0) (2026-10-10)
 
 ### Features
