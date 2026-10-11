@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Api\CabinetEventsController;
 use App\Http\Controllers\Api\CatalogGamesController;
 use App\Http\Controllers\Api\HeartbeatController;
 use App\Http\Controllers\Api\LeaderboardsController;
@@ -53,6 +54,11 @@ Route::middleware(['throttle:cabinet', 'cabinet:scores:read', 'etag'])->group(fu
     Route::get('leaderboards', [LeaderboardsController::class, 'index']);
     Route::get('leaderboards/{romname}', [LeaderboardsController::class, 'show']);
     Route::get('players/{player}/bests', [LeaderboardsController::class, 'bests']);
+});
+
+// What the scores changed on the leaderboards, shown by an idle cabinet (docs/DECISIONS.md D82).
+Route::middleware(['throttle:cabinet', 'cabinet:scores:read'])->group(function () {
+    Route::get('events', CabinetEventsController::class);
 });
 
 // Avatars carry their own ETag, the hash of the PNG (docs/DECISIONS.md D53).

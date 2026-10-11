@@ -15,6 +15,7 @@ For why things are done this way, see `docs/DECISIONS.md`.
 | 2 | Hiscores: catalog, players, scores, leaderboards | **In progress**: 2.1 catalog and 2.2 players merged (not on staging yet), 2.3 scores in progress |
 | 3 | Hiscores front end (`afronob/maui-hifront`) | **In progress**: 3.1 accounts done (D64 to D66, PR #55), 3.2 reading in progress (D67) |
 | 4 | Game popularity from the cabinets' votes and plays | **In progress**: 4.1 report from the cabinets in production (D75), 4.2 popularity index written (D76) |
+| 5 | Messages on the cabinets (idle curtain, system messages) | **In progress**: 5.2 score events read by the cabinets (D82) |
 | Last | Anti-cheat | Not started, after Lot 3 |
 
 ## Done
@@ -53,6 +54,13 @@ For why things are done this way, see `docs/DECISIONS.md`.
 - Back office: "Turned down by every cabinet" filter on the games.
 - Front side in `afronob/maui-hifront`.
 - Next: Lot 4.5, back to the cabinet (MAUI).
+
+## Lot 5.2: score events for the cabinets (D82)
+
+- `GET /events`: the latest score events of the fleet for a cabinet, which
+  shows their sentences while nobody plays (MAUI's idle curtain). Events of
+  the last `HISCORES_EVENTS_CABINET_DAYS` days (14).
+- Next: Lot 5.3, system messages written in the back office.
 
 ## Lot 4.3: popularity on the front (in progress, D77)
 

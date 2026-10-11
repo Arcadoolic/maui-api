@@ -589,3 +589,79 @@ describe('bot feed', function () {
         $this->getJson('/api/v1/bot/events')->assertUnauthorized();
     });
 });
+
+// What an idle cabinet shows (docs/DECISIONS.md D82).
+describe('cabinet feed', function () {
+    it('answers the latest events to a cabinet, newest first, as the bots read them', function () {
+        $arcade = arcade();
+        $loy = challenger($arcade[0], 'LOY');
+        $first = play($arcade, $loy, 100);
+        $second = play($arcade, $loy, 200);
+
+        $this->getJson('/api/v1/events', cabinetHeaders(...$arcade))
+            ->assertOk()
+            ->assertJsonCount(2, 'events')
+            ->assertJsonPath('events.0.id', $second->id)
+            ->assertJsonPath('events.0.message', $second->message)
+            ->assertJsonPath('events.0.player.pseudo_3', 'LOY')
+            ->assertJsonPath('events.0.game.romname', 'galaga')
+            ->assertJsonPath('events.1.id', $first->id);
+
+        $this->getJson('/api/v1/events?limit=1', cabinetHeaders(...$arcade))
+            ->assertJsonCount(1, 'events')
+            ->assertJsonPath('events.0.id', $second->id);
+    });
+
+    it('leaves out hidden scores, players no longer public and what is too old', function () {
+        config(['hiscores.events.cabinet_days' => 14]);
+        $arcade = arcade();
+        $loy = challenger($arcade[0], 'LOY');
+        $nob = challenger($arcade[0], 'NOB');
+        $did = challenger($arcade[0], 'DID');
+        play($arcade, $loy, 100, ['achieved_at' => now()->subDays(15)->toIso8601String()]);
+        play($arcade, $nob, 200);
+        play($arcade, $did, 300);
+        // Too old to be announced by a bot, still news on a cabinet.
+        $kept = play($arcade, $loy, 400, ['achieved_at' => now()->subDays(3)->toIso8601String()]);
+        app(ScoreModeration::class)->hide(Score::query()->where('player_id', $nob->id)->sole());
+        $did->forceFill(['is_public' => false])->save();
+
+        $this->getJson('/api/v1/events', cabinetHeaders(...$arcade))
+            ->assertOk()
+            ->assertJsonCount(1, 'events')
+            ->assertJsonPath('events.0.id', $kept->id);
+    });
+
+    it('has no age limit when the setting is 0', function () {
+        config(['hiscores.events.cabinet_days' => 0]);
+        $arcade = arcade();
+        $old = play($arcade, challenger($arcade[0], 'LOY'), 100, ['achieved_at' => now()->subYears(5)->toIso8601String()]);
+
+        $this->getJson('/api/v1/events', cabinetHeaders(...$arcade))
+            ->assertJsonCount(1, 'events')
+            ->assertJsonPath('events.0.id', $old->id);
+    });
+
+    it('keeps the events that matter when asked to', function () {
+        $arcade = arcade();
+        $loy = challenger($arcade[0], 'LOY');
+        play($arcade, $loy, 100);
+        play($arcade, $loy, 200);
+        ScoreEvent::query()->orderBy('id')->first()->forceFill(['importance' => 1])->save();
+        $second = ScoreEvent::query()->orderByDesc('id')->first();
+        $second->forceFill(['importance' => 3])->save();
+
+        $this->getJson('/api/v1/events?min_importance=2', cabinetHeaders(...$arcade))
+            ->assertJsonCount(1, 'events')
+            ->assertJsonPath('events.0.id', $second->id);
+    });
+
+    it('validates the limit and the importance', function (string $query) {
+        $this->getJson('/api/v1/events?'.$query, cabinetHeaders(...arcade()))->assertUnprocessable();
+    })->with(['limit=0', 'limit=51', 'min_importance=0', 'min_importance=4', 'min_importance=x']);
+
+    it('needs a cabinet', function () {
+        $this->getJson('/api/v1/events')->assertUnauthorized();
+        $this->getJson('/api/v1/events', serviceHeaders(...botWithToken()))->assertForbidden();
+    });
+});

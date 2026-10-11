@@ -9,6 +9,8 @@ return [
     'events' => [
         // A score made more than this many hours ago is stored, not announced.
         'stale_after_hours' => 24,
+        // An idle cabinet is told the events of the last days (D82); 0: no limit.
+        'cabinet_days' => (int) env('HISCORES_EVENTS_CABINET_DAYS', 14),
         // `huge_jump`: the score is at least this many times the previous best.
         'huge_jump_factor' => 2,
         // `crushing`: the new leader beats the previous one by this percentage.

@@ -670,6 +670,60 @@ paths:
         '500':
           $ref: '#/components/responses/ServerError'
 
+  /events:
+    get:
+      tags: [Leaderboards]
+      operationId: listCabinetScoreEvents
+      summary: Score events a cabinet shows while nobody plays
+      description: |
+        The latest score events (D60), newest first, for the band of
+        messages of an idle cabinet (D82): the same events and `message` the
+        bots and the front read, whatever the cabinet the score was made on.
+
+        Left out: the events of hidden scores, of players who are no longer
+        public and active, and those older than the server's setting
+        (14 days by default). Unlike `/bot/events`, a score sent more than
+        24 hours after it was made is part of it, and there is no cursor: a
+        cabinet reads the list again.
+
+        Cabinets only, ability `scores:read`.
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 50
+            default: 20
+        - name: min_importance
+          in: query
+          description: Only the events of this `importance` or above.
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 3
+      responses:
+        '200':
+          description: The events.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CabinetScoreEventListResponse'
+        '400':
+          $ref: '#/components/responses/MachineFingerprintMissing'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/MachineMismatch'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
   /leaderboards:
     get:
       tags: [Leaderboards]
@@ -2716,6 +2770,16 @@ components:
           type: integer
           minimum: 0
           description: Send it as `after` to read what comes next.
+
+    CabinetScoreEventListResponse:
+      type: object
+      required: [events]
+      additionalProperties: false
+      properties:
+        events:
+          type: array
+          items:
+            $ref: '#/components/schemas/ScoreEvent'
 
     FrontMember:
       type: object
