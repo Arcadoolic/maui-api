@@ -1,3 +1,10 @@
+## [0.15.0](https://github.com/Arcadoolic/maui-api/compare/0.14.0...0.15.0) (2026-10-13)
+
+### Features
+
+* **front:** let a member change the avatar of its player ([2b8309c](https://github.com/Arcadoolic/maui-api/commit/2b8309cab683466d6aef5fe84bc6024b96ceef92))
+* **web:** reuse the hiscores front's arcade sprites, font and colours ([d7eaaca](https://github.com/Arcadoolic/maui-api/commit/d7eaacadb15af6bd9ecc875160b137f69f488b08))
+
 ## [0.14.0](https://github.com/Arcadoolic/maui-api/compare/0.13.0...0.14.0) (2026-10-11)
 
 ### Features
