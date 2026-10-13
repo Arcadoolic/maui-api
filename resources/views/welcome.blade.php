@@ -5,24 +5,35 @@
         <meta name="viewport" content="width=device-width, initial-scale=1">
         <title>{{ config('app.name', 'MAUI API') }}</title>
         <style>
-            /* Self-hosted (SIL OFL 1.1, see public/fonts/pixelify-sans/OFL.txt): no request to Google. */
+            /* Same font as the hiscores front (maui-hifront), self-hosted (SIL OFL 1.1,
+               see public/fonts/press-start-2p/OFL.txt): no request to Google. */
             @font-face {
-                font-family: "Pixelify Sans";
+                font-family: "Press Start 2P";
                 font-style: normal;
                 font-weight: 400;
                 font-display: swap;
-                src: url('/fonts/pixelify-sans/pixelify-sans-latin.woff2') format("woff2");
+                src: url('/fonts/press-start-2p/press-start-2p-latin.woff2') format("woff2");
             }
 
+            /* Colour names and values of maui-hifront src/style.css. */
             :root {
+                --color-screen: #000000;
+                --color-maze: #2121de;
+                --color-pellet: #ffb8ae;
+                --color-puck: #ffff00;
+                --color-blinky: #ff0000;
+                --color-ink: #dedede;
+                --color-eye-white: #dedeff;
+                --color-pupil: #2121ff;
+
+                /* The game's proportions, three times its size: 16-pixel sprites,
+                   a 2-pixel pellet every 8 pixels. */
                 --size: 48px;
-                --duration: 7.5s; /* 6s run across, 1.5s refill delay: see the keyframes */
+                --pellet: 6px;
+                --pellet-step: 24px;
+                --pellet-x: 9px;
                 --gap: 72px;
-                --bg: #000;
-                --maze: #2121de;
-                --pellet: #ffb8ae;
-                --pacman: #ffff00;
-                --ghost: #ff0000;
+                --duration: 7.5s; /* 6s run across, 1.5s refill delay: see the keyframes */
             }
 
             * { box-sizing: border-box; margin: 0; }
@@ -31,9 +42,9 @@
                 min-height: 100vh;
                 display: grid;
                 place-items: center;
-                background: var(--bg);
-                color: #fff;
-                font-family: "Pixelify Sans", ui-monospace, "Courier New", monospace;
+                background: var(--color-screen);
+                color: var(--color-ink);
+                font-family: "Press Start 2P", ui-monospace, "Courier New", monospace;
                 overflow: hidden;
             }
 
@@ -42,15 +53,14 @@
             .corridor {
                 position: relative;
                 height: calc(var(--size) + 32px);
-                border-block: 4px double var(--maze);
+                border-block: 4px double var(--color-maze);
             }
 
             .pellets,
             .refill {
                 position: absolute;
                 inset: 0;
-                /* 2x2 sprite pixels every 8 sprite pixels. */
-                background: repeating-linear-gradient(90deg, var(--pellet) 0 8px, transparent 8px 32px) 12px 50% / 100% 8px no-repeat;
+                background: repeating-linear-gradient(90deg, var(--color-pellet) 0 var(--pellet), transparent var(--pellet) var(--pellet-step)) var(--pellet-x) 50% / 100% var(--pellet) no-repeat;
             }
 
             /* Covers every pellet left of Pac-Man's mouth. */
@@ -59,7 +69,7 @@
                 inset-block: 0;
                 width: 300vw;
                 transform: translateX(-100%);
-                background: var(--bg);
+                background: var(--color-screen);
                 animation: eat var(--duration) linear infinite;
             }
 
@@ -67,7 +77,7 @@
                off screen so its width stays positive; the background is shifted back. */
             .refill {
                 inset: 0 auto 0 calc(-1 * var(--gap) - var(--size));
-                background-position-x: calc(12px + var(--gap) + var(--size));
+                background-position-x: calc(var(--pellet-x) + var(--gap) + var(--size));
                 animation: refill var(--duration) linear infinite;
             }
 
@@ -101,16 +111,15 @@
             .ghost .frame { animation: show-half .3s linear infinite; }
             .ghost .frame:nth-child(2) { animation-delay: -.15s; }
 
-            .pacman .skin { fill: var(--pacman); }
-            .pacman .eye { fill: var(--bg); }
-            .ghost .skin { fill: var(--ghost); }
-            .ghost .eye-white { fill: #fff; }
-            .ghost .pupil { fill: var(--maze); }
+            .pacman .body { fill: var(--color-puck); }
+            .ghost .body { fill: var(--color-blinky); }
+            .ghost .eye-white { fill: var(--color-eye-white); }
+            .ghost .pupil { fill: var(--color-pupil); }
 
             .insert-coin {
                 margin-top: 3rem;
-                font-size: .9rem;
-                letter-spacing: .2em;
+                font-size: .75rem;
+                letter-spacing: .1em;
                 animation: blink 1s steps(1) infinite;
             }
 
@@ -163,35 +172,42 @@
     <body>
         <main>
             @php
-                // Original sprites (12x12, scaled x4), a nod to the arcade ones, not a copy.
-                $pacman = ['#' => 'skin', 'o' => 'eye'];
+                // The arcade sprites, as maui-hifront draws them: grids copied from its
+                // src/sprites.ts (PACMAN_RIGHT, GHOST_RIGHT). Keep the two in step.
+                $pacman = ['#' => 'body'];
                 $pacmanHalfOpen = [
-                    '....####....',
-                    '..########..',
-                    '.#####o####.',
-                    '.#########..',
-                    '#########...',
-                    '#######.....',
-                    '#######.....',
-                    '#########...',
-                    '.#########..',
-                    '.##########.',
-                    '..########..',
-                    '....####....',
+                    '................',
+                    '.....#####......',
+                    '...#########....',
+                    '..###########...',
+                    '..###########...',
+                    '.##########.....',
+                    '.#######........',
+                    '.####...........',
+                    '.#######........',
+                    '.##########.....',
+                    '..###########...',
+                    '..###########...',
+                    '...#########....',
+                    '.....#####......',
+                    '................',
+                    '................',
                 ];
-                $ghost = ['#' => 'skin', 'w' => 'eye-white', 'p' => 'pupil'];
+                $ghost = ['#' => 'body', 'w' => 'eye-white', 'p' => 'pupil'];
                 $ghostBody = [
-                    '....####....',
-                    '..########..',
-                    '.##########.',
-                    '.#www##www#.',
-                    '##wpp##wpp##',
-                    '##wpp##wpp##',
-                    '##www##www##',
-                    '############',
-                    '############',
-                    '############',
-                    '############',
+                    '................',
+                    '......####......',
+                    '....########....',
+                    '...##########...',
+                    '..###ww####ww#..',
+                    '..##wwww##wwww..',
+                    '..##wwpp##wwpp..',
+                    '.###wwpp##wwpp#.',
+                    '.####ww####ww##.',
+                    '.##############.',
+                    '.##############.',
+                    '.##############.',
+                    '.##############.',
                 ];
             @endphp
             <div class="corridor" aria-hidden="true">
@@ -199,40 +215,50 @@
                 <div class="eaten"></div>
                 <div class="refill"></div>
                 <div class="runner ghost">
-                    <x-pixel-sprite :rows="[...$ghostBody, '##..##..##..']" :palette="$ghost" />
-                    <x-pixel-sprite :rows="[...$ghostBody, '..##..##..##']" :palette="$ghost" />
+                    <x-pixel-sprite :rows="[...$ghostBody, '.##.###..###.##.', '.#...##..##...#.', '................']" :palette="$ghost" />
+                    <x-pixel-sprite :rows="[...$ghostBody, '.####.####.####.', '..##...##...##..', '................']" :palette="$ghost" />
                 </div>
+                {{-- The game's cycle (shut, half open, wide open, half open), started on half open
+                     so that the still frame shown without motion reads as Pac-Man. --}}
                 <div class="runner pacman">
+                    <x-pixel-sprite :rows="$pacmanHalfOpen" :palette="$pacman" />
                     <x-pixel-sprite :rows="[
-                        '....####....',
-                        '..#######...',
-                        '.#####o#....',
-                        '.######.....',
-                        '######......',
-                        '#####.......',
-                        '#####.......',
-                        '######......',
-                        '.######.....',
-                        '.#######....',
-                        '..#######...',
-                        '....####....',
+                        '................',
+                        '.....#####......',
+                        '...#######......',
+                        '..#######.......',
+                        '..######........',
+                        '.######.........',
+                        '.#####..........',
+                        '.####...........',
+                        '.#####..........',
+                        '.######.........',
+                        '..######........',
+                        '..#######.......',
+                        '...#######......',
+                        '.....#####......',
+                        '................',
+                        '................',
                     ]" :palette="$pacman" />
                     <x-pixel-sprite :rows="$pacmanHalfOpen" :palette="$pacman" />
                     <x-pixel-sprite :rows="[
-                        '....####....',
-                        '..########..',
-                        '.#####o####.',
-                        '.##########.',
-                        '############',
-                        '############',
-                        '############',
-                        '############',
-                        '.##########.',
-                        '.##########.',
-                        '..########..',
-                        '....####....',
+                        '................',
+                        '.....#####......',
+                        '...#########....',
+                        '..###########...',
+                        '..###########...',
+                        '.#############..',
+                        '.#############..',
+                        '.#############..',
+                        '.#############..',
+                        '.#############..',
+                        '..###########...',
+                        '..###########...',
+                        '...#########....',
+                        '.....#####......',
+                        '................',
+                        '................',
                     ]" :palette="$pacman" />
-                    <x-pixel-sprite :rows="$pacmanHalfOpen" :palette="$pacman" />
                 </div>
             </div>
             <p class="insert-coin">INSERT COIN</p>
