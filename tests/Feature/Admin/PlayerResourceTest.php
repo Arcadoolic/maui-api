@@ -6,6 +6,7 @@ use App\Filament\Resources\Players\Pages\ViewPlayer;
 use App\Filament\Resources\Players\PlayerResource;
 use App\Filament\Resources\Players\RelationManagers\CabinetsRelationManager;
 use App\Models\Client;
+use App\Models\Member;
 use App\Models\Player;
 use App\Models\User;
 use App\Services\Players\PlayerAdministration;
@@ -214,6 +215,15 @@ describe('avatar', function () {
         livewire(ViewPlayer::class, ['record' => $player->getRouteKey()])
             ->assertSeeHtml('data:image/png;base64,'.base64_encode(pngBytes(256)))
             ->assertSee('An administrator');
+    });
+
+    it('says so when the member of the player set its avatar', function () {
+        $player = Player::factory()->create();
+        app(PlayerAvatars::class)->storeByMember(Member::factory()->create(), $player, pngBytes(256));
+
+        livewire(ViewPlayer::class, ['record' => $player->getRouteKey()])
+            ->assertSee('Its member, on the hiscores front')
+            ->assertDontSee('An administrator');
     });
 
     it('gives the page of a player, and no other, the crop tool held to 256 pixels', function () {

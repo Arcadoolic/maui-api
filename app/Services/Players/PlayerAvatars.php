@@ -3,6 +3,7 @@
 namespace App\Services\Players;
 
 use App\Models\Client;
+use App\Models\Member;
 use App\Models\Player;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
@@ -10,8 +11,8 @@ use Illuminate\Validation\ValidationException;
 
 /**
  * Player avatars (docs/DECISIONS.md D53): a PNG sent by the cabinet the
- * player was created on, or set by an administrator (D83), kept on the
- * `local` disk, served to every cabinet that shows the player in a
+ * player was created on, or set by an administrator (D83) or by the
+ * player's member on the hiscores front (D85), kept on the `local` disk, served to every cabinet that shows the player in a
  * leaderboard.
  */
 final class PlayerAvatars
@@ -49,6 +50,25 @@ final class PlayerAvatars
 
         activity(PlayerRegistry::LOG_NAME)
             ->performedOn($player)
+            ->event('player.avatar_changed')
+            ->log('player.avatar_changed');
+
+        return $player;
+    }
+
+    /**
+     * The avatar a member gives its player on the hiscores front (D85): made
+     * to fit and taken by the origin cabinet as an administrator's is.
+     *
+     * @throws ValidationException
+     */
+    public function storeByMember(Member $member, Player $player, string $image): Player
+    {
+        $this->put($player, AvatarImage::normalize($image), byAdmin: true);
+
+        activity(PlayerRegistry::LOG_NAME)
+            ->performedOn($player)
+            ->causedBy($member)
             ->event('player.avatar_changed')
             ->log('player.avatar_changed');
 

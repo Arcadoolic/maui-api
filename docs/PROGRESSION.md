@@ -65,6 +65,14 @@ For why things are done this way, see `docs/DECISIONS.md`.
   `409 avatar_changed_by_admin` to a cabinet that has not seen the change.
 - MAUI side: the origin cabinet downloads an administrator's avatar.
 
+## Player avatars changed by the member (D85)
+
+- `POST /front/me/player/avatar`: the member's own player, any PNG, JPEG or
+  WebP made to fit as in the back office (D84), stored with
+  `avatar_by_admin` so the origin cabinet takes it.
+- Back office: "Set by" tells an administrator from the member.
+- Front side in `afronob/maui-hifront`: a crop tool on "My player".
+
 ## Lot 5.2: score events for the cabinets (D82)
 
 - `GET /events`: the latest score events of the fleet for a cabinet, which
