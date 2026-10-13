@@ -1163,3 +1163,26 @@ what does not fit: a cabinet compares the hash of its own file with the
 server's to know whether to send it again (D53), so a picture the API
 rewrote would be sent at every synchronisation. MAUI scales its avatars
 down itself before sending them.
+
+**D85: A member changes the avatar of its player on the hiscores front.** (2026-10-13, widens D83)
+Requested by the project owner: a player gives itself a picture without
+going to the cabinet it was created on, and without asking an
+administrator. `POST /front/me/player/avatar` takes one picture for the
+player the member linked (the PIN typed then is the proof it is theirs,
+D66), as multipart field `avatar`, 12 MB at most as in the back office.
+What arrives goes through `AvatarImage` (D84) whatever the front did to it:
+a PNG, a JPEG or a WebP, a square of 256 pixels at least, scaled down to
+512 then further until the PNG is within 256 KB. The front crops to a
+square in the browser and sends a PNG of 256 to 512 pixels; the API does
+not rely on it.
+For the cabinets nothing is new: the avatar is stored with
+`avatar_by_admin`, which now reads "not the origin cabinet's own", so that
+cabinet downloads it and the last change still wins, wherever it is made
+(D83). The column and the `409 avatar_changed_by_admin` code keep their
+names: cabinets in the field read them. The audit trail tells the two
+apart, `player.avatar_changed` having the member as causer, and the back
+office's "Set by" reads it.
+A disabled player's avatar cannot be changed (`403 player_disabled`), a
+locked one's can: the lock is about the PIN. Own rate limit, 10 requests
+per minute per member, each picture being decoded and scaled. Removing an
+avatar is still not possible.

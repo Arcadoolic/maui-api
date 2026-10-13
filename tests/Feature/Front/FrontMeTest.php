@@ -3,7 +3,10 @@
 use App\Models\Client;
 use App\Models\Member;
 use App\Models\Player;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Storage;
+use Spatie\Activitylog\Models\Activity;
 
 // The logged-in member and its player, linked with initials + PIN (docs/DECISIONS.md D66, D71).
 
@@ -214,5 +217,117 @@ describe('unlinking the player', function () {
             ->assertJsonPath('code', 'player_not_found');
 
         expect($other->players()->count())->toBe(1);
+    });
+});
+
+describe('changing the avatar', function () {
+    beforeEach(fn () => Storage::fake('local'));
+
+    it('lets a member change the avatar of its player, recorded with the member', function () {
+        $member = Member::factory()->create();
+        $player = Player::factory()->create(['pseudo_3' => 'ACE']);
+        $member->players()->attach($player, ['linked_at' => now()]);
+
+        $this->actingAs($member, 'member')
+            ->post('/api/v1/front/me/player/avatar', [
+                'avatar' => UploadedFile::fake()->createWithContent('me.png', pngBytes(256)),
+            ], FRONT_ORIGIN + ['Accept' => 'application/json'])
+            ->assertOk()
+            ->assertJsonPath('player.id', $player->uuid)
+            ->assertJsonPath('player.avatar', hash('sha256', pngBytes(256)));
+
+        $player->refresh();
+        $audit = Activity::query()->where('event', 'player.avatar_changed')->where('subject_id', $player->id)->first();
+        expect(Storage::disk('local')->get("avatars/{$player->uuid}.png"))->toBe(pngBytes(256))
+            // Not the origin cabinet's any more: that cabinet takes it (D83, D85).
+            ->and($player->avatar_by_admin)->toBeTrue()
+            ->and($audit?->causer?->is($member))->toBeTrue();
+    });
+
+    it('makes a larger picture fit, as the back office does', function () {
+        $member = Member::factory()->create();
+        $player = Player::factory()->create();
+        $member->players()->attach($player, ['linked_at' => now()]);
+
+        $this->actingAs($member, 'member')
+            ->post('/api/v1/front/me/player/avatar', [
+                'avatar' => UploadedFile::fake()->image('photo.jpg', 900, 600),
+            ], FRONT_ORIGIN + ['Accept' => 'application/json'])
+            ->assertOk();
+
+        $size = getimagesizefromstring((string) Storage::disk('local')->get("avatars/{$player->uuid}.png"));
+        expect($size)->not->toBeFalse()
+            ->and([$size[0], $size[1], $size[2]])->toBe([512, 512, IMAGETYPE_PNG]);
+    });
+
+    it('refuses what is not a picture, or one too small', function (UploadedFile $file) {
+        $member = Member::factory()->create();
+        $player = Player::factory()->create();
+        $member->players()->attach($player, ['linked_at' => now()]);
+
+        $this->actingAs($member, 'member')
+            ->post('/api/v1/front/me/player/avatar', ['avatar' => $file], FRONT_ORIGIN + ['Accept' => 'application/json'])
+            ->assertUnprocessable()
+            ->assertJsonStructure(['errors' => ['avatar']]);
+
+        expect($player->refresh()->avatar_hash)->toBeNull();
+    })->with([
+        'not a picture' => [fn () => UploadedFile::fake()->createWithContent('me.png', 'GIF89a nope')],
+        'too small' => [fn () => UploadedFile::fake()->createWithContent('me.png', pngBytes(128))],
+    ]);
+
+    it('needs a file', function () {
+        $member = Member::factory()->create();
+        $member->players()->attach(Player::factory()->create(), ['linked_at' => now()]);
+
+        $this->actingAs($member, 'member')
+            ->postJson('/api/v1/front/me/player/avatar', [], FRONT_ORIGIN)
+            ->assertUnprocessable()
+            ->assertJsonStructure(['errors' => ['avatar']]);
+    });
+
+    it('has no avatar to change without a player, whatever the other members have', function () {
+        $other = Member::factory()->create();
+        $theirs = Player::factory()->create();
+        $other->players()->attach($theirs, ['linked_at' => now()]);
+
+        $this->actingAs(Member::factory()->create(), 'member')
+            ->post('/api/v1/front/me/player/avatar', [
+                'avatar' => UploadedFile::fake()->createWithContent('me.png', pngBytes(256)),
+            ], FRONT_ORIGIN + ['Accept' => 'application/json'])
+            ->assertNotFound()
+            ->assertJsonPath('code', 'player_not_found');
+
+        expect($theirs->refresh()->avatar_hash)->toBeNull();
+    });
+
+    it('refuses a disabled player', function () {
+        $member = Member::factory()->create();
+        $player = Player::factory()->disabled()->create();
+        $member->players()->attach($player, ['linked_at' => now()]);
+
+        $this->actingAs($member, 'member')
+            ->post('/api/v1/front/me/player/avatar', [
+                'avatar' => UploadedFile::fake()->createWithContent('me.png', pngBytes(256)),
+            ], FRONT_ORIGIN + ['Accept' => 'application/json'])
+            ->assertForbidden()
+            ->assertJsonPath('code', 'player_disabled');
+
+        expect($player->refresh()->avatar_hash)->toBeNull();
+    });
+
+    it('refuses a change that does not come from the front', function () {
+        $member = Member::factory()->create();
+        $player = Player::factory()->create();
+        $member->players()->attach($player, ['linked_at' => now()]);
+
+        $this->actingAs($member, 'member')
+            ->post('/api/v1/front/me/player/avatar', [
+                'avatar' => UploadedFile::fake()->createWithContent('me.png', pngBytes(256)),
+            ], ['Accept' => 'application/json'])
+            ->assertForbidden()
+            ->assertJsonPath('code', 'origin_not_allowed');
+
+        expect($player->refresh()->avatar_hash)->toBeNull();
     });
 });

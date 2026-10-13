@@ -1391,6 +1391,76 @@ paths:
         '500':
           $ref: '#/components/responses/ServerError'
 
+  /front/me/player/avatar:
+    post:
+      tags: [Front]
+      operationId: frontChangePlayerAvatar
+      summary: Change the avatar of the member's player
+      description: |
+        One picture for the player the member linked (D85), as multipart
+        field `avatar`, 12 MB at most: a PNG, a JPEG or a WebP whose shorter
+        side is 256 pixels at least. It is made a square PNG as in the back
+        office (D84): centre square, 512 pixels at most, 256 KB at most. A
+        PNG that is already a fitting square is stored byte for byte.
+        The cabinet the player was created on then downloads it
+        (`avatar_by_admin`, D83). Own rate limit: 10 requests per minute per
+        member.
+      security:
+        - frontSession: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [avatar]
+              properties:
+                avatar:
+                  type: string
+                  format: binary
+      responses:
+        '200':
+          description: Avatar changed.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [player]
+                additionalProperties: false
+                properties:
+                  player:
+                    $ref: '#/components/schemas/FrontPlayer'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          description: '`origin_not_allowed`, `member_disabled`, or `player_disabled`: the player was disabled by an administrator.'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+              example:
+                type: about:blank
+                title: Forbidden
+                status: 403
+                code: player_disabled
+        '404':
+          description: The member has no player.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+              example:
+                type: about:blank
+                title: Not Found
+                status: 404
+                code: player_not_found
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
   /front/games:
     get:
       tags: [Front]
@@ -2233,7 +2303,7 @@ components:
           description: SHA-256 of the player's avatar (D53), null without one. Send the PNG again when the cabinet's differs.
         avatar_by_admin:
           type: boolean
-          description: The avatar was set by an administrator (D83). The cabinet the player was created on downloads it instead of sending its own, unless its picture was changed since it last had the same as the server.
+          description: The avatar was set by an administrator (D83) or by the player's member on the hiscores front (D85). The cabinet the player was created on downloads it instead of sending its own, unless its picture was changed since it last had the same as the server.
 
     PlayerResponse:
       type: object

@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Players\Schemas;
 
+use App\Models\Member;
 use App\Models\Player;
 use App\Services\Players\PlayerAvatars;
 use Filament\Infolists\Components\IconEntry;
@@ -50,11 +51,15 @@ class PlayerInfolist
                             ->label(__('Set by'))
                             ->state(fn (Player $record): ?string => match (true) {
                                 $record->avatar_hash === null => null,
-                                $record->avatar_by_admin => (string) __('An administrator'),
+                                // The flag says "not the origin cabinet's": the audit trail says whose (D85).
+                                $record->avatar_by_admin => $record->activitiesAsSubject()
+                                    ->where('event', 'player.avatar_changed')->latest('id')->first()?->causer instanceof Member
+                                    ? (string) __('Its member, on the hiscores front')
+                                    : (string) __('An administrator'),
                                 default => (string) __('The cabinet the player was created on'),
                             })
                             ->placeholder('-')
-                            ->helperText(__('An administrator\'s picture replaces the one of that cabinet, until the cabinet changes it again.')),
+                            ->helperText(__('A picture set here or by the member replaces the one of that cabinet, until the cabinet changes it again.')),
                     ]),
             ]);
     }

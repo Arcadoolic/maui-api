@@ -91,6 +91,8 @@ class AppServiceProvider extends ServiceProvider
         RateLimiter::for('front', fn (Request $request): Limit => Limit::perMinute(240)->by(self::memberKey($request)));
         // PIN attempts, as `player-link` for the cabinets (docs/DECISIONS.md D66).
         RateLimiter::for('front-player-link', fn (Request $request): Limit => Limit::perMinute(10)->by(self::memberKey($request)));
+        // Each avatar is decoded and scaled (docs/DECISIONS.md D85).
+        RateLimiter::for('front-avatar', fn (Request $request): Limit => Limit::perMinute(10)->by(self::memberKey($request)));
     }
 
     private static function memberKey(Request $request): string
