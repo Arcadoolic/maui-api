@@ -27,13 +27,13 @@ it('loads no external asset', function () {
         ->assertDontSee('<script', false);
 });
 
-it('uses the self-hosted Pixelify Sans font', function () {
+it('uses the self-hosted Press Start 2P font, as the hiscores front does', function () {
     $this->get('/')
         ->assertOk()
-        ->assertSee("url('/fonts/pixelify-sans/pixelify-sans-latin.woff2')", false);
+        ->assertSee("url('/fonts/press-start-2p/press-start-2p-latin.woff2')", false);
 
-    expect(public_path('fonts/pixelify-sans/pixelify-sans-latin.woff2'))->toBeFile()
-        ->and(public_path('fonts/pixelify-sans/OFL.txt'))->toBeFile();
+    expect(public_path('fonts/press-start-2p/press-start-2p-latin.woff2'))->toBeFile()
+        ->and(public_path('fonts/press-start-2p/OFL.txt'))->toBeFile();
 });
 
 it('refills the pellets a while after the ghost has passed', function () {
@@ -46,4 +46,12 @@ it('draws Pac-Man and the ghost as pixel sprites with several frames', function 
     $html = $this->get('/')->assertOk()->getContent();
 
     expect(substr_count($html, 'class="frame"'))->toBe(6);
+});
+
+it('draws the 16x16 arcade sprites shared with the hiscores front', function () {
+    $html = $this->get('/')->assertOk()->getContent();
+
+    expect(substr_count($html, 'viewBox="0 0 16 16"'))->toBe(6)
+        ->and($html)->toContain('--color-puck: #ffff00')
+        ->and($html)->toContain('--color-blinky: #ff0000');
 });
