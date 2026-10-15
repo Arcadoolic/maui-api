@@ -1,3 +1,13 @@
+## [0.16.0](https://github.com/Arcadoolic/maui-api/compare/0.15.0...0.16.0) (2026-10-15)
+
+### Features
+
+* **front:** let the members' players vote on the games (D86) ([5ac4484](https://github.com/Arcadoolic/maui-api/commit/5ac448467a4d7f859225ab6688630c3393c30dae))
+
+### Bug Fixes
+
+* **deps:** update symfony/http-foundation to 8.1.9 (CVE-2026-108082) ([037659e](https://github.com/Arcadoolic/maui-api/commit/037659ef770283a783163fb0b669cef567f10db9))
+
 ## [0.15.0](https://github.com/Arcadoolic/maui-api/compare/0.14.0...0.15.0) (2026-10-13)
 
 ### Features
