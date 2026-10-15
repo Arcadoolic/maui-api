@@ -3,6 +3,8 @@
 use App\Enums\PopularityLabel;
 use App\Models\Client;
 use App\Models\Game;
+use App\Models\Player;
+use App\Models\PlayerOpinion;
 use App\Services\Popularity\GamePopularity;
 use App\Services\Popularity\Popularity;
 
@@ -154,4 +156,48 @@ it('leaves out the games nobody reported nor scored on', function () {
     $game = Game::factory()->create();
 
     expect(app(Popularity::class)->all()->has($game->id))->toBeFalse();
+});
+
+/**
+ * Votes of players on a game from the hiscores front (docs/DECISIONS.md D86), one each.
+ *
+ * @param  list<int>  $votes
+ */
+function playersVoted(Game $game, array $votes): Game
+{
+    foreach ($votes as $vote) {
+        PlayerOpinion::query()->create([
+            'player_id' => Player::factory()->create()->id,
+            'game_id' => $game->id,
+            'vote' => $vote,
+            'voted_at' => now(),
+        ]);
+    }
+
+    return $game;
+}
+
+it('counts a player\'s vote as a cabinet\'s one', function () {
+    fleetOfTen();
+    config(['hiscores.popularity.min_votes' => 2]);
+    $missed = playersVoted(reported(Game::factory()->create(), [[-1, 1, 200]]), [-1]);
+    $divisive = playersVoted(reported(Game::factory()->create(), [[-1, 1, 200], [-1, 1, 200]]), [1, 1]);
+    $byPlayers = playersVoted(Game::factory()->create(), [1, 1, 1]);
+
+    expect(popularityOf($missed)->label)->toBe(PopularityLabel::MissedDate)
+        ->and(popularityOf($missed)->thumbsDown)->toBe(2)
+        ->and(popularityOf($missed)->playerVotes)->toBe(1)
+        ->and(popularityOf($divisive)->label)->toBe(PopularityLabel::Divisive)
+        ->and(popularityOf($byPlayers)->label)->toBe(PopularityLabel::HiddenGem)
+        ->and(popularityOf($byPlayers)->thumbsUp)->toBe(3)
+        ->and(popularityOf($byPlayers)->cabinets)->toBe(0);
+});
+
+it('does not let the players\' votes widen the fleet the activity is measured against', function () {
+    $game = reported(Game::factory()->create(), [[0, 20, 1], [0, 20, 1]]);
+    $activity = popularityOf($game)->activity;
+
+    playersVoted($game, [1, 1, 1, 1]);
+
+    expect(popularityOf($game)->activity)->toBe($activity);
 });

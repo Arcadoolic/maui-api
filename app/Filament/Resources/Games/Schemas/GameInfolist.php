@@ -4,6 +4,7 @@ namespace App\Filament\Resources\Games\Schemas;
 
 use App\Models\Game;
 use App\Models\GameOpinion;
+use App\Models\PlayerOpinion;
 use App\Models\Score;
 use App\Services\Leaderboards\Leaderboards;
 use Filament\Infolists\Components\IconEntry;
@@ -99,6 +100,30 @@ class GameInfolist
                                 TextEntry::make('vote'),
                                 TextEntry::make('play_count')->numeric(),
                                 TextEntry::make('last_played_at')->dateTime()->placeholder('-'),
+                            ]),
+                    ]),
+                // One row per player that voted on the front (docs/DECISIONS.md D86).
+                Section::make(__('Players\' votes'))
+                    ->schema([
+                        RepeatableEntry::make('player_opinions')
+                            ->hiddenLabel()
+                            ->state(fn (Game $record): array => $record->playerOpinions()->with('player')->get()
+                                ->sortBy(fn (PlayerOpinion $opinion): string => $opinion->player->pseudo_3)
+                                ->map(fn (PlayerOpinion $opinion): array => [
+                                    'player' => $opinion->player->pseudo_3,
+                                    'vote' => $opinion->vote === GameOpinion::VOTE_UP ? __('Thumbs up') : __('Thumbs down'),
+                                    'voted_at' => $opinion->voted_at,
+                                ])->values()->all())
+                            ->placeholder(__('No player voted on this game yet.'))
+                            ->table([
+                                TableColumn::make(__('Player')),
+                                TableColumn::make(__('Vote')),
+                                TableColumn::make(__('Voted')),
+                            ])
+                            ->schema([
+                                TextEntry::make('player')->fontFamily(FontFamily::Mono),
+                                TextEntry::make('vote'),
+                                TextEntry::make('voted_at')->dateTime(),
                             ]),
                     ]),
             ]);

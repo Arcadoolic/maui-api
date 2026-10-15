@@ -10,10 +10,11 @@ use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
 /**
- * Popularity of the games, from what the cabinets report (D75) and the
- * visible scores (docs/DECISIONS.md D76).
+ * Popularity of the games, from what the cabinets report (D75), the votes of
+ * the players on the front (D86) and the visible scores (docs/DECISIONS.md D76).
  *
- * - Opinion: thumbs up among the votes, as a Bayesian average: `prior_votes`
+ * - Opinion: thumbs up among the votes, a player's vote counting as a
+ *   cabinet's one (D86), as a Bayesian average: `prior_votes`
  *   imaginary votes at the fleet's own share of thumbs up are added, so that
  *   one vote does not make a game the best liked one.
  * - Activity: per cabinet, ln(1 + plays), so that one cabinet playing a
@@ -55,7 +56,7 @@ final class Popularity
     }
 
     /**
-     * Every game a cabinet voted on or played, or with a visible score,
+     * Every game a cabinet or a player voted on, a cabinet played, or with a visible score,
      * the most popular first.
      *
      * @param  array{opinion_weight: float, activity_weight: float, prior_votes: float, min_votes: int, liked_share: float, divisive_margin: float, active_from: float, activity_half: float, recent_days: int, plays_weight: float, recent_weight: float, players_weight: float}|null  $rules
@@ -77,21 +78,32 @@ final class Popularity
             ->selectRaw('count(*) filter (where last_played_at >= ?) as recent_cabinets', [$recentFrom])
             ->get()
             ->keyBy('game_id');
+        $playerVotes = DB::table('player_opinions')
+            ->groupBy('game_id')
+            ->select('game_id')
+            ->selectRaw('count(*) filter (where vote = ?) as thumbs_up', [GameOpinion::VOTE_UP])
+            ->selectRaw('count(*) filter (where vote = ?) as thumbs_down', [GameOpinion::VOTE_DOWN])
+            ->get()
+            ->keyBy('game_id');
         $players = $this->rankings->gameTotals()->pluck('ranked_players', 'game_id');
 
-        $thumbsUp = (int) $opinions->sum('thumbs_up');
-        $votes = $thumbsUp + (int) $opinions->sum('thumbs_down');
+        $thumbsUp = (int) $opinions->sum('thumbs_up') + (int) $playerVotes->sum('thumbs_up');
+        $votes = $thumbsUp + (int) $opinions->sum('thumbs_down') + (int) $playerVotes->sum('thumbs_down');
         // Nobody voted yet: neither liked nor disliked.
         $fleetShare = $votes > 0 ? $thumbsUp / $votes : 0.5;
         $weights = $rules['opinion_weight'] + $rules['activity_weight'];
         // Cabinets that reported anything: what "played by the whole fleet" is measured against.
+        // Not the players: they vote, but report no plays.
         $fleet = max(1, (int) DB::table('game_opinions')->distinct()->count('client_id'));
 
-        return $opinions->keys()->merge($players->keys())->unique()
-            ->map(function (int|string $gameId) use ($opinions, $players, $rules, $fleetShare, $weights, $fleet): GamePopularity {
+        return $opinions->keys()->merge($playerVotes->keys())->merge($players->keys())->unique()
+            ->map(function (int|string $gameId) use ($opinions, $playerVotes, $players, $rules, $fleetShare, $weights, $fleet): GamePopularity {
                 $row = $opinions->get($gameId);
-                $up = (int) ($row->thumbs_up ?? 0);
-                $down = (int) ($row->thumbs_down ?? 0);
+                $byPlayers = $playerVotes->get($gameId);
+                $playersUp = (int) ($byPlayers->thumbs_up ?? 0);
+                $playersDown = (int) ($byPlayers->thumbs_down ?? 0);
+                $up = (int) ($row->thumbs_up ?? 0) + $playersUp;
+                $down = (int) ($row->thumbs_down ?? 0) + $playersDown;
                 $recent = (int) ($row->recent_cabinets ?? 0);
                 $ranked = (int) ($players->get($gameId) ?? 0);
 
@@ -108,6 +120,7 @@ final class Popularity
                     thumbsUp: $up,
                     thumbsDown: $down,
                     cabinets: (int) ($row->cabinets ?? 0),
+                    playerVotes: $playersUp + $playersDown,
                     plays: (int) ($row->plays ?? 0),
                     recentCabinets: $recent,
                     rankedPlayers: $ranked,

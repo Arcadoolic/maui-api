@@ -18,6 +18,7 @@ use App\Http\Controllers\Front\GamesController;
 use App\Http\Controllers\Front\MeController;
 use App\Http\Controllers\Front\PlayersController as FrontPlayersController;
 use App\Http\Controllers\Front\RankingController;
+use App\Http\Controllers\Front\VotesController;
 use App\Services\Members\MemberInvitationIssuer;
 use Illuminate\Support\Facades\Route;
 
@@ -109,6 +110,9 @@ Route::prefix('front')->middleware('front')->group(function () {
         Route::delete('me/player', [MeController::class, 'unlinkPlayer']);
         // Its avatar, changed by the member (docs/DECISIONS.md D85).
         Route::post('me/player/avatar', [MeController::class, 'changeAvatar'])->middleware('throttle:front-avatar');
+        // Its votes on the games, as on a cabinet (docs/DECISIONS.md D86).
+        Route::get('me/votes', [VotesController::class, 'index']);
+        Route::put('me/votes/{romname}', [VotesController::class, 'update'])->middleware('throttle:front-vote');
 
         // Reading: games, players and the event feed (docs/DECISIONS.md D67).
         Route::get('games', [GamesController::class, 'index']);
