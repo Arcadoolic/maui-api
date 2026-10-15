@@ -194,7 +194,7 @@ final class GamesController
         ]);
     }
 
-    public function show(string $romname): JsonResponse
+    public function show(Request $request, string $romname): JsonResponse
     {
         $game = preg_match(self::ROMNAME, $romname) === 1
             ? Game::query()->where('romname', $romname)->with(['catverCategory.parent', 'detail', 'media'])->first()
@@ -245,6 +245,8 @@ final class GamesController
             // Every flyer, the one of `media` first: GET /front/games/{romname}/media/flyer?n=<index>.
             'flyers' => $game->media->where('type', 'flyer')->sortBy('position')->pluck('hash')->values()->all(),
             'popularity' => self::popularityDetails($this->popularity->all()->get($game->id)),
+            // The member's player's own vote (D86): null when it cannot vote on this game.
+            'my_vote' => VotesController::myVote($request, $game),
             'leaderboards' => $leaderboards->all(),
             'stats' => [
                 'ranked_players' => $rows->pluck('player_id')->unique()->count(),
@@ -476,7 +478,7 @@ final class GamesController
     }
 
     /** @return array<string, mixed> */
-    private static function summary(Game $game): array
+    public static function summary(Game $game): array
     {
         $category = $game->catverCategory;
 

@@ -26,7 +26,9 @@ class GamesTable
                     'opinions as thumbs_up' => fn (Builder $opinions) => $opinions->where('vote', GameOpinion::VOTE_UP),
                     'opinions as thumbs_down' => fn (Builder $opinions) => $opinions->where('vote', GameOpinion::VOTE_DOWN),
                 ])
-                ->withSum('opinions as plays', 'play_count'))
+                ->withSum('opinions as plays', 'play_count')
+                // And the players of the front (D86).
+                ->withCount('playerOpinions as player_votes'))
             ->defaultSort('romname')
             ->columns([
                 TextColumn::make('romname')->searchable()->sortable()->fontFamily('mono'),
@@ -44,6 +46,7 @@ class GamesTable
                     ->toggleable(),
                 TextColumn::make('thumbs_up')->label(__('Thumbs up'))->numeric()->sortable()->toggleable(),
                 TextColumn::make('thumbs_down')->label(__('Thumbs down'))->numeric()->sortable()->toggleable(),
+                TextColumn::make('player_votes')->label(__('Player votes'))->numeric()->sortable()->toggleable(),
                 TextColumn::make('plays')->label(__('Plays'))->numeric()->default(0)->sortable()->toggleable(),
                 TextColumn::make('catalogued_at')->since()->sortable()->placeholder(__('Score only'))->toggleable(isToggledHiddenByDefault: true),
             ])
@@ -75,9 +78,9 @@ class GamesTable
                         true: fn (Builder $query) => $query->whereHas('scores'),
                         false: fn (Builder $query) => $query->whereDoesntHave('scores'),
                     ),
-                // Candidates to leave the packs: thumbs down from every cabinet that voted (D78).
+                // Candidates to leave the packs: thumbs down from every cabinet and player that voted (D78, D86).
                 TernaryFilter::make('missed_date')
-                    ->label(__('Turned down by every cabinet'))
+                    ->label(__('Turned down by every voter'))
                     ->queries(
                         true: fn (Builder $query) => self::missedDates($query),
                         false: fn (Builder $query) => $query->whereNotIn('games.id', self::missedDates(Game::query())->select('games.id')),
@@ -93,8 +96,8 @@ class GamesTable
     }
 
     /**
-     * Games with thumbs down from at least the minimum of votes and no thumbs up: what the
-     * popularity labels `missed_date` (App\Services\Popularity\Popularity::label()).
+     * Games with thumbs down from at least the minimum of votes and no thumbs up, cabinets and
+     * players together: what the popularity labels `missed_date` (App\Services\Popularity\Popularity::label()).
      *
      * @param  Builder<Game>  $query
      * @return Builder<Game>
@@ -102,8 +105,13 @@ class GamesTable
     private static function missedDates(Builder $query): Builder
     {
         return $query
-            ->whereHas('opinions', fn (Builder $opinions) => $opinions->where('vote', GameOpinion::VOTE_DOWN), '>=', Popularity::rules()['min_votes'])
-            ->whereDoesntHave('opinions', fn (Builder $opinions) => $opinions->where('vote', GameOpinion::VOTE_UP));
+            ->whereRaw(
+                '(select count(*) from game_opinions where game_opinions.game_id = games.id and game_opinions.vote = ?)'
+                .' + (select count(*) from player_opinions where player_opinions.game_id = games.id and player_opinions.vote = ?) >= ?',
+                [GameOpinion::VOTE_DOWN, GameOpinion::VOTE_DOWN, Popularity::rules()['min_votes']],
+            )
+            ->whereDoesntHave('opinions', fn (Builder $opinions) => $opinions->where('vote', GameOpinion::VOTE_UP))
+            ->whereDoesntHave('playerOpinions', fn (Builder $opinions) => $opinions->where('vote', GameOpinion::VOTE_UP));
     }
 
     /**

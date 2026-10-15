@@ -66,7 +66,7 @@ final class ShowPopularityCommand extends Command
         $this->line($games->count().' games: '.collect([...array_column(PopularityLabel::cases(), 'value'), 'none'])
             ->map(fn (string $name): string => ($counts[$name] ?? 0).' '.$name)->implode(', ').'.');
         $this->table(
-            ['#', 'Game', 'Index', 'Label', 'Up', 'Down', 'Opinion', 'Cabinets', 'Plays', 'Recent', 'Players', 'Activity'],
+            ['#', 'Game', 'Index', 'Label', 'Up', 'Down', 'By players', 'Opinion', 'Cabinets', 'Plays', 'Recent', 'Players', 'Activity'],
             $shown->values()->map(fn (GamePopularity $game, int $position): array => [
                 $position + 1,
                 $romnames[$game->gameId] ?? '?',
@@ -74,6 +74,7 @@ final class ShowPopularityCommand extends Command
                 $game->label->value ?? '',
                 $game->thumbsUp,
                 $game->thumbsDown,
+                $game->playerVotes,
                 number_format($game->opinion, 2),
                 $game->cabinets,
                 $game->plays,

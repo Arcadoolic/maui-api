@@ -1461,6 +1461,155 @@ paths:
         '500':
           $ref: '#/components/responses/ServerError'
 
+  /front/me/votes:
+    get:
+      tags: [Front]
+      operationId: frontListMyVotes
+      summary: The games the member's player can vote on, with its vote
+      description: |
+        Every game whose hiscores a cabinet can read (`hiscores`, D74),
+        scored on or not, by name, with the vote of the member's player
+        (D86): 1 thumbs up, 0 neutral or not voted, -1 thumbs down.
+        `counts` gives what each choice of `vote` would list, `q` applied.
+      security:
+        - frontSession: []
+      parameters:
+        - name: q
+          in: query
+          description: Part of the name or of the romname.
+          schema: {type: string, maxLength: 100}
+        - name: vote
+          in: query
+          schema: {type: string, enum: [up, down, none]}
+        - name: page
+          in: query
+          schema: {type: integer, minimum: 1, default: 1}
+        - name: per_page
+          in: query
+          schema: {type: integer, minimum: 1, maximum: 100, default: 24}
+      responses:
+        '200':
+          description: The games and their vote.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [games, counts, meta]
+                properties:
+                  games:
+                    type: array
+                    items:
+                      allOf:
+                        - $ref: '#/components/schemas/FrontGame'
+                        - type: object
+                          required: [my_vote]
+                          properties:
+                            my_vote: {type: integer, enum: [-1, 0, 1]}
+                  counts:
+                    type: object
+                    required: [all, up, down, none]
+                    properties:
+                      all: {type: integer}
+                      up: {type: integer}
+                      down: {type: integer}
+                      none: {type: integer}
+                  meta:
+                    type: object
+                    required: [page, per_page, total]
+                    properties:
+                      page: {type: integer}
+                      per_page: {type: integer}
+                      total: {type: integer}
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '404':
+          description: The member has no player.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+              example:
+                type: about:blank
+                title: Not Found
+                status: 404
+                code: player_not_found
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /front/me/votes/{romname}:
+    parameters:
+      - name: romname
+        in: path
+        required: true
+        schema: {type: string, pattern: '^[a-z0-9_]{1,32}$'}
+    put:
+      tags: [Front]
+      operationId: frontSetMyVote
+      summary: Vote on a game for the member's player
+      description: |
+        As a cabinet asks it after a game (D86): 1 thumbs up, -1 thumbs
+        down, 0 neutral, which forgets the vote. Counted as a cabinet's
+        vote in the popularity (D76). Only on a game whose hiscores a
+        cabinet can read. Own rate limit: 120 requests per minute per
+        member.
+      security:
+        - frontSession: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [vote]
+              properties:
+                vote: {type: integer, enum: [-1, 0, 1]}
+      responses:
+        '200':
+          description: Vote recorded.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [romname, vote]
+                additionalProperties: false
+                properties:
+                  romname: {type: string}
+                  vote: {type: integer, enum: [-1, 0, 1]}
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          description: '`origin_not_allowed`, `member_disabled`, or `player_disabled`: the player was disabled by an administrator.'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+              example:
+                type: about:blank
+                title: Forbidden
+                status: 403
+                code: player_disabled
+        '404':
+          description: '`player_not_found`: the member has no player; `game_not_found`: no such game, or no cabinet can read its hiscores.'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+              example:
+                type: about:blank
+                title: Not Found
+                status: 404
+                code: game_not_found
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
   /front/games:
     get:
       tags: [Front]
@@ -3091,8 +3240,13 @@ components:
 
     FrontGamePageResponse:
       type: object
-      required: [game, previous, next, details, media, flyers, popularity, leaderboards, stats, events]
+      required: [game, previous, next, details, media, flyers, popularity, my_vote, leaderboards, stats, events]
       properties:
+        my_vote:
+          description: The vote of the member's player (D86); null when it has no player or no cabinet can read the game's hiscores.
+          oneOf:
+            - type: 'null'
+            - {type: integer, enum: [-1, 0, 1]}
         previous:
           description: The game before this one in the list sorted by name (D81); null for the first.
           oneOf:
@@ -3106,8 +3260,9 @@ components:
         popularity:
           description: |
             The game's popularity and what the cabinets report of it (D76,
-            D77); null when no cabinet reported it and it has no visible
-            score. Thumbs down are not given as such.
+            D77), the players' votes counted as the cabinets' ones (D86);
+            null when nobody voted, no cabinet reported it and it has no
+            visible score. Thumbs down are not given as such.
           oneOf:
             - type: 'null'
             - type: object
@@ -3118,8 +3273,8 @@ components:
                   oneOf:
                     - type: 'null'
                     - $ref: '#/components/schemas/PopularityLabel'
-                thumbs_up: {type: integer, description: Cabinets that gave a thumbs up.}
-                votes: {type: integer, description: 'Cabinets that voted, thumbs up or down.'}
+                thumbs_up: {type: integer, description: Cabinets and players that gave a thumbs up.}
+                votes: {type: integer, description: 'Cabinets and players that voted, thumbs up or down.'}
                 cabinets: {type: integer, description: Cabinets that voted on the game or played it.}
                 plays: {type: integer, description: 'Games started, all cabinets together.'}
         details:
