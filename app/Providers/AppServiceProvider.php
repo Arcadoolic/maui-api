@@ -93,6 +93,8 @@ class AppServiceProvider extends ServiceProvider
         RateLimiter::for('front-player-link', fn (Request $request): Limit => Limit::perMinute(10)->by(self::memberKey($request)));
         // Each avatar is decoded and scaled (docs/DECISIONS.md D85).
         RateLimiter::for('front-avatar', fn (Request $request): Limit => Limit::perMinute(10)->by(self::memberKey($request)));
+        // A vote is one click: a list voted on quickly stays within it (docs/DECISIONS.md D86).
+        RateLimiter::for('front-vote', fn (Request $request): Limit => Limit::perMinute(120)->by(self::memberKey($request)));
     }
 
     private static function memberKey(Request $request): string

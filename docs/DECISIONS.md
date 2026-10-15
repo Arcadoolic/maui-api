@@ -1186,3 +1186,27 @@ A disabled player's avatar cannot be changed (`403 player_disabled`), a
 locked one's can: the lock is about the PIN. Own rate limit, 10 requests
 per minute per member, each picture being decoded and scaled. Removing an
 avatar is still not possible.
+
+**D86: The members' players vote on the games, as a cabinet does.** (2026-10-15, widens D75 and D76)
+Requested by the project owner: a player registered on the hiscores front
+votes on a game as a cabinet asks it after a game (thumbs up, neutral,
+thumbs down), and that vote counts in the labels. The vote belongs to the
+member's linked **player**, not to the member: the PIN typed when linking
+is the proof the player is theirs (D66), and the vote stays with the
+player if the link is undone. Table `player_opinions`, one row per player
+and game; neutral is no vote, so it removes the row.
+Only the games whose hiscores a cabinet can read (`hiscores`, D74) take a
+vote, scored on or not: the front lists them all on its "My votes" page.
+`GET /front/me/votes` (search, filter by vote, counts per filter, pages)
+and `PUT /front/me/votes/{romname}` (`vote` -1, 0 or 1); a game's page
+gives `my_vote`, null when its member has no player or the game takes no
+vote. Without a player `404 player_not_found`, a disabled player
+`403 player_disabled`, as for the avatar (D85). Own rate limit, 120 votes
+per minute per member: one click each.
+In the popularity (D76) a player's vote weighs a cabinet's one, the
+owner's choice: thumbs up and down are the sum of both, the fleet's
+average opinion too, so `min_votes` and every label count players.
+Players report no plays: the activity, and the fleet it is measured
+against, stay the cabinets'. The back office's "turned down by every
+voter" filter (D78) counts players too. The front now speaks of voters,
+not cabinets, wherever it gives votes.

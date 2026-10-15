@@ -90,6 +90,16 @@ class Player extends Model
         return $this->belongsToMany(Member::class)->withPivot('linked_at');
     }
 
+    /**
+     * Its votes on the games, given on the hiscores front by its member (D86).
+     *
+     * @return HasMany<PlayerOpinion, $this>
+     */
+    public function opinions(): HasMany
+    {
+        return $this->hasMany(PlayerOpinion::class);
+    }
+
     /** @return BelongsTo<Client, $this> */
     public function originClient(): BelongsTo
     {

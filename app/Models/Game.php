@@ -101,6 +101,16 @@ class Game extends Model
         return $this->hasMany(GameOpinion::class);
     }
 
+    /**
+     * What the players think of the game, given on the hiscores front (D86).
+     *
+     * @return HasMany<PlayerOpinion, $this>
+     */
+    public function playerOpinions(): HasMany
+    {
+        return $this->hasMany(PlayerOpinion::class);
+    }
+
     public function isCatalogued(): bool
     {
         return $this->catalogued_at !== null;

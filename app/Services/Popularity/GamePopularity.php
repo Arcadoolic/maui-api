@@ -9,10 +9,13 @@ final readonly class GamePopularity
 {
     public function __construct(
         public int $gameId,
+        /** Cabinets and players together (D86). */
         public int $thumbsUp,
         public int $thumbsDown,
         /** Cabinets that voted or played. */
         public int $cabinets,
+        /** Players that voted on the front (D86), within the thumbs above. */
+        public int $playerVotes,
         /** Games started, all cabinets together. */
         public int $plays,
         /** Cabinets that played it within the recent days. */

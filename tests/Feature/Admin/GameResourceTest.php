@@ -7,6 +7,7 @@ use App\Filament\Resources\Games\Pages\ViewGame;
 use App\Models\Category;
 use App\Models\Game;
 use App\Models\Player;
+use App\Models\PlayerOpinion;
 use App\Models\Score;
 use App\Models\User;
 
@@ -123,4 +124,35 @@ it('filters the games every cabinet that voted turned down', function () {
         ->filterTable('missed_date')
         ->assertCanSeeTableRecords([$missed])
         ->assertCanNotSeeTableRecords([$saved, $few]);
+});
+
+it('shows the votes of the players of the front', function () {
+    $game = Game::factory()->create();
+    $player = Player::factory()->create(['pseudo_3' => 'ZED']);
+    PlayerOpinion::query()->create(['player_id' => $player->id, 'game_id' => $game->id, 'vote' => 1, 'voted_at' => now()]);
+
+    livewire(ListGames::class)->assertTableColumnStateSet('player_votes', 1, $game);
+    livewire(ViewGame::class, ['record' => $game->getRouteKey()])
+        ->assertSee('ZED')
+        ->assertSee('Thumbs up');
+});
+
+it('counts the players\' votes in the games turned down by every voter', function () {
+    $vote = fn (Game $game, int $vote) => PlayerOpinion::query()->create([
+        'player_id' => Player::factory()->create()->id, 'game_id' => $game->id, 'vote' => $vote, 'voted_at' => now(),
+    ]);
+    $missed = Game::factory()->create();
+    $saved = Game::factory()->create();
+    $missed->opinions()->create(['client_id' => cabinetWithToken()[0]->id, 'vote' => -1]);
+    $vote($missed, -1);
+    $vote($missed, -1);
+    foreach (range(1, 3) as $ignored) {
+        $saved->opinions()->create(['client_id' => cabinetWithToken()[0]->id, 'vote' => -1]);
+    }
+    $vote($saved, 1);
+
+    livewire(ListGames::class)
+        ->filterTable('missed_date')
+        ->assertCanSeeTableRecords([$missed])
+        ->assertCanNotSeeTableRecords([$saved]);
 });

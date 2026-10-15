@@ -65,6 +65,18 @@ For why things are done this way, see `docs/DECISIONS.md`.
   `409 avatar_changed_by_admin` to a cabinet that has not seen the change.
 - MAUI side: the origin cabinet downloads an administrator's avatar.
 
+## Players' votes on the front (D86)
+
+- `player_opinions`: a member's player votes on the games with readable
+  hiscores; `GET /front/me/votes`, `PUT /front/me/votes/{romname}`,
+  `my_vote` on a game's page.
+- Popularity: a player's vote counts as a cabinet's one in the opinion and
+  the labels; activity unchanged.
+- Back office: "Player votes" column, players' votes on a game's page,
+  "turned down by every voter" filter counts them; `hiscores:popularity`
+  shows them.
+- Front side in `maui-hifront`: vote buttons on a game's page, "My votes".
+
 ## Player avatars changed by the member (D85)
 
 - `POST /front/me/player/avatar`: the member's own player, any PNG, JPEG or
@@ -456,7 +468,7 @@ Tracked in `docs/PLAN.md`, section "Open questions".
 | Check | Expected |
 |-------|----------|
 | `just up` then `/up` | 200 |
-| `just ci` | Pint pass, PHPStan no errors, Pest 703 passed |
+| `just ci` | Pint pass, PHPStan no errors, Pest 730 passed |
 | `curl -sD - -o /dev/null http://localhost:8080/invite/<48 chars>` | `Referrer-Policy: no-referrer`, `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff` |
 | `docker run --rm -v "$PWD/docs:/spec" redocly/cli lint /spec/openapi.yaml` | valid, 7 known warnings (no license, localhost server, unused `MauiConfiguration`, no 2xx on the 303-only `/invite/{t}/name`) |
 | `docker run --rm -v "$PWD":/repo -w /repo rhysd/actionlint:latest .github/workflows/ci.yml` | no output |
