@@ -65,6 +65,15 @@ For why things are done this way, see `docs/DECISIONS.md`.
   `409 avatar_changed_by_admin` to a cabinet that has not seen the change.
 - MAUI side: the origin cabinet downloads an administrator's avatar.
 
+## Game integrity (in progress, D87)
+
+- `scores.integrity` (the cabinet's report, raw), `integrity_verdict`
+  (clean, to check, suspect) and `integrity_reasons`, judged at intake by
+  `IntegrityVerdict`; `POST /scores` takes the optional `integrity`.
+- Back office: "Integrity" badge with its reasons, filter, the report in
+  full.
+- MAUI side: forced fair MAME options, the Lua report joined to each score.
+
 ## Players' votes on the front (D86)
 
 - `player_opinions`: a member's player votes on the games with readable

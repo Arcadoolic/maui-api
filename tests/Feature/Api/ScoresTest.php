@@ -2,6 +2,7 @@
 
 use App\Enums\ClientType;
 use App\Enums\ScoreAttribution;
+use App\Enums\ScoreIntegrity;
 use App\Models\Client;
 use App\Models\Game;
 use App\Models\Player;
@@ -201,6 +202,75 @@ describe('intake', function () {
 
         expect(Score::query()->count())->toBe(0);
     });
+});
+
+describe('integrity (D87)', function () {
+    it('keeps the cabinet\'s report on the game and its verdict', function () {
+        [$client, $token] = cabinetWithToken();
+        $player = linkedPlayer($client);
+        $report = [
+            'version' => 1,
+            'session_id' => (string) Str::uuid(),
+            'mame_version' => '0.289',
+            'maui_version' => '2.16.0',
+            'duration_s' => 312.5,
+            'emulated_s' => 311.0,
+            'options' => ['cheat' => false, 'rewind' => false, 'throttle' => true, 'speed' => 1.0],
+            'plugins' => ['hiscore'],
+            'rom' => 'good',
+            'dips' => [['name' => 'Lives', 'value' => '5', 'default' => '3']],
+            'events' => ['state_loads' => 1, 'state_saves' => 1, 'pauses' => 0, 'pause_s' => 0, 'resets' => 0],
+            'speed' => ['average_percent' => 99.5],
+        ];
+
+        postScores($client, $token, [scorePayload($player, 500, ['integrity' => $report])])
+            ->assertOk()
+            ->assertJsonPath('results.0.status', 'accepted');
+
+        $score = Score::query()->sole();
+        expect($score->integrity)->toEqual($report)
+            ->and($score->integrity_verdict)->toBe(ScoreIntegrity::Suspect)
+            ->and($score->integrity_reasons)->toBe(['state_loaded', 'dip_changed', 'state_saved']);
+    });
+
+    it('leaves the verdict unknown without a report, the score taken as before', function () {
+        [$client, $token] = cabinetWithToken();
+
+        postScores($client, $token, [scorePayload(linkedPlayer($client), 500)])->assertOk();
+
+        $score = Score::query()->sole();
+        expect($score->integrity)->toBeNull()
+            ->and($score->integrity_verdict)->toBeNull();
+    });
+
+    it('takes a suspect score like any other: it counts, as the verdict changes nothing yet', function () {
+        [$client, $token] = cabinetWithToken();
+        $player = linkedPlayer($client);
+
+        postScores($client, $token, [scorePayload($player, 500, ['integrity' => ['version' => 1, 'events' => ['state_loads' => 3]]])])
+            ->assertOk()
+            ->assertJsonPath('results.0.best', 500);
+
+        expect(Score::query()->visible()->count())->toBe(1);
+    });
+
+    it('refuses a malformed report', function (array $report) {
+        [$client, $token] = cabinetWithToken();
+
+        postScores($client, $token, [scorePayload(linkedPlayer($client), 500, ['integrity' => $report])])
+            ->assertStatus(422);
+
+        expect(Score::query()->count())->toBe(0);
+    })->with([
+        'no version' => [['plugins' => ['hiscore']]],
+        'unknown ROM status' => [['version' => 1, 'rom' => 'fine']],
+        'negative count' => [['version' => 1, 'events' => ['state_loads' => -1]]],
+        'plugin not a string' => [['version' => 1, 'plugins' => [['cheat']]]],
+        'DIP without default' => [['version' => 1, 'dips' => [['name' => 'Lives', 'value' => '5']]]],
+        'too large' => [['version' => 1, 'plugins' => array_fill(0, 64, str_repeat('x', 64)), 'dips' => array_fill(0, 64, [
+            'name' => str_repeat('n', 64), 'value' => str_repeat('v', 64), 'default' => str_repeat('d', 64),
+        ])]],
+    ]);
 });
 
 describe('rejections', function () {

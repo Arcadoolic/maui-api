@@ -3,7 +3,9 @@
 namespace App\Filament\Resources\Scores\Tables;
 
 use App\Enums\ScoreAttribution;
+use App\Enums\ScoreIntegrity;
 use App\Models\Score;
+use App\Services\Scores\IntegrityVerdict;
 use App\Services\Scores\ScoreModeration;
 use Filament\Actions\Action;
 use Filament\Support\Icons\Heroicon;
@@ -13,6 +15,7 @@ use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Filters\TernaryFilter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\HtmlString;
 
 class ScoresTable
 {
@@ -34,6 +37,12 @@ class ScoresTable
                 TextColumn::make('attribution')->label(__('Player from'))->badge()
                     ->color(fn (ScoreAttribution $state): string => $state === ScoreAttribution::Declared ? 'warning' : 'gray')
                     ->toggleable(),
+                // The cabinet's report on the game (D87): unknown for the cabinets sending none.
+                TextColumn::make('integrity_verdict')->label(__('Integrity'))->badge()
+                    ->placeholder(__('Unknown'))
+                    ->tooltip(fn (Score $record): ?string => $record->integrity_reasons
+                        ? implode(' · ', array_map(IntegrityVerdict::label(...), $record->integrity_reasons))
+                        : null),
                 TextColumn::make('achieved_at')->dateTime()->sortable()->toggleable(isToggledHiddenByDefault: true),
                 IconColumn::make('hidden')
                     ->label(__('Hidden'))
@@ -47,12 +56,22 @@ class ScoresTable
                 SelectFilter::make('player')->relationship('player', 'pseudo_3')->searchable(),
                 SelectFilter::make('client')->label(__('Cabinet'))->relationship('client', 'name')->searchable(),
                 SelectFilter::make('attribution')->label(__('Player from'))->options(ScoreAttribution::class),
+                SelectFilter::make('integrity_verdict')->label(__('Integrity'))->options(ScoreIntegrity::class),
                 TernaryFilter::make('hidden')
                     ->label(__('Hidden'))
                     ->nullable()
                     ->attribute('hidden_at'),
             ])
             ->recordActions([
+                Action::make('integrity')
+                    ->label(__('Integrity'))
+                    ->icon(Heroicon::OutlinedShieldCheck)
+                    ->color('gray')
+                    ->visible(fn (Score $record): bool => $record->integrity !== null)
+                    ->modalHeading(__('Report of the game'))
+                    ->modalSubmitAction(false)
+                    ->modalCancelActionLabel(__('Close'))
+                    ->modalContent(fn (Score $record): HtmlString => self::integrityReport($record)),
                 Action::make('hide')
                     ->label(__('Hide'))
                     ->icon(Heroicon::OutlinedEyeSlash)
@@ -68,5 +87,23 @@ class ScoresTable
                     ->visible(fn (Score $record): bool => $record->isHidden())
                     ->action(fn (Score $record) => app(ScoreModeration::class)->unhide($record)),
             ]);
+    }
+
+    /** What the cabinet saw of the game, and what the verdict made of it (D87). */
+    private static function integrityReport(Score $record): HtmlString
+    {
+        $reasons = $record->integrity_reasons ?? [];
+        $list = $reasons === []
+            ? '<p>'.e(__('Nothing that changes how the game was played.')).'</p>'
+            : '<ul style="list-style: disc; padding-left: 1.25rem">'.implode('', array_map(
+                fn (string $reason): string => '<li>'.e(IntegrityVerdict::label($reason)).'</li>',
+                $reasons,
+            )).'</ul>';
+        $json = json_encode($record->integrity, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+
+        return new HtmlString(
+            '<p><strong>'.e($record->integrity_verdict?->getLabel() ?? __('Unknown')).'</strong></p>'.$list
+            .'<pre style="margin-top: 1rem; font-size: 0.75rem; overflow-x: auto">'.e((string) $json).'</pre>'
+        );
     }
 }
