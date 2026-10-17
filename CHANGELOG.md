@@ -1,3 +1,9 @@
+## [0.17.0](https://github.com/Arcadoolic/maui-api/compare/0.16.0...0.17.0) (2026-10-17)
+
+### Features
+
+* **scores:** keep the cabinet's report on the game and judge it (D87) ([bf622b3](https://github.com/Arcadoolic/maui-api/commit/bf622b31363302dcd6a1bb4db0bb73ac12f846b9))
+
 ## [0.16.0](https://github.com/Arcadoolic/maui-api/compare/0.15.0...0.16.0) (2026-10-15)
 
 ### Features
