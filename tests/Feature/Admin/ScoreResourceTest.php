@@ -60,3 +60,27 @@ it('lists the latest scores on the dashboard', function () {
 
     livewire(LatestScores::class)->assertCanSeeTableRecords($scores);
 });
+
+it('shows what the cabinet saw of the game, and filters on it (D87)', function () {
+    $suspect = Score::factory()->create([
+        'integrity' => ['version' => 1, 'events' => ['state_loads' => 1]],
+        'integrity_verdict' => 'suspect',
+        'integrity_reasons' => ['state_loaded'],
+    ]);
+    $clean = Score::factory()->create([
+        'integrity' => ['version' => 1], 'integrity_verdict' => 'clean', 'integrity_reasons' => [],
+    ]);
+    $unknown = Score::factory()->create();
+
+    livewire(ListScores::class)
+        ->assertTableColumnExists('integrity_verdict')
+        ->filterTable('integrity_verdict', 'suspect')
+        ->assertCanSeeTableRecords([$suspect])
+        ->assertCanNotSeeTableRecords([$clean, $unknown]);
+
+    livewire(ListScores::class)
+        ->assertTableActionVisible('integrity', $suspect)
+        ->assertTableActionHidden('integrity', $unknown)
+        ->mountTableAction('integrity', $suspect)
+        ->assertMountedActionModalSee(['Suspect', 'A saved state was loaded', 'state_loads']);
+});

@@ -128,6 +128,7 @@ final class ScoreIntake
                 return ['id' => $data->id, 'status' => 'not_improved', 'best' => $best];
             }
 
+            $judged = $data->integrity === null ? null : IntegrityVerdict::judge($data->integrity);
             $score = new Score;
             $score->forceFill([
                 'uuid' => $data->id,
@@ -141,6 +142,9 @@ final class ScoreIntake
                 'attribution' => $data->attribution,
                 'achieved_at' => $data->achievedAt,
                 'received_at' => now(),
+                'integrity' => $data->integrity,
+                'integrity_verdict' => $judged['verdict'] ?? null,
+                'integrity_reasons' => $judged['reasons'] ?? null,
             ])->save();
             $stored = $score;
 

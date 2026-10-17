@@ -1210,3 +1210,31 @@ Players report no plays: the activity, and the fleet it is measured
 against, stay the cabinets'. The back office's "turned down by every
 voter" filter (D78) counts players too. The front now speaks of voters,
 not cabinets, wherever it gives votes.
+
+**D87: The cabinet reports on the game a score was made in, MAUI-API judges it.** (2026-10-17, widens D50)
+Requested by the project owner: anything that can distort a game to help
+its player must be checkable after the fact, without changing anything
+for the player. MAUI forces fair MAME options on every game it launches
+(no cheats, rewind, autosave, console, real speed, cheat/autofire/macro
+plugins off), and its Lua script, which already runs in every game, keeps
+a report of the game: MAME's options and plugins as the game ran, the DIP
+switches set otherwise than the game's default, MAME's verification of the
+ROM set, saved states loaded and saved, pauses, resets, the speed
+(emulated time over real time, time unthrottled or fast-forwarded). Each
+score carries the report as it was when the score was found (`integrity`,
+optional: older cabinets send none), so it covers the game up to the
+score.
+MAUI-API keeps the report raw on the score (`scores.integrity`) and judges
+it at intake (`integrity_verdict`, `integrity_reasons`), so that the rules
+change here, not on the cabinets. **Suspect**: a state loaded, a cheat,
+cheatfind, autofire, input macro, console or gdbstub plugin running,
+cheats, rewind or the Lua console on, a ROM set MAME finds bad, an average
+speed under 90 %. **To check**: DIP switches differ from the game's
+defaults (an operator may legitimately give 5 lives), more than 30 s or 10
+pauses, a state saved, the speed changed, autosave on, a plugin outside
+the known harmless ones. **Clean** otherwise; no report, unknown. The
+verdict changes nothing for now: the score is stored, counts and is
+visible as before; the back office shows it (column, filter, the report
+in full) for an administrator to hide a score by hand. The report is
+evidence from the cabinet itself: it makes cheating visible, not
+impossible (a turbo pad, a modified MAUI or MAME go unseen).

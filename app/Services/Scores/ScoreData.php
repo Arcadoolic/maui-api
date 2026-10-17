@@ -19,6 +19,8 @@ final readonly class ScoreData
         public Carbon $achievedAt,
         public ?string $startupId,
         public ScoreAttribution $attribution,
+        /** @var array<string, mixed>|null The cabinet's report on the game (D87). */
+        public ?array $integrity = null,
     ) {}
 
     /**
@@ -36,6 +38,7 @@ final readonly class ScoreData
             achievedAt: Carbon::parse((string) $score['achieved_at']),
             startupId: isset($score['startup_id']) ? strtolower((string) $score['startup_id']) : null,
             attribution: isset($score['attribution']) ? ScoreAttribution::from((string) $score['attribution']) : ScoreAttribution::Initials,
+            integrity: isset($score['integrity']) && is_array($score['integrity']) ? $score['integrity'] : null,
         );
     }
 }
