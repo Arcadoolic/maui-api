@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Enums\ScoreAttribution;
+use App\Enums\ScoreIntegrity;
 use Database\Factories\ScoreFactory;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
@@ -27,6 +28,9 @@ use Illuminate\Support\Carbon;
  * @property Carbon $received_at
  * @property Carbon|null $hidden_at
  * @property ScoreAttribution $attribution
+ * @property array<string, mixed>|null $integrity The cabinet's report on the game (D87).
+ * @property ScoreIntegrity|null $integrity_verdict
+ * @property list<string>|null $integrity_reasons IntegrityVerdict's codes.
  * @property-read Player $player
  * @property-read Game $game
  * @property-read Client $client
@@ -64,6 +68,9 @@ class Score extends Model
             'received_at' => 'datetime',
             'hidden_at' => 'datetime',
             'attribution' => ScoreAttribution::class,
+            'integrity' => 'array',
+            'integrity_verdict' => ScoreIntegrity::class,
+            'integrity_reasons' => 'array',
         ];
     }
 

@@ -11,6 +11,9 @@ final class StoreScoresRequest extends FormRequest
 {
     public const MAX_SCORES = 100;
 
+    /** A report is a few hundred bytes; this leaves room for a game with many DIP switches. */
+    public const MAX_INTEGRITY_BYTES = 16_384;
+
     /**
      * @return array<string, list<mixed>>
      */
@@ -32,6 +35,34 @@ final class StoreScoresRequest extends FormRequest
             'scores.*.startup_id' => ['nullable', 'uuid'],
             // Left out by the cabinets older than D61: the initials, as before.
             'scores.*.attribution' => ['sometimes', Rule::enum(ScoreAttribution::class)],
+            // The cabinet's report on the game (D87), left out by the cabinets older than
+            // it. Kept raw: only the parts the verdict reads are checked, and its size.
+            'scores.*.integrity' => ['sometimes', 'array', function (string $attribute, mixed $value, \Closure $fail): void {
+                if (strlen((string) json_encode($value)) > self::MAX_INTEGRITY_BYTES) {
+                    $fail('The integrity report is too large.');
+                }
+            }],
+            // Every documented part needs a rule: validated() keeps nothing else.
+            'scores.*.integrity.version' => ['required_with:scores.*.integrity', 'integer', 'min:1'],
+            'scores.*.integrity.session_id' => ['sometimes', 'uuid'],
+            'scores.*.integrity.mame_version' => ['sometimes', 'string', 'max:32'],
+            'scores.*.integrity.maui_version' => ['sometimes', 'string', 'max:32'],
+            'scores.*.integrity.duration_s' => ['sometimes', 'numeric', 'min:0'],
+            'scores.*.integrity.emulated_s' => ['sometimes', 'numeric', 'min:0'],
+            'scores.*.integrity.options' => ['sometimes', 'array'],
+            'scores.*.integrity.options.speed' => ['sometimes', 'numeric'],
+            'scores.*.integrity.options.*' => ['nullable'],
+            'scores.*.integrity.plugins' => ['sometimes', 'list', 'max:64'],
+            'scores.*.integrity.plugins.*' => ['string', 'max:64'],
+            'scores.*.integrity.rom' => ['sometimes', 'string', 'in:good,best_available,bad,unknown'],
+            'scores.*.integrity.dips' => ['sometimes', 'list', 'max:64'],
+            'scores.*.integrity.dips.*.name' => ['required', 'string', 'max:64'],
+            'scores.*.integrity.dips.*.value' => ['required', 'string', 'max:64'],
+            'scores.*.integrity.dips.*.default' => ['required', 'string', 'max:64'],
+            'scores.*.integrity.events' => ['sometimes', 'array'],
+            'scores.*.integrity.events.*' => ['numeric', 'min:0'],
+            'scores.*.integrity.speed' => ['sometimes', 'array'],
+            'scores.*.integrity.speed.*' => ['numeric', 'min:0'],
         ];
     }
 

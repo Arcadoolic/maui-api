@@ -2582,6 +2582,84 @@ components:
             next to the score in the game's file, or `declared` when the
             game writes no name and the player was picked on the cabinet
             once the game was quit.
+        integrity:
+          $ref: '#/components/schemas/GameIntegrityReport'
+
+    GameIntegrityReport:
+      type: object
+      required: [version]
+      description: >-
+        What the cabinet saw of the game the score was made in, up to the
+        score (D87): left out by the cabinets older than it. Stored raw and
+        judged by MAUI-API (clean, to check, suspect), shown in the back
+        office; it never changes the score's outcome. At most 16 KiB.
+      properties:
+        version:
+          type: integer
+          minimum: 1
+        session_id:
+          type: string
+          format: uuid
+          description: 'One per game played: the scores of one game share it.'
+        mame_version:
+          type: string
+        maui_version:
+          type: string
+        duration_s:
+          type: number
+          description: Real time from the game's start to the report.
+        emulated_s:
+          type: number
+          description: Time emulated over the same span.
+        options:
+          type: object
+          description: MAME options as the game ran with them.
+          properties:
+            cheat: {type: boolean}
+            rewind: {type: boolean}
+            autosave: {type: boolean}
+            console: {type: boolean}
+            throttle: {type: boolean}
+            speed: {type: number}
+        plugins:
+          type: array
+          maxItems: 64
+          items: {type: string}
+          description: MAME plugins running.
+        rom:
+          type: string
+          enum: [good, best_available, bad, unknown]
+          description: MAME's verification of the game's ROM set.
+        dips:
+          type: array
+          maxItems: 64
+          description: DIP switches set otherwise than the game's default, by their labels.
+          items:
+            type: object
+            required: [name, value, default]
+            properties:
+              name: {type: string}
+              value: {type: string}
+              default: {type: string}
+        events:
+          type: object
+          description: Counts and durations, all zero or more.
+          properties:
+            state_loads: {type: integer}
+            state_saves: {type: integer}
+            pauses: {type: integer}
+            pause_s: {type: number}
+            resets: {type: integer}
+        speed:
+          type: object
+          description: Zero or more.
+          properties:
+            average_percent:
+              type: number
+              description: Emulated time over real time, pauses left out, in percent.
+            below_95_s: {type: number}
+            unthrottled_s: {type: number}
+            fast_forward_s: {type: number}
 
     ScoresRequest:
       type: object
