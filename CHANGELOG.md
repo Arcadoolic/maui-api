@@ -1,3 +1,9 @@
+## [0.18.0](https://github.com/Arcadoolic/maui-api/compare/0.17.0...0.18.0) (2026-10-18)
+
+### Features
+
+* **front:** filter the games by a minimum rating ([67da79d](https://github.com/Arcadoolic/maui-api/commit/67da79d1d268eea2ed95e9d11e78a782240bd5d5))
+
 ## [0.17.0](https://github.com/Arcadoolic/maui-api/compare/0.16.0...0.17.0) (2026-10-17)
 
 ### Features
