@@ -5,6 +5,7 @@ use App\Enums\ScoreAttribution;
 use App\Models\Category;
 use App\Models\Client;
 use App\Models\Game;
+use App\Models\GameDetail;
 use App\Models\GameMedia;
 use App\Models\Member;
 use App\Models\Player;
@@ -141,6 +142,19 @@ describe('game list', function () {
         ] as $query => $romnames) {
             $this->getJson('/api/v1/front/games?'.$query)->assertOk()->assertJsonPath('games.*.romname', $romnames);
         }
+    });
+
+    it('filters by a minimum rating, unrated games left out', function () {
+        foreach (['top' => 18, 'good' => 14, 'poor' => 8, 'unrated' => null] as $romname => $rating) {
+            $game = Game::factory()->create(['romname' => $romname, 'description' => ucfirst($romname)]);
+            GameDetail::query()->create(['game_id' => $game->id, 'found' => $rating !== null, 'rating' => $rating, 'scraped_at' => now()]);
+        }
+        Game::factory()->create(['romname' => 'unscraped']);
+
+        foreach (['rating=18' => ['top'], 'rating=14' => ['good', 'top'], 'rating=0' => ['good', 'poor', 'top']] as $query => $romnames) {
+            $this->getJson('/api/v1/front/games?'.$query)->assertOk()->assertJsonPath('games.*.romname', $romnames);
+        }
+        $this->getJson('/api/v1/front/games?rating=21')->assertUnprocessable();
     });
 
     it('filters by scores: any, mine, where I am not ranked', function () {
