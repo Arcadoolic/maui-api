@@ -55,6 +55,8 @@ final class GamesController
             'manufacturer' => ['sometimes', 'string', 'max:255'],
             'year' => ['sometimes', 'string', 'max:4'],
             'players' => ['sometimes', 'integer', 'min:1', 'max:8'],
+            // The ScreenScraper rating, out of 20, at least.
+            'rating' => ['sometimes', 'integer', 'min:0', 'max:20'],
             // with: any visible score; mine: one of my players is ranked; unranked: scores, but none of mine.
             'scores' => ['sometimes', Rule::in(['with', 'mine', 'unranked'])],
             'label' => ['sometimes', Rule::enum(PopularityLabel::class)],
@@ -444,6 +446,9 @@ final class GamesController
         }
         if (isset($filters['players'])) {
             $query->where('games.player_sim', '>=', (int) $filters['players']);
+        }
+        if (isset($filters['rating'])) {
+            $query->whereHas('detail', fn (Builder $detail) => $detail->where('rating', '>=', (int) $filters['rating']));
         }
         if (isset($filters['scores'])) {
             $query->whereNotNull('totals.game_id');
