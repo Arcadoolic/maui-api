@@ -1238,3 +1238,16 @@ visible as before; the back office shows it (column, filter, the report
 in full) for an administrator to hide a score by hand. The report is
 evidence from the cabinet itself: it makes cheating visible, not
 impossible (a turbo pad, a modified MAUI or MAME go unseen).
+
+**D88: Europe's pictures of a game first, and every logo kept.** (2026-10-19, widens D68 and D73)
+Requested by the project owner: the hiscores front is read in France, so the
+pictures of a game come from Europe first, then the world, the US and Japan
+(`eu`, `wor`, `us`, `jp`, `ss`; D68 put the world first). It holds for
+every type: screenshot, title, logo, marquee and flyers. A logo is also kept
+for every region, as the flyers are (D73): the same picture once, eight at
+most, `logo.<ext>` then `logo-1.<ext>`; the page of a game lists their
+hashes (`logos`, the one of `media.logo` first) and
+`GET /front/games/{romname}/media/logo?n=<index>` serves each. The front
+shows Europe's logo at the head of the game page, with arrows to the
+others. The games already asked change only when asked again:
+`catalog:scrape --force`, or after the 30 days of D68.

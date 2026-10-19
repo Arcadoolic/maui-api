@@ -1814,7 +1814,8 @@ paths:
           in: query
           description: >-
             Which picture of this type, from 0: a game can have several flyers
-            (D73), listed by the game's page (`flyers`). The first one without it.
+            (D73) and logos (D88), listed by the game's page (`flyers`, `logos`).
+            The first one without it.
           schema: {type: integer, minimum: 0, maximum: 99, default: 0}
       responses:
         '200':
@@ -3319,7 +3320,7 @@ components:
 
     FrontGamePageResponse:
       type: object
-      required: [game, previous, next, details, media, flyers, popularity, my_vote, leaderboards, stats, events]
+      required: [game, previous, next, details, media, flyers, logos, popularity, my_vote, leaderboards, stats, events]
       properties:
         my_vote:
           description: The vote of the member's player (D86); null when it has no player or no cabinet can read the game's hiscores.
@@ -3375,6 +3376,13 @@ components:
           description: |
             The SHA-256 of every flyer of the game, in order (D73), the one of
             `media` first: `GET /front/games/{romname}/media/flyer?n=<index>`.
+            Empty without any.
+          items: {type: string}
+        logos:
+          type: array
+          description: |
+            The SHA-256 of every logo of the game, Europe's first (D88), the one
+            of `media` first: `GET /front/games/{romname}/media/logo?n=<index>`.
             Empty without any.
           items: {type: string}
         game:
