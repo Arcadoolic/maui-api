@@ -1,3 +1,10 @@
+## [0.19.0](https://github.com/Arcadoolic/maui-api/compare/0.18.0...0.19.0) (2026-10-19)
+
+### Features
+
+* **catalog:** keep every logo of a game, as its flyers ([b2dffd6](https://github.com/Arcadoolic/maui-api/commit/b2dffd61a82b75316c47f5d47b2c54f0b540bae9))
+* **catalog:** prefer the European pictures of a game ([fd4f79f](https://github.com/Arcadoolic/maui-api/commit/fd4f79f9cd99bf1a7d8556dcc016a68a75c6355a))
+
 ## [0.18.0](https://github.com/Arcadoolic/maui-api/compare/0.17.0...0.18.0) (2026-10-18)
 
 ### Features
