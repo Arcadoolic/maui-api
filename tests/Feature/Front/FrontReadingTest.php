@@ -113,6 +113,26 @@ describe('game list', function () {
         $this->getJson('/api/v1/front/games/pengo/media/flyer?n=abc')->assertNotFound()->assertJsonPath('code', 'media_not_found');
     });
 
+    it('lists every logo of a game on its page, and serves each (D88)', function () {
+        Storage::fake('local');
+        $bbmanw = Game::factory()->create(['romname' => 'bbmanw']);
+        foreach ([1 => 'world', 0 => 'europe'] as $position => $region) {
+            $path = 'game-media/bbmanw/logo'.($position === 0 ? '' : "-{$position}").'.png';
+            Storage::disk('local')->put($path, $region);
+            GameMedia::query()->create([
+                'game_id' => $bbmanw->id, 'type' => 'logo', 'position' => $position, 'path' => $path,
+                'mime' => 'image/png', 'hash' => hash('sha256', $region),
+            ]);
+        }
+
+        $this->getJson('/api/v1/front/games/bbmanw')->assertOk()
+            ->assertJsonPath('media.logo', hash('sha256', 'europe'))
+            ->assertJsonPath('logos', [hash('sha256', 'europe'), hash('sha256', 'world')])
+            ->assertJsonPath('flyers', []);
+        expect($this->get('/api/v1/front/games/bbmanw/media/logo')->assertOk()->streamedContent())->toBe('europe')
+            ->and($this->get('/api/v1/front/games/bbmanw/media/logo?n=1')->assertOk()->streamedContent())->toBe('world');
+    });
+
     it('leaves out an uncatalogued game without a visible score', function () {
         Game::factory()->uncatalogued()->create(['romname' => 'ghost']);
         $known = Game::factory()->uncatalogued()->create(['romname' => 'played']);

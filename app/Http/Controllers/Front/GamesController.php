@@ -246,6 +246,8 @@ final class GamesController
             'media' => (object) $game->media->where('position', 0)->pluck('hash', 'type')->all(),
             // Every flyer, the one of `media` first: GET /front/games/{romname}/media/flyer?n=<index>.
             'flyers' => $game->media->where('type', 'flyer')->sortBy('position')->pluck('hash')->values()->all(),
+            // Every logo, Europe's first (D88): GET /front/games/{romname}/media/logo?n=<index>.
+            'logos' => $game->media->where('type', 'logo')->sortBy('position')->pluck('hash')->values()->all(),
             'popularity' => self::popularityDetails($this->popularity->all()->get($game->id)),
             // The member's player's own vote (D86): null when it cannot vote on this game.
             'my_vote' => VotesController::myVote($request, $game),
@@ -267,7 +269,7 @@ final class GamesController
         ]);
     }
 
-    /** A picture of the game, with its hash as ETag (D68); `n` picks one of its flyers (D73). */
+    /** A picture of the game, with its hash as ETag (D68); `n` picks one of its flyers (D73) or logos (D88). */
     public function media(Request $request, string $romname, string $type): Response
     {
         $position = $request->query('n', '0');

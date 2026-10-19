@@ -125,7 +125,7 @@ final class ScreenScraperClient
             buttons: $controls === [] ? null : count(array_filter($controls, fn (string $control): bool => str_starts_with($control, 'BUTTON'))),
             genres: self::genres($game['genres'] ?? null),
             mediaUrls: $urls,
-            flyerUrls: self::mediaUrls($medias, GameMedia::TYPES['flyer']),
+            severalUrls: array_combine(GameMedia::SEVERAL, array_map(fn (string $type): array => self::mediaUrls($medias, GameMedia::TYPES[$type]), GameMedia::SEVERAL)),
         );
     }
 
