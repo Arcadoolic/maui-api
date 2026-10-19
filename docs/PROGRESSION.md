@@ -48,6 +48,13 @@ For why things are done this way, see `docs/DECISIONS.md`.
   `catalog:scrape --force`, or after the 30 days of D68.
 - Front side in `afronob/maui-hifront`: a carousel on the game page.
 
+## Game pages: Europe's pictures first, every logo (in progress, D88)
+
+- Regions in the order `eu`, `wor`, `us`, `jp`, `ss` for every picture.
+- The scraper keeps every logo of a game, eight at most; `logos` on a game's
+  page, `GET .../media/logo?n=<index>`.
+- Front side in `afronob/maui-hifront`: arrows under the logo of the game page.
+
 ## Lot 4.4: "Missed Date" (in progress, D78)
 
 - `GET /front/games/missed-dates`: `missed` and `saved`, among every game.

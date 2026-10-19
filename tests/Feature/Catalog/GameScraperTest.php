@@ -64,6 +64,7 @@ function jeuInfos(array $overrides = []): array
         'medias' => [
             ['type' => 'ss', 'region' => 'us', 'url' => 'https://media.test/ss-us'],
             ['type' => 'ss', 'region' => 'wor', 'url' => 'https://media.test/ss-wor'],
+            ['type' => 'ss', 'region' => 'eu', 'url' => 'https://media.test/ss-eu'],
             ['type' => 'wheel', 'region' => 'jp', 'url' => 'https://media.test/wheel-jp'],
             ['type' => 'wheel', 'region' => 'eu', 'url' => 'https://media.test/wheel-eu'],
             ['type' => 'video', 'region' => 'wor', 'url' => 'https://media.test/video'],
@@ -102,15 +103,15 @@ describe('scraping a game', function () {
             ->and($detail->buttons)->toBe(2)
             ->and($detail->genres)->toBe(['Maze', 'Action']);
 
-        // The world picture first; no video; what is not an image is left out.
+        // The European picture first; no video; what is not an image is left out.
         $media = GameMedia::query()->where('game_id', $game->id)->orderBy('type')->get();
         expect($media->pluck('type')->all())->toBe(['logo', 'marquee', 'screenshot'])
             ->and($media[2]->path)->toBe('game-media/pacman/screenshot.png')
             ->and($media[2]->mime)->toBe('image/png')
             ->and($media[2]->hash)->toBe(hash('sha256', tinyPng()));
         Storage::disk('local')->assertExists('game-media/pacman/screenshot.png');
-        Http::assertSent(fn (HttpRequest $request): bool => $request->url() === 'https://media.test/ss-wor');
-        Http::assertNotSent(fn (HttpRequest $request): bool => in_array($request->url(), ['https://media.test/ss-us', 'https://media.test/wheel-jp', 'https://media.test/video'], true));
+        Http::assertSent(fn (HttpRequest $request): bool => $request->url() === 'https://media.test/ss-eu');
+        Http::assertNotSent(fn (HttpRequest $request): bool => in_array($request->url(), ['https://media.test/ss-us', 'https://media.test/ss-wor', 'https://media.test/video'], true));
         Http::assertSent(fn (HttpRequest $request): bool => str_starts_with($request->url(), ScreenScraperClient::GAME_URL)
             && $request['romnom'] === 'pacman.zip' && $request['systemeid'] === '75'
             && $request['devid'] === 'dev' && $request['ssid'] === 'user' && $request['output'] === 'json');
@@ -122,21 +123,22 @@ describe('scraping a game', function () {
         $picture = fn (string $tail): string => tinyPng().$tail;
         Http::fake([
             ScreenScraperClient::GAME_URL.'*' => Http::sequence()
-                ->push(jeuInfos(['medias' => $flyers([['jp', 'jp'], ['wor', 'front'], ['wor', 'back'], ['us', 'front-again']])]))
+                ->push(jeuInfos(['medias' => $flyers([['jp', 'jp'], ['wor', 'front'], ['wor', 'back'], ['us', 'front-again'], ['eu', 'eu']])]))
                 ->push(jeuInfos(['medias' => $flyers([['wor', 'front']])])),
             'https://media.test/front' => Http::response($picture('front')),
             'https://media.test/front-again' => Http::response($picture('front')),
             'https://media.test/back' => Http::response($picture('back')),
             'https://media.test/jp' => Http::response($picture('jp')),
+            'https://media.test/eu' => Http::response($picture('eu')),
         ]);
         $game = Game::factory()->create(['romname' => 'pengo']);
         $stored = fn () => GameMedia::query()->where('game_id', $game->id)->orderBy('position')->get();
 
         app(GameScraper::class)->scrape($game);
 
-        // The world's first, in ScreenScraper's order, then Japan's; the one sent twice is kept once.
-        expect($stored()->pluck('path')->all())->toBe(['game-media/pengo/flyer.png', 'game-media/pengo/flyer-1.png', 'game-media/pengo/flyer-2.png'])
-            ->and($stored()->pluck('hash')->all())->toBe(array_map(fn (string $tail): string => hash('sha256', $picture($tail)), ['front', 'back', 'jp']));
+        // Europe's first, then the world's in ScreenScraper's order, then Japan's; the one sent twice is kept once.
+        expect($stored()->pluck('path')->all())->toBe(['game-media/pengo/flyer.png', 'game-media/pengo/flyer-1.png', 'game-media/pengo/flyer-2.png', 'game-media/pengo/flyer-3.png'])
+            ->and($stored()->pluck('hash')->all())->toBe(array_map(fn (string $tail): string => hash('sha256', $picture($tail)), ['eu', 'front', 'back', 'jp']));
 
         // A later answer with fewer flyers: the others go, with their files.
         app(GameScraper::class)->scrape($game);
@@ -145,6 +147,34 @@ describe('scraping a game', function () {
         Storage::disk('local')->assertExists('game-media/pengo/flyer.png');
         Storage::disk('local')->assertMissing('game-media/pengo/flyer-1.png');
         Storage::disk('local')->assertMissing('game-media/pengo/flyer-2.png');
+        Storage::disk('local')->assertMissing('game-media/pengo/flyer-3.png');
+    });
+
+    it('keeps every logo of a game, Europe\'s first and once each (D88)', function () {
+        $logos = fn (array $names): array => array_map(fn (array $logo): array => ['type' => 'wheel', 'region' => $logo[0], 'url' => 'https://media.test/'.$logo[1]], $names);
+        Http::fake([
+            ScreenScraperClient::GAME_URL.'*' => Http::sequence()
+                ->push(jeuInfos(['medias' => $logos([['jp', 'jp'], ['wor', 'world'], ['us', 'world-again'], ['eu', 'europe']])]))
+                ->push(jeuInfos(['medias' => $logos([['wor', 'world']])])),
+            'https://media.test/world' => Http::response(tinyPng().'world'),
+            'https://media.test/world-again' => Http::response(tinyPng().'world'),
+            'https://media.test/jp' => Http::response(tinyPng().'jp'),
+            'https://media.test/europe' => Http::response(tinyPng().'europe'),
+        ]);
+        $game = Game::factory()->create(['romname' => 'bbmanw']);
+        $stored = fn () => GameMedia::query()->where('game_id', $game->id)->where('type', 'logo')->orderBy('position')->get();
+
+        app(GameScraper::class)->scrape($game);
+
+        expect($stored()->pluck('path')->all())->toBe(['game-media/bbmanw/logo.png', 'game-media/bbmanw/logo-1.png', 'game-media/bbmanw/logo-2.png'])
+            ->and($stored()->pluck('hash')->all())->toBe(array_map(fn (string $tail): string => hash('sha256', tinyPng().$tail), ['europe', 'world', 'jp']));
+
+        // A later answer with fewer logos: the others go, with their files.
+        app(GameScraper::class)->scrape($game);
+
+        expect($stored()->pluck('hash')->all())->toBe([hash('sha256', tinyPng().'world')]);
+        Storage::disk('local')->assertMissing('game-media/bbmanw/logo-1.png');
+        Storage::disk('local')->assertMissing('game-media/bbmanw/logo-2.png');
     });
 
     it('remembers a game ScreenScraper does not know', function () {

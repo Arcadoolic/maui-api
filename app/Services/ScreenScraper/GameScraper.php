@@ -70,11 +70,13 @@ final class GameScraper
                 'scraped_at' => now(),
             ]);
             foreach ($scraped->mediaUrls as $type => $url) {
-                if ($type !== 'flyer') {
+                if (! in_array($type, GameMedia::SEVERAL, true)) {
                     $this->storeMedia($game, $type, $url);
                 }
             }
-            $this->storeFlyers($game, $scraped->flyerUrls);
+            foreach (GameMedia::SEVERAL as $type) {
+                $this->storeSeveral($game, $type, $scraped->severalUrls[$type] ?? []);
+            }
         }
 
         return $result;
@@ -90,26 +92,26 @@ final class GameScraper
     }
 
     /**
-     * Every flyer of the game (D73), in the order given: the same picture twice (one file under
-     * two regions) is kept once, and the flyers of a former answer past the last one are removed.
-     * When none can be had, the former ones stay.
+     * Every flyer (D73) or logo (D88) of the game, in the order given: the same picture twice (one
+     * file under two regions) is kept once, and the pictures of a former answer past the last one
+     * are removed. When none can be had, the former ones stay.
      *
      * @param  list<string>  $urls
      */
-    private function storeFlyers(Game $game, array $urls): void
+    private function storeSeveral(Game $game, string $type, array $urls): void
     {
         $hashes = [];
-        foreach (array_slice($urls, 0, GameMedia::MAX_FLYERS) as $url) {
+        foreach (array_slice($urls, 0, GameMedia::MAX_SEVERAL) as $url) {
             $image = $this->image($url);
             if ($image !== null && ! in_array($hash = hash('sha256', $image[0]), $hashes, true)) {
-                $this->store($game, 'flyer', count($hashes), ...$image);
+                $this->store($game, $type, count($hashes), ...$image);
                 $hashes[] = $hash;
             }
         }
         if ($hashes === []) {
             return;
         }
-        $stale = GameMedia::query()->where('game_id', $game->id)->where('type', 'flyer')->where('position', '>=', count($hashes))->get();
+        $stale = GameMedia::query()->where('game_id', $game->id)->where('type', $type)->where('position', '>=', count($hashes))->get();
         foreach ($stale as $media) {
             Storage::disk(GameMedia::DISK)->delete($media->path);
             $media->delete();

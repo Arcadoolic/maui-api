@@ -20,10 +20,11 @@ final class ScreenScraperClient
     private const ARCADE_SYSTEM_ID = '75';
 
     /**
-     * World first, then the West, then Japan: MAUI takes Japan second, but a
-     * logo in Japanese says little on a page read in French or English.
+     * Europe first, the pages being read in France, then the world, the US and
+     * Japan: MAUI takes Japan second, but a logo in Japanese says little on a
+     * page read in French or English.
      */
-    private const REGIONS = ['wor', 'us', 'eu', 'jp', 'ss'];
+    private const REGIONS = ['eu', 'wor', 'us', 'jp', 'ss'];
 
     private const TIMEOUT_SECONDS = 30;
 
@@ -124,7 +125,7 @@ final class ScreenScraperClient
             buttons: $controls === [] ? null : count(array_filter($controls, fn (string $control): bool => str_starts_with($control, 'BUTTON'))),
             genres: self::genres($game['genres'] ?? null),
             mediaUrls: $urls,
-            flyerUrls: self::mediaUrls($medias, GameMedia::TYPES['flyer']),
+            severalUrls: array_combine(GameMedia::SEVERAL, array_map(fn (string $type): array => self::mediaUrls($medias, GameMedia::TYPES[$type]), GameMedia::SEVERAL)),
         );
     }
 
