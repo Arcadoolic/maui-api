@@ -35,6 +35,13 @@ For why things are done this way, see `docs/DECISIONS.md`.
 - Releases by semantic-release on every push to `main` (D44): 0.1.0
   published on 2026-09-25.
 
+## Global podium for the Discord bot (D89)
+
+- `GET /bot/ranking?limit=` (10 by default, 25 at most): the first players
+  of the global podium, same rule as the front (D70), ability
+  `leaderboards:read`.
+- Next: `/podium` in maui-discord-bot.
+
 ## Back office: cabinets and service accounts apart (in progress, D79)
 
 - Two lists on the same `clients` table: "Cabinets" (`/admin/clients`) and
