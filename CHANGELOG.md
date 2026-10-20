@@ -1,3 +1,9 @@
+## [0.20.0](https://github.com/Arcadoolic/maui-api/compare/0.19.0...0.20.0) (2026-10-20)
+
+### Features
+
+* **bot:** serve the global podium to the bots (D89) ([0af7fdc](https://github.com/Arcadoolic/maui-api/commit/0af7fdc5afe114597ea38eb890b127ea00b41e1e))
+
 ## [0.19.0](https://github.com/Arcadoolic/maui-api/compare/0.18.0...0.19.0) (2026-10-19)
 
 ### Features
