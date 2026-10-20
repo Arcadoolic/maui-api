@@ -1251,3 +1251,13 @@ hashes (`logos`, the one of `media.logo` first) and
 shows Europe's logo at the head of the game page, with arrows to the
 others. The games already asked change only when asked again:
 `catalog:scrape --force`, or after the 30 days of D68.
+
+**D89: The bot shows the global podium.** (2026-10-21, widens D57 and D70)
+Requested by the project owner: `/podium` on Discord shows the first ten of
+the global podium of the hiscores front. `GET /bot/ranking` answers them,
+ranked by the same `GlobalRanking` as `GET /front/ranking` (D70), so the bot
+and the front never disagree; `limit` (10 by default, 25 at most) since a
+Discord message only shows a few. Under the `leaderboards:read` ability the
+bot already holds: the podium is drawn from the same public leaderboards.
+Initials, points, games, crowns and podiums only: neither the rule nor the
+avatar, which a Discord message does not show.

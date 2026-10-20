@@ -1089,6 +1089,40 @@ paths:
         '500':
           $ref: '#/components/responses/ServerError'
 
+  /bot/ranking:
+    get:
+      tags: [Bots]
+      operationId: getBotRanking
+      summary: The global podium, for a bot
+      description: |
+        The first players of the global podium of the hiscores front, by the
+        same rule as `GET /front/ranking` (D70), first to last (D89). Only
+        public and active players are ranked.
+
+        Bot accounts only, ability `leaderboards:read`.
+      security:
+        - mauiKey: []
+          bearerToken: []
+      parameters:
+        - {name: limit, in: query, schema: {type: integer, minimum: 1, maximum: 25, default: 10}}
+      responses:
+        '200':
+          description: The first players of the podium.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BotRankingResponse'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
   /bot/events:
     get:
       tags: [Bots]
@@ -2966,6 +3000,29 @@ components:
         created: 2
         updated: 5
         unchanged: 113
+
+    BotRankingResponse:
+      type: object
+      required: [ranking]
+      additionalProperties: false
+      properties:
+        ranking:
+          type: array
+          items:
+            type: object
+            required: [rank, player, points, games, crowns, podiums]
+            properties:
+              rank: {type: integer}
+              player:
+                type: object
+                required: [id, pseudo_3]
+                properties:
+                  id: {type: string, format: uuid}
+                  pseudo_3: {type: string}
+              points: {type: integer}
+              games: {type: integer, description: Games the player is ranked on.}
+              crowns: {type: integer}
+              podiums: {type: integer}
 
     BotLeaderboardListResponse:
       type: object

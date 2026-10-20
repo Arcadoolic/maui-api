@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Api\BotRankingController;
 use App\Http\Controllers\Api\CabinetEventsController;
 use App\Http\Controllers\Api\CatalogGamesController;
 use App\Http\Controllers\Api\HeartbeatController;
@@ -71,6 +72,8 @@ Route::middleware(['throttle:cabinet', 'cabinet:scores:read'])->group(function (
 Route::middleware(['throttle:service', 'service:leaderboards:read'])->group(function () {
     Route::get('bot/leaderboards', [LeaderboardsController::class, 'available']);
     Route::get('bot/leaderboards/{romname}', [LeaderboardsController::class, 'show']);
+    // The global podium of the hiscores front (docs/DECISIONS.md D89).
+    Route::get('bot/ranking', BotRankingController::class);
 });
 
 // Bots (Discord): what the scores changed on the leaderboards (docs/DECISIONS.md D60).
