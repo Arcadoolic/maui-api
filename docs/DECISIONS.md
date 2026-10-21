@@ -1261,3 +1261,16 @@ Discord message only shows a few. Under the `leaderboards:read` ability the
 bot already holds: the podium is drawn from the same public leaderboards.
 Initials, points, games, crowns and podiums only: neither the rule nor the
 avatar, which a Discord message does not show.
+
+**D90: Base images pinned by digest, their updates released as fixes.** (2026-10-21, completes D9)
+PHP 8.4.27 (2026-10-21) fixes two critical vulnerabilities allowing
+unauthenticated remote code execution. The server builds the image with
+`up -d --build` (D40) and nobody but its owner can log on to it, so a
+floating tag (`dunglas/frankenphp:1-php8.4`, `composer:2`,
+`postgres:16-alpine`) kept the copy already on the server: a deployment
+never took a newer PHP. Every base image is now pinned as `tag@sha256:`:
+a new digest is missing on the server, so the build pulls it, with no
+access to the machine. Dependabot (`docker`, `docker-compose`) proposes the
+new digest on every upstream rebuild, with the `fix` prefix instead of
+`build`: a base image carries PHP's security fixes, so its update makes a
+patch release that the deploy workflow can ship (D44).
