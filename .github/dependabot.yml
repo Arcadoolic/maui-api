@@ -20,24 +20,27 @@ updates:
           - "livewire/*"
         update-types: ["minor", "patch"]
 
-  # Base images: dunglas/frankenphp, composer (Dockerfile).
+  # Base images: dunglas/frankenphp, composer (Dockerfile), pinned by
+  # digest (D90). Prefix "fix": an upstream rebuild carries PHP security
+  # fixes and must produce a release that can be deployed.
   - package-ecosystem: "docker"
     directory: "/"
     target-branch: "develop"
     schedule:
       interval: "weekly"
     commit-message:
-      prefix: "build"
+      prefix: "fix"
       include: "scope"
 
-  # postgres image (compose.yaml, compose.staging.yaml).
+  # postgres image (compose.yaml, compose.staging.yaml), pinned by digest,
+  # prefix "fix" (D90).
   - package-ecosystem: "docker-compose"
     directory: "/"
     target-branch: "develop"
     schedule:
       interval: "weekly"
     commit-message:
-      prefix: "build"
+      prefix: "fix"
       include: "scope"
     ignore:
       # A PostgreSQL major needs a dump and restore of the data volume.
