@@ -1,3 +1,9 @@
+## [0.20.1](https://github.com/Arcadoolic/maui-api/compare/0.20.0...0.20.1) (2026-10-21)
+
+### Bug Fixes
+
+* **docker:** pin base images to patched digests ([26f71d6](https://github.com/Arcadoolic/maui-api/commit/26f71d6d2e8bacabba25a8789a136318c3332f3c))
+
 ## [0.20.0](https://github.com/Arcadoolic/maui-api/compare/0.19.0...0.20.0) (2026-10-20)
 
 ### Features
