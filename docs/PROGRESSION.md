@@ -35,6 +35,14 @@ For why things are done this way, see `docs/DECISIONS.md`.
 - Releases by semantic-release on every push to `main` (D44): 0.1.0
   published on 2026-09-25.
 
+## Base images pinned by digest (D90)
+
+- `dunglas/frankenphp:1-php8.4` (PHP 8.4.27, FrankenPHP 1.13.2),
+  `composer:2` and `postgres:16-alpine` pinned by digest, so a deployment
+  pulls the patched PHP.
+- Dependabot `docker` and `docker-compose` updates use the `fix` prefix.
+- Next: release and deploy, then check `php -v` in production.
+
 ## Global podium for the Discord bot (D89)
 
 - `GET /bot/ranking?limit=` (10 by default, 25 at most): the first players

@@ -1,7 +1,9 @@
 # syntax=docker/dockerfile:1
 
 # FrankenPHP (Caddy + PHP) in classic mode, see docs/DECISIONS.md D9.
-FROM dunglas/frankenphp:1-php8.4 AS base
+# Base images pinned by digest (D90): a new digest forces the server to pull
+# the image again; Dependabot bumps it on every upstream rebuild.
+FROM dunglas/frankenphp:1-php8.4@sha256:0de5a32944f72c13b45d183e8e6c53546b8172cec21cc8599e24b12e0661506d AS base
 
 # exif and gd: avatars given in the back office are turned, cropped and scaled (D84).
 RUN install-php-extensions \
@@ -18,7 +20,7 @@ RUN apt-get update \
     && apt-get install -y --no-install-recommends git unzip \
     && rm -rf /var/lib/apt/lists/*
 
-COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
+COPY --from=composer:2@sha256:d0c32820c62cc860fddd22adceed4eeda7698b093a7a88d503414172ce400626 /usr/bin/composer /usr/bin/composer
 COPY docker/frankenphp/Caddyfile /etc/frankenphp/Caddyfile
 
 WORKDIR /app
