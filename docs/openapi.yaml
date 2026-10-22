@@ -1825,6 +1825,46 @@ paths:
         '500':
           $ref: '#/components/responses/ServerError'
 
+  /front/games/{romname}/progress:
+    parameters:
+      - name: romname
+        in: path
+        required: true
+        schema: {type: string, pattern: '^[a-z0-9_]{1,32}$'}
+    get:
+      tags: [Front]
+      operationId: frontGameProgress
+      summary: The progress of the first players of a leaderboard of the game
+      description: |
+        The first ten players of the leaderboard of the table, first to last,
+        each with its personal bests, oldest first (D91): how the ranks were
+        taken over time. A leaderboard without any score gives no player.
+      security:
+        - frontSession: []
+      parameters:
+        - $ref: '#/components/parameters/ScoreTable'
+      responses:
+        '200':
+          description: The progress.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FrontGameProgressResponse'
+        '404':
+          description: No game with this romname (`game_not_found`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/FrontForbidden'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
   /front/games/{romname}/media/{type}:
     parameters:
       - name: romname
@@ -1995,7 +2035,9 @@ paths:
       description: |
         Each personal best of the player on the game, oldest first (D50
         keeps them all), with the scores to reach: the leader's and the rank
-        just above (D69).
+        just above (D69). The first nine other players of the leaderboard come
+        with their own bests (`rivals`, D91), for the front to show how the
+        ranks were taken over time.
       security:
         - frontSession: []
       parameters:
@@ -3600,7 +3642,7 @@ components:
 
     FrontPlayerGameHistoryResponse:
       type: object
-      required: [game, table, rank, players, history, leader, above]
+      required: [game, table, rank, players, history, leader, above, rivals]
       properties:
         game:
           $ref: '#/components/schemas/FrontGameRef'
@@ -3608,14 +3650,8 @@ components:
         rank: {type: [integer, 'null'], description: Null for a private player.}
         players: {type: [integer, 'null']}
         history:
-          type: array
           description: The personal bests of the player on the game, oldest first.
-          items:
-            type: object
-            required: [score, achieved_at]
-            properties:
-              score: {type: integer}
-              achieved_at: {type: string, format: date-time}
+          $ref: '#/components/schemas/FrontBestHistory'
         leader:
           description: First of the leaderboard, null without a visible score.
           oneOf:
@@ -3626,6 +3662,44 @@ components:
           oneOf:
             - type: 'null'
             - $ref: '#/components/schemas/FrontScoreToReach'
+        rivals:
+          type: array
+          description: The first nine other players of the leaderboard, first to last, with their personal bests (D91).
+          items:
+            $ref: '#/components/schemas/FrontRankedHistory'
+
+    FrontRankedHistory:
+      type: object
+      required: [player, rank, history]
+      properties:
+        player:
+          $ref: '#/components/schemas/FrontPlayerRef'
+        rank: {type: integer}
+        history:
+          $ref: '#/components/schemas/FrontBestHistory'
+
+    FrontGameProgressResponse:
+      type: object
+      required: [game, table, players]
+      properties:
+        game:
+          $ref: '#/components/schemas/FrontGameRef'
+        table: {type: string}
+        players:
+          type: array
+          description: The first ten players of the leaderboard, first to last (D91).
+          items:
+            $ref: '#/components/schemas/FrontRankedHistory'
+
+    FrontBestHistory:
+      type: array
+      description: Personal bests on a game, oldest first.
+      items:
+        type: object
+        required: [score, achieved_at]
+        properties:
+          score: {type: integer}
+          achieved_at: {type: string, format: date-time}
 
     FrontRankingResponse:
       type: object

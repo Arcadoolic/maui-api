@@ -43,6 +43,15 @@ For why things are done this way, see `docs/DECISIONS.md`.
 - Dependabot `docker` and `docker-compose` updates use the `fix` prefix.
 - Next: release and deploy, then check `php -v` in production.
 
+## Progress of a player against the others (D91)
+
+- `rivals` in `GET /front/players/{id}/games/{romname}`: the first nine
+  other players of the leaderboard, with their personal bests.
+- `GET /front/games/{romname}/progress?table=`: the first ten players of a
+  leaderboard of the game, with their personal bests.
+- Front side in `afronob/maui-hifront`: the other players' lines on the
+  progress chart, and the period (week to year).
+
 ## Global podium for the Discord bot (D89)
 
 - `GET /bot/ranking?limit=` (10 by default, 25 at most): the first players

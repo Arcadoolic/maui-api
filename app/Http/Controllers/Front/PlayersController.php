@@ -152,17 +152,22 @@ final class PlayersController
         $board = $this->rankings->rows()->where('ranked.game_id', $game->id)->where('ranked.table', $table);
         $own = (clone $board)->where('ranked.player_id', $found->id)->first();
         $leader = (clone $board)->where('ranked.rank', 1)->first();
-        $players = Player::query()->whereIn('id', array_filter([$leader->player_id ?? null, $own->above_player_id ?? null]))->get()->keyBy('id');
+        // The first others of the leaderboard, with their own bests: how the
+        // ranks were taken from one another over time, ten players with this
+        // one at most, whatever its rank (D91).
+        $rivals = (clone $board)->where('ranked.player_id', '!=', $found->id)->orderBy('ranked.rank')
+            ->limit(Leaderboards::CHART_PLAYERS - 1)->get(['ranked.player_id', 'ranked.rank']);
+        $rivalScores = Leaderboards::histories($game, $table, $rivals->pluck('player_id'));
+        $players = Player::query()
+            ->whereIn('id', array_filter([$leader->player_id ?? null, $own->above_player_id ?? null, ...$rivals->pluck('player_id')]))
+            ->get()->keyBy('id');
 
         return new JsonResponse([
             'game' => ['romname' => $game->romname, 'description' => $game->description],
             'table' => $table,
             'rank' => $own === null ? null : (int) $own->rank,
             'players' => $own === null ? null : (int) $own->players,
-            'history' => $history->map(fn (Score $score): array => [
-                'score' => $score->score,
-                'achieved_at' => $score->achieved_at->toIso8601String(),
-            ])->all(),
+            'history' => self::bests($history),
             'leader' => $leader === null ? null : [
                 'player' => GamesController::player($players->get($leader->player_id)),
                 'score' => (int) $leader->score,
@@ -171,7 +176,28 @@ final class PlayersController
                 'player' => GamesController::player($players->get($own->above_player_id)),
                 'score' => (int) $own->above_score,
             ],
+            'rivals' => $rivals->map(fn (object $rival): array => [
+                'player' => GamesController::player($players->get($rival->player_id)),
+                'rank' => (int) $rival->rank,
+                'history' => self::bests($rivalScores->get($rival->player_id, collect())),
+            ])->all(),
         ]);
+    }
+
+    /**
+     * Personal bests, oldest first, as the history of a player gives them.
+     *
+     * @param  iterable<Score>  $scores
+     * @return list<array{score: int, achieved_at: string}>
+     */
+    public static function bests(iterable $scores): array
+    {
+        $bests = [];
+        foreach ($scores as $score) {
+            $bests[] = ['score' => $score->score, 'achieved_at' => $score->achieved_at->toIso8601String()];
+        }
+
+        return $bests;
     }
 
     /**
