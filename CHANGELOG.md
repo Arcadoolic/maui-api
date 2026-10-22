@@ -1,3 +1,9 @@
+## [0.21.0](https://github.com/Arcadoolic/maui-api/compare/0.20.1...0.21.0) (2026-10-22)
+
+### Features
+
+* **front:** the other players on the progress charts (D91) ([f049a11](https://github.com/Arcadoolic/maui-api/commit/f049a113a7baf9e62a564ede2859b4520cc27d41))
+
 ## [0.20.1](https://github.com/Arcadoolic/maui-api/compare/0.20.0...0.20.1) (2026-10-21)
 
 ### Bug Fixes
