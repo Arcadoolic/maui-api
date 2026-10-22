@@ -1274,3 +1274,22 @@ access to the machine. Dependabot (`docker`, `docker-compose`) proposes the
 new digest on every upstream rebuild, with the `fix` prefix instead of
 `build`: a base image carries PHP's security fixes, so its update makes a
 patch release that the deploy workflow can ship (D44).
+
+**D91: The progress of a player on a game shows the other players.** (2026-10-22, widens D69)
+Requested by the project owner: the progress chart of the player page
+should show how the players took each other's rank over time, on a week,
+a month, three months, six months or a year. `GET
+/front/players/{id}/games/{romname}` now gives the first nine other players
+of the leaderboard (`rivals`, first to last), each with its personal bests,
+oldest first, as `history` gives the player's own: the scores a leaderboard
+already shows, of public players only (D52), so nothing is revealed that
+the game page does not. Ten players at most on a chart, the player itself
+included whatever its rank: past ten lines, the colours can no longer tell
+them apart. A private player, seen by its own member, gets the first nine
+public players of the leaderboard. The period is chosen by the front, which
+cuts the bests itself: the answer does not change with it.
+The page of a game shows the same chart for each of its leaderboards, in
+place of its table at the member's choice: `GET
+/front/games/{romname}/progress?table=` gives its first ten players, first
+to last, with their personal bests. Asked only when the chart is shown,
+so that the game page itself stays as light as before.
