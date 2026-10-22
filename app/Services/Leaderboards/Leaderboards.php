@@ -21,6 +21,9 @@ final class Leaderboards
     /** Rows of a leaderboard: what a cabinet's hiscore screen shows. */
     public const SIZE = 9;
 
+    /** Players on a progress chart of the front, at most (D91). */
+    public const CHART_PLAYERS = 10;
+
     /**
      * Scores that may appear in a leaderboard.
      *
@@ -34,6 +37,23 @@ final class Leaderboards
                 ->where('is_public', true)
                 ->where('status', PlayerStatus::Active))
             ->whereHas('client', fn (Builder $query) => $query->where('status', ClientStatus::Active));
+    }
+
+    /**
+     * The visible personal bests of these players on the game and table,
+     * oldest first, by player id (D91).
+     *
+     * @param  iterable<int>  $playerIds
+     * @return \Illuminate\Support\Collection<int, Collection<int, Score>>
+     */
+    public static function histories(Game $game, string $table, iterable $playerIds): \Illuminate\Support\Collection
+    {
+        return self::visibleScores()
+            ->where('scores.game_id', $game->id)->where('scores.table', $table)
+            ->whereIn('scores.player_id', collect($playerIds)->all())
+            ->orderBy('scores.achieved_at')->orderBy('scores.score')
+            ->get(['scores.player_id', 'scores.score', 'scores.achieved_at'])
+            ->groupBy('player_id');
     }
 
     /**

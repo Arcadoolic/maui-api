@@ -369,12 +369,91 @@ describe('players', function () {
                 ['score' => 200, 'achieved_at' => '2026-01-02T00:00:00+00:00'],
             ])
             ->assertJsonPath('leader.player.pseudo_3', 'TOP')->assertJsonPath('leader.score', 900)
-            ->assertJsonPath('above.player.pseudo_3', 'BOB')->assertJsonPath('above.score', 300);
+            ->assertJsonPath('above.player.pseudo_3', 'BOB')->assertJsonPath('above.score', 300)
+            ->assertJsonPath('rivals.0.player.pseudo_3', 'TOP')->assertJsonPath('rivals.0.rank', 1)
+            ->assertJsonPath('rivals.1.player.pseudo_3', 'BOB')->assertJsonPath('rivals.1.rank', 2)
+            ->assertJsonCount(2, 'rivals');
 
         $this->getJson('/api/v1/front/players/'.$ace->uuid.'/games/pacman?table=hard')
             ->assertJsonPath('history.0.score', 50)->assertJsonPath('rank', 1)->assertJsonPath('above', null);
         $this->getJson('/api/v1/front/players/'.$ace->uuid.'/games/nothere')->assertNotFound()->assertJsonPath('code', 'game_not_found');
         $this->getJson('/api/v1/front/players/'.Player::factory()->create()->uuid.'/games/pacman')->assertNotFound()->assertJsonPath('code', 'player_not_found');
+    });
+
+    it('gives the bests of every other ranked player, to see the ranks taken over time', function () {
+        $game = Game::factory()->create(['romname' => 'pacman']);
+        $ace = publicPlayer('ACE');
+        leaderboardScore($game, $ace, 500, attributes: ['achieved_at' => '2026-01-05 00:00:00']);
+        $bob = publicPlayer('BOB');
+        leaderboardScore($game, $bob, 600, attributes: ['achieved_at' => '2026-01-03 00:00:00']);
+        leaderboardScore($game, $bob, 300, attributes: ['achieved_at' => '2026-01-01 00:00:00']);
+        leaderboardScore($game, $bob, 999, attributes: ['achieved_at' => '2026-01-04 00:00:00', 'hidden_at' => now()]);
+        leaderboardScore($game, $bob, 50, attributes: ['table' => 'hard']);
+        leaderboardScore($game, Player::factory()->create(['pseudo_3' => 'PRV']), 800);
+
+        $this->getJson('/api/v1/front/players/'.$ace->uuid.'/games/pacman')->assertOk()
+            ->assertJsonPath('rivals', [[
+                'player' => ['id' => $bob->uuid, 'pseudo_3' => 'BOB', 'avatar' => null],
+                'rank' => 1,
+                'history' => [
+                    ['score' => 300, 'achieved_at' => '2026-01-01T00:00:00+00:00'],
+                    ['score' => 600, 'achieved_at' => '2026-01-03T00:00:00+00:00'],
+                ],
+            ]]);
+    });
+
+    it('gives the progress of every player ranked on a leaderboard of a game', function () {
+        $game = Game::factory()->create(['romname' => 'pacman', 'description' => 'Pac-Man']);
+        $ace = publicPlayer('ACE');
+        leaderboardScore($game, $ace, 500, attributes: ['achieved_at' => '2026-01-05 00:00:00']);
+        leaderboardScore($game, $ace, 100, attributes: ['achieved_at' => '2026-01-01 00:00:00']);
+        leaderboardScore($game, $ace, 999, attributes: ['achieved_at' => '2026-01-06 00:00:00', 'hidden_at' => now()]);
+        $bob = publicPlayer('BOB');
+        leaderboardScore($game, $bob, 300, attributes: ['achieved_at' => '2026-01-02 00:00:00']);
+        leaderboardScore($game, $bob, 50, attributes: ['table' => 'hard', 'achieved_at' => '2026-01-03 00:00:00']);
+        leaderboardScore($game, Player::factory()->create(['pseudo_3' => 'PRV']), 800);
+
+        $this->getJson('/api/v1/front/games/pacman/progress')->assertOk()->assertExactJson([
+            'game' => ['romname' => 'pacman', 'description' => 'Pac-Man'],
+            'table' => 'default',
+            'players' => [
+                [
+                    'player' => ['id' => $ace->uuid, 'pseudo_3' => 'ACE', 'avatar' => null],
+                    'rank' => 1,
+                    'history' => [
+                        ['score' => 100, 'achieved_at' => '2026-01-01T00:00:00+00:00'],
+                        ['score' => 500, 'achieved_at' => '2026-01-05T00:00:00+00:00'],
+                    ],
+                ],
+                [
+                    'player' => ['id' => $bob->uuid, 'pseudo_3' => 'BOB', 'avatar' => null],
+                    'rank' => 2,
+                    'history' => [['score' => 300, 'achieved_at' => '2026-01-02T00:00:00+00:00']],
+                ],
+            ],
+        ]);
+        $this->getJson('/api/v1/front/games/pacman/progress?table=hard')
+            ->assertJsonCount(1, 'players')->assertJsonPath('players.0.history.0.score', 50);
+        $this->getJson('/api/v1/front/games/pacman/progress?table=none')->assertOk()->assertJsonPath('players', []);
+        $this->getJson('/api/v1/front/games/nothere/progress')->assertNotFound()->assertJsonPath('code', 'game_not_found');
+    });
+
+    it('puts ten players at most on a progress chart, the player itself whatever its rank', function () {
+        $game = Game::factory()->create(['romname' => 'pacman']);
+        foreach (range(1, 12) as $index) {
+            leaderboardScore($game, publicPlayer(sprintf('P%02d', $index)), 1000 - $index);
+        }
+        $last = publicPlayer('LST');
+        leaderboardScore($game, $last, 1);
+
+        $this->getJson('/api/v1/front/games/pacman/progress')
+            ->assertJsonCount(10, 'players')->assertJsonPath('players.9.player.pseudo_3', 'P10');
+        $this->getJson('/api/v1/front/players/'.$last->uuid.'/games/pacman')
+            ->assertJsonPath('rank', 13)
+            ->assertJsonCount(9, 'rivals')->assertJsonPath('rivals.8.player.pseudo_3', 'P09');
+        $fifth = Player::query()->where('pseudo_3', 'P05')->firstOrFail();
+        $this->getJson('/api/v1/front/players/'.$fifth->uuid.'/games/pacman')
+            ->assertJsonCount(9, 'rivals')->assertJsonPath('rivals.4.player.pseudo_3', 'P06')->assertJsonPath('rivals.8.player.pseudo_3', 'P10');
     });
 
     it('gives a member the history of its own private player, without a rank', function () {
@@ -387,7 +466,8 @@ describe('players', function () {
         $this->getJson('/api/v1/front/players/'.$private->uuid.'/games/pacman')->assertOk()
             ->assertJsonPath('history.0.score', 100)
             ->assertJsonPath('rank', null)->assertJsonPath('above', null)
-            ->assertJsonPath('leader.player.pseudo_3', 'TOP');
+            ->assertJsonPath('leader.player.pseudo_3', 'TOP')
+            ->assertJsonPath('rivals.0.player.pseudo_3', 'TOP')->assertJsonCount(1, 'rivals');
         $this->getJson('/api/v1/front/players/'.$private->uuid)->assertJsonPath('activity.0.bests', 1);
     });
 

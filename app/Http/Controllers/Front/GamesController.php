@@ -10,6 +10,7 @@ use App\Models\Game;
 use App\Models\GameDetail;
 use App\Models\GameMedia;
 use App\Models\Player;
+use App\Models\Score;
 use App\Models\ScoreEvent;
 use App\Services\Leaderboards\Leaderboards;
 use App\Services\Leaderboards\Rankings;
@@ -266,6 +267,37 @@ final class GamesController
                 ->get()
                 ->map(fn (ScoreEvent $event): array => $event->toApiArray())
                 ->all(),
+        ]);
+    }
+
+    /**
+     * The progress of the first players of a leaderboard of the game: their
+     * personal bests, oldest first, first to last of the leaderboard (D91).
+     */
+    public function progress(Request $request, string $romname): JsonResponse
+    {
+        $table = $request->validate(['table' => ['sometimes', 'string', 'regex:/^[a-z0-9_]{1,32}$/']])['table'] ?? Score::DEFAULT_TABLE;
+        $game = preg_match(self::ROMNAME, $romname) === 1 ? Game::query()->where('romname', $romname)->first() : null;
+        if ($game === null) {
+            throw ApiProblemException::gameNotFound();
+        }
+
+        $ranked = $this->rankings->rows()
+            ->where('ranked.game_id', $game->id)->where('ranked.table', $table)
+            ->orderBy('ranked.rank')
+            ->limit(Leaderboards::CHART_PLAYERS)
+            ->get(['ranked.player_id', 'ranked.rank']);
+        $histories = Leaderboards::histories($game, $table, $ranked->pluck('player_id'));
+        $players = Player::query()->whereIn('id', $ranked->pluck('player_id'))->get()->keyBy('id');
+
+        return new JsonResponse([
+            'game' => ['romname' => $game->romname, 'description' => $game->description],
+            'table' => $table,
+            'players' => $ranked->map(fn (object $row): array => [
+                'player' => self::player($players->get($row->player_id)),
+                'rank' => (int) $row->rank,
+                'history' => PlayersController::bests($histories->get($row->player_id, collect())),
+            ])->all(),
         ]);
     }
 
