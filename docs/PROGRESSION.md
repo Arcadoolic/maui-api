@@ -42,6 +42,11 @@ For why things are done this way, see `docs/DECISIONS.md`.
   pulls the patched PHP.
 - Dependabot `docker` and `docker-compose` updates use the `fix` prefix.
 - Next: release and deploy, then check `php -v` in production.
+- Later, to decide: Dependabot `docker` updates `daily` instead of
+  `weekly`, so a PHP security fix waits a day at most instead of a week;
+  the cost is more PRs and patch releases (every PHP, FrankenPHP or Debian
+  rebuild). Meanwhile, Insights > Dependency graph > Dependabot > "Check
+  for updates" triggers a check by hand.
 
 ## Progress of a player against the others (D91)
 
