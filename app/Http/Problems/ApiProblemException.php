@@ -51,6 +51,16 @@ final class ApiProblemException extends RuntimeException
         return new self(Response::HTTP_CONFLICT, 'initials_taken', 'These initials belong to another player.');
     }
 
+    public static function recoveryNotFound(): self
+    {
+        return new self(Response::HTTP_NOT_FOUND, 'recovery_not_found');
+    }
+
+    public static function recoveryClosed(): self
+    {
+        return new self(Response::HTTP_CONFLICT, 'recovery_closed', 'This request was already answered, or has expired.');
+    }
+
     public static function playerNotFound(): self
     {
         return new self(Response::HTTP_NOT_FOUND, 'player_not_found');

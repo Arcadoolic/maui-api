@@ -106,6 +106,8 @@ Base URL: the `url` field of the configuration string + `/api/v1`.
 | `POST /heartbeat` | Every ~60 s, when ONLINE | `204`, no body |
 | `GET /repository` | Before each repository action, when ONLINE | `200` `{url}`, `url` is `null` when the server has no repository |
 | `POST /diagnostics` | BO, page of a game: "Send for diagnostic" (D92) | `201` `{id, received_at}` |
+| `GET /score-recoveries` | At startup and every few heartbeats, when ONLINE (D93) | `200` `{recoveries: [...]}` |
+| `POST /score-recoveries/{id}/result` | A requested score not found in the file (D93) | `204` |
 
 The starting-pack repository (D46) takes the same three headers on every
 request (`index.json`, ZIP downloads, Range requests): its web server checks

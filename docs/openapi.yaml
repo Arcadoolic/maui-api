@@ -593,7 +593,8 @@ paths:
         - `not_improved`: not above the player's best on this game and
           table; dropped. Only personal bests are kept.
         - `rejected`, with a `code`: `player_not_found` (not a player of
-          this cabinet), `player_disabled`, `id_conflict` (this `id` is a
+          this cabinet), `player_disabled`, `recovery_mismatch` (D93: not
+          the score an open request of this cabinet asks for), `id_conflict` (this `id` is a
           score of another cabinet or player). Drop the score.
 
         `best` is the player's best on the game and table after this score,
@@ -718,6 +719,127 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '409':
           $ref: '#/components/responses/MachineMismatch'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /score-recoveries:
+    get:
+      tags: [Scores]
+      operationId: getScoreRecoveries
+      summary: Requests to recover a score
+      description: |
+        The open requests of this cabinet (D93): scores its file holds but
+        MAUI-API never got, asked for by an administrator after checking
+        them. For each one, read the game's table with the current
+        extractor and look for a row with the player's initials and
+        exactly this score:
+
+        - found: send it through `POST /scores` with `recovery_id` and
+          `attribution: recovered`, its `id` being the request's;
+        - not found: say so with `POST /score-recoveries/{id}/result`.
+
+        A request closes with the answer, or after 30 days. Read at startup
+        and every few heartbeats.
+      responses:
+        '200':
+          description: The open requests, oldest first.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [recoveries]
+                additionalProperties: false
+                properties:
+                  recoveries:
+                    type: array
+                    items:
+                      type: object
+                      required: [id, player_id, romname, table, score, achieved_at]
+                      additionalProperties: false
+                      properties:
+                        id: {type: string, format: uuid}
+                        player_id: {type: string, format: uuid, description: A player linked to this cabinet.}
+                        romname: {type: string}
+                        table: {type: string}
+                        score: {type: integer, format: int64}
+                        achieved_at: {type: string, format: date-time, description: "When the game was played: the score's date."}
+        '400':
+          $ref: '#/components/responses/MachineFingerprintMissing'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/MachineMismatch'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /score-recoveries/{recoveryId}/result:
+    parameters:
+      - name: recoveryId
+        in: path
+        required: true
+        schema: {type: string, format: uuid}
+    post:
+      tags: [Scores]
+      operationId: postScoreRecoveryResult
+      summary: Report a score the cabinet did not find
+      description: |
+        Closes the request as `not_found` (D93), with why and the table the
+        cabinet read, for the administrator: the score left the table, the
+        extractor is not up to date yet, the player is not on the cabinet...
+        `404 recovery_not_found` for a request of another cabinet, `409
+        recovery_closed` once it was answered or has expired.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [outcome, reason, table]
+              additionalProperties: false
+              properties:
+                outcome: {type: string, enum: [not_found]}
+                reason:
+                  type: string
+                  enum: [not_in_table, player_not_on_cabinet, unsupported, no_file, unreadable]
+                table:
+                  type: array
+                  maxItems: 100
+                  items:
+                    type: object
+                    required: [rank, score, name]
+                    properties:
+                      rank: {type: integer, minimum: 1}
+                      score: {description: 'As the extractor gives it: a number or a string.'}
+                      name: {type: [string, 'null']}
+      responses:
+        '204':
+          description: Request closed.
+        '400':
+          $ref: '#/components/responses/MachineFingerprintMissing'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          description: '`recovery_not_found`.'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '409':
+          description: '`machine_mismatch`, or `recovery_closed`.'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
         '422':
           $ref: '#/components/responses/ValidationFailed'
         '429':
@@ -2751,13 +2873,24 @@ components:
           description: The `id` of the startup report of the run (D6), when there was one.
         attribution:
           type: string
-          enum: [initials, declared]
+          enum: [initials, declared, recovered]
           default: initials
           description: >-
             How the cabinet knew whose score it is (D61): `initials` read
             next to the score in the game's file, or `declared` when the
             game writes no name and the player was picked on the cabinet
-            once the game was quit.
+            once the game was quit. `recovered` (D93) with `recovery_id`
+            only: the score an administrator's request asks for.
+        recovery_id:
+          type: [string, 'null']
+          format: uuid
+          description: >-
+            The request this score answers (`GET /score-recoveries`, D93).
+            Its `id` is the request's too, so that a resend stores nothing
+            twice. The score must be exactly the one requested (player,
+            romname, table, score) and the request open, else
+            `recovery_mismatch`; it is dated by the request, whatever
+            `achieved_at` says.
         integrity:
           $ref: '#/components/schemas/GameIntegrityReport'
 
@@ -2862,7 +2995,7 @@ components:
           enum: [accepted, not_improved, rejected]
         code:
           type: string
-          enum: [player_not_found, player_disabled, id_conflict]
+          enum: [player_not_found, player_disabled, id_conflict, recovery_mismatch]
           description: Only when `rejected`.
         best:
           type: [integer, 'null']
@@ -3513,7 +3646,7 @@ components:
         score: {type: integer}
         achieved_at: {type: string, format: date-time}
         cabinet: {type: string, description: Name of the cabinet the score was made on.}
-        attribution: {type: string, enum: [initials, declared], description: See D61.}
+        attribution: {type: string, enum: [initials, declared, recovered], description: See D61 and D93.}
 
     FrontGamePageResponse:
       type: object
