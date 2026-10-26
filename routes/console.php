@@ -20,3 +20,6 @@ Schedule::command('catalog:scrape')
 
 // Diagnostics sent by the cabinets are kept 90 days (D92).
 Schedule::command('diagnostics:purge')->dailyAt('04:45');
+
+// Score recovery requests no cabinet answered within 30 days (D93).
+Schedule::command('score-recoveries:expire')->dailyAt('04:50');

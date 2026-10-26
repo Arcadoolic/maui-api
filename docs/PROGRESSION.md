@@ -35,6 +35,18 @@ For why things are done this way, see `docs/DECISIONS.md`.
 - Releases by semantic-release on every push to `main` (D44): 0.1.0
   published on 2026-09-25.
 
+## Scores recovered on request (D93)
+
+- Back office: Score recoveries (request a score for a cabinet's player,
+  from the list or from a diagnostic; status and the table the cabinet read).
+- `GET /score-recoveries`, `POST /score-recoveries/{id}/result`
+  (`not_found`), `recovery_id` and `attribution: recovered` in
+  `POST /scores` (`recovery_mismatch` otherwise). Recovered scores dated by
+  the request, their event never announced.
+- `score-recoveries:expire` every night: 30 days open.
+- Next: MAUI reads the requests and answers them (Lot B of
+  `SCORES-DIAGNOSTIC-PLAN.md`).
+
 ## Diagnostics sent by the cabinets (D92)
 
 - `POST /diagnostics` (ability `diagnostics:write`, granted to the
@@ -520,7 +532,7 @@ Tracked in `docs/PLAN.md`, section "Open questions".
 | Check | Expected |
 |-------|----------|
 | `just up` then `/up` | 200 |
-| `just ci` | Pint pass, PHPStan no errors, Pest 795 passed |
+| `just ci` | Pint pass, PHPStan no errors, Pest 816 passed |
 | `curl -sD - -o /dev/null http://localhost:8080/invite/<48 chars>` | `Referrer-Policy: no-referrer`, `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff` |
 | `docker run --rm -v "$PWD/docs:/spec" redocly/cli lint /spec/openapi.yaml` | valid, 7 known warnings (no license, localhost server, unused `MauiConfiguration`, no 2xx on the 303-only `/invite/{t}/name`) |
 | `docker run --rm -v "$PWD":/repo -w /repo rhysd/actionlint:latest .github/workflows/ci.yml` | no output |

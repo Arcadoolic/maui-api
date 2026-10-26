@@ -1322,3 +1322,32 @@ served as an attachment and recorded in the audit log
 (`diagnostic.downloaded`), and deletes it. They go with the client when it
 is deleted (D63), and `diagnostics:purge` deletes them after 90 days, every
 night at 04:45.
+
+**D93: A score the cabinet's file holds is recovered on an administrator's request.** (2026-10-26, completes D92)
+Requested by the project owner: a score can be in a cabinet's `.hi` or
+nvram and never reach MAUI-API (an extractor reading it wrong, fixed since;
+a score read but not sent). An administrator does not type it in: they
+check it (a diagnostic, D92, a screenshot), then open a request in the back
+office, from the list of requests or from the diagnostic itself: the
+cabinet, one of its players, the game and table, the exact score, when it
+was played (the score's date, from the cabinet's log, the screenshot or the
+file) and why. The cabinet reads its open requests (`GET
+/score-recoveries`, under `scores:write`), looks for the row in its own
+file with its current extractor, and sends the score through `POST /scores`
+like any other, with `recovery_id` and `attribution: recovered`, its `id`
+being the request's so that a resend stores nothing twice. The intake only
+takes the score an open request of this cabinet asks for (player, game,
+table, score), else `recovery_mismatch`, dates it by the request, and
+applies the usual rules: a score under the player's best closes the request
+as `not_improved`, a disabled player as `rejected`. Not found, the cabinet
+says why and gives the table it read (`POST /score-recoveries/{id}/result`):
+the administrator sees whether the score left the table or the cabinet's
+extractor is not up to date. A request no cabinet answered expires after 30
+days (`score-recoveries:expire`, every night at 04:50); only a new request
+tries again. Creation and closing are in the audit log
+(`score_recovery.created`, `score_recovery.closed`).
+`recovered` is a third attribution next to `initials` and `declared` (D61),
+with its filter: the score rests on a check made after the fact. It counts
+like any other score at its date (D52, D70, D91), has no integrity report
+(verdict unknown, D87), and its event is recorded but never announced
+(D60): the player sees it back on the cabinet.

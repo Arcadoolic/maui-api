@@ -35,6 +35,8 @@ final class StoreScoresRequest extends FormRequest
             'scores.*.startup_id' => ['nullable', 'uuid'],
             // Left out by the cabinets older than D61: the initials, as before.
             'scores.*.attribution' => ['sometimes', Rule::enum(ScoreAttribution::class)],
+            // The administrator's request this score answers (D93): attribution `recovered`.
+            'scores.*.recovery_id' => ['nullable', 'uuid'],
             // The cabinet's report on the game (D87), left out by the cabinets older than
             // it. Kept raw: only the parts the verdict reads are checked, and its size.
             'scores.*.integrity' => ['sometimes', 'array', function (string $attribute, mixed $value, \Closure $fail): void {

@@ -35,7 +35,12 @@ class ScoresTable
                 TextColumn::make('client.name')->label(__('Cabinet'))->searchable(),
                 // Declared on the cabinet, for a game that writes no name (D61).
                 TextColumn::make('attribution')->label(__('Player from'))->badge()
-                    ->color(fn (ScoreAttribution $state): string => $state === ScoreAttribution::Declared ? 'warning' : 'gray')
+                    // Recovered on an administrator's request after the fact (D93).
+                    ->color(fn (ScoreAttribution $state): string => match ($state) {
+                        ScoreAttribution::Declared => 'warning',
+                        ScoreAttribution::Recovered => 'info',
+                        default => 'gray',
+                    })
                     ->toggleable(),
                 // The cabinet's report on the game (D87): unknown for the cabinets sending none.
                 TextColumn::make('integrity_verdict')->label(__('Integrity'))->badge()

@@ -21,6 +21,8 @@ final readonly class ScoreData
         public ScoreAttribution $attribution,
         /** @var array<string, mixed>|null The cabinet's report on the game (D87). */
         public ?array $integrity = null,
+        /** The request this score answers (D93), its attribution `recovered`. */
+        public ?string $recoveryId = null,
     ) {}
 
     /**
@@ -39,6 +41,7 @@ final readonly class ScoreData
             startupId: isset($score['startup_id']) ? strtolower((string) $score['startup_id']) : null,
             attribution: isset($score['attribution']) ? ScoreAttribution::from((string) $score['attribution']) : ScoreAttribution::Initials,
             integrity: isset($score['integrity']) && is_array($score['integrity']) ? $score['integrity'] : null,
+            recoveryId: isset($score['recovery_id']) ? strtolower((string) $score['recovery_id']) : null,
         );
     }
 }
