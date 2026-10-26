@@ -1,3 +1,9 @@
+## [0.23.0](https://github.com/Arcadoolic/maui-api/compare/0.22.0...0.23.0) (2026-10-26)
+
+### Features
+
+* **scores:** recover a score the cabinet's file holds, on request (D93) ([5811659](https://github.com/Arcadoolic/maui-api/commit/58116593b634a0a0e8d1b7026c9a404c8feae5a7))
+
 ## [0.22.0](https://github.com/Arcadoolic/maui-api/compare/0.21.0...0.22.0) (2026-10-26)
 
 ### Features
