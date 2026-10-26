@@ -3,6 +3,7 @@
 use App\Enums\ClientStatus;
 use App\Enums\InvitationPurpose;
 use App\Models\Client;
+use App\Models\Diagnostic;
 use App\Models\Player;
 use App\Models\Score;
 use App\Models\ScoreEvent;
@@ -10,6 +11,7 @@ use App\Models\User;
 use App\Services\ClientAdministration;
 use App\Services\Scores\ScoreEventRecorder;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use Spatie\Activitylog\Models\Activity;
 
 beforeEach(function () {
@@ -125,10 +127,14 @@ describe('deletion (D63)', function () {
         $client->players()->attach($player, ['linked_at' => now()]);
         $score = Score::factory()->for($client)->for($player)->create();
         expect(app(ScoreEventRecorder::class)->record($score, null))->not->toBeNull();
+        Storage::fake('local');
+        $diagnostic = Diagnostic::factory()->for($client)->withSaveram()->create();
 
         $this->administration->delete($client);
 
+        Storage::disk('local')->assertMissing($diagnostic->path('nvram', 'saveram'));
         expect(Client::query()->find($client->id))->toBeNull()
+            ->and(Diagnostic::query()->count())->toBe(0)
             ->and(Score::query()->count())->toBe(0)
             ->and(ScoreEvent::query()->count())->toBe(0)
             ->and(DB::table('invitations')->count())->toBe(0)

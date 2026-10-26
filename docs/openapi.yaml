@@ -111,6 +111,11 @@ tags:
       Scores of the cabinet's players, personal bests only (D50), and the
       cabinet's votes and play counts (D75). Requires the `scores:write`
       ability.
+  - name: Diagnostics
+    description: |
+      The files of a game, sent from the cabinet's back office when a score
+      is missing, for an administrator to look into (D92). Requires the
+      `diagnostics:write` ability.
   - name: Leaderboards
     description: |
       Shared leaderboards (D52): the best visible score of each player.
@@ -612,6 +617,99 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ScoresResponse'
+        '400':
+          $ref: '#/components/responses/MachineFingerprintMissing'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/MachineMismatch'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /diagnostics:
+    post:
+      tags: [Diagnostics]
+      operationId: postDiagnostic
+      summary: Send the files of a game for a diagnostic
+      description: |
+        Sent by hand from the cabinet's back office, when a player says a
+        score is missing (D92): what MAME wrote for the game, the cabinet's
+        logs if its owner agreed, and what the cabinet makes of it all. An
+        administrator downloads it as a zip laid out for mhiex. Kept 90 days.
+
+        `files[i]` are multipart fields: `files[i][area]`, `files[i][name]`,
+        `files[i][modified]` and the file itself as `files[i][content]`. The
+        areas are `hiscore` (only `<romname>.hi`), `nvram` (the files of
+        `nvram/<romname>/`), `logs` and `sessions`; a name is a plain file
+        name, no path. 16 files and 1 MB in all at most: the cabinet leaves
+        the rest out and says so in `report`. A game with no file at all
+        sends no `files`.
+
+        Rate limit: 6 per hour per key.
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [romname, report]
+              properties:
+                romname:
+                  type: string
+                  pattern: '^[a-z0-9_]{1,32}$'
+                comment:
+                  type: [string, 'null']
+                  maxLength: 1000
+                  description: What the player says is missing, in their words.
+                report:
+                  type: string
+                  maxLength: 65536
+                  description: |
+                    A JSON object, kept as it is and shown to the
+                    administrator: versions of MAUI, mhiex and MAME, the
+                    table the cabinet decodes, the files left out.
+                files:
+                  type: array
+                  maxItems: 16
+                  items:
+                    type: object
+                    required: [area, name, content]
+                    properties:
+                      area:
+                        type: string
+                        enum: [hiscore, nvram, logs, sessions]
+                      name:
+                        type: string
+                        pattern: '^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$'
+                      modified:
+                        type: [string, 'null']
+                        format: date-time
+                        description: Last write of the file on the cabinet.
+                      content:
+                        type: string
+                        format: binary
+      responses:
+        '201':
+          description: Diagnostic stored.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [id, received_at]
+                additionalProperties: false
+                properties:
+                  id:
+                    type: string
+                    format: uuid
+                  received_at:
+                    type: string
+                    format: date-time
         '400':
           $ref: '#/components/responses/MachineFingerprintMissing'
         '401':

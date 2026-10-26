@@ -1293,3 +1293,32 @@ place of its table at the member's choice: `GET
 /front/games/{romname}/progress?table=` gives its first ten players, first
 to last, with their personal bests. Asked only when the chart is shown,
 so that the game page itself stays as light as before.
+
+**D92: A cabinet sends the files of a game for a diagnostic.** (2026-10-26)
+Requested by the project owner: players report scores that never reached
+the leaderboards, with a screenshot, and their `.hi` and nvram files had to
+be asked for by mail. Three cases: the score is in the file but mhiex reads
+it wrong (fix the extractor), it is read but not sent or refused (the
+cabinet's logs tell), or it was never written (lost). Telling them apart
+takes the files, the logs and what the cabinet decodes.
+The cabinet's owner sends them from its back office, a button on the page
+of a game: the API never reads anything on a cabinet by itself, a cabinet
+being often a player's own computer. `POST /diagnostics` (new ability
+`diagnostics:write`, granted to the existing cabinet tokens by a
+migration), multipart: the game, a comment, a JSON `report` kept as it is
+(versions of MAUI, mhiex and MAME, the decoded table, the files left out),
+and up to 16 files, 1 MB in all, each in an area: `hiscore` (only
+`<romname>.hi`), `nvram` (all of `nvram/<romname>/`, whatever the
+extractor declares: a wrong declaration is what is looked for), `logs`
+(filtered by the cabinet, with the owner's consent) and `sessions`. Plain
+file names only, the paths built by the cabinet from the game's name. 6
+per hour per key.
+The files are kept on the private `local` disk under
+`diagnostics/<uuid>/<area>/<name>`, with their size, date and SHA-256 in
+the row. The back office lists the diagnostics, shows one, downloads it as
+a zip laid out as a MAME home (`hiscore/<rom>.hi`, `nvram/<rom>/...`,
+`logs/`, `sessions/`, `diagnostic.json`) so that mhiex reads it as it is,
+served as an attachment and recorded in the audit log
+(`diagnostic.downloaded`), and deletes it. They go with the client when it
+is deleted (D63), and `diagnostics:purge` deletes them after 90 days, every
+night at 04:45.

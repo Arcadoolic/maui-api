@@ -17,3 +17,6 @@ Schedule::command('catalog:scrape')
     ->dailyAt('04:15')
     ->withoutOverlapping()
     ->when(fn (): bool => app(ScreenScraperClient::class)->isConfigured());
+
+// Diagnostics sent by the cabinets are kept 90 days (D92).
+Schedule::command('diagnostics:purge')->dailyAt('04:45');

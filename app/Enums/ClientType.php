@@ -23,7 +23,7 @@ enum ClientType: string implements HasLabel
     public function abilities(): array
     {
         return match ($this) {
-            self::Maui => ['session', 'scores:write', 'scores:read', 'repository:read', 'players'],
+            self::Maui => ['session', 'scores:write', 'scores:read', 'repository:read', 'players', 'diagnostics:write'],
             self::Service => ['catalog:write', 'repository:read'],
             self::Bot => ['leaderboards:read', 'events:read'],
         };
