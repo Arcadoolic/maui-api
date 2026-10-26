@@ -3,6 +3,7 @@
 use App\Http\Controllers\Api\BotRankingController;
 use App\Http\Controllers\Api\CabinetEventsController;
 use App\Http\Controllers\Api\CatalogGamesController;
+use App\Http\Controllers\Api\DiagnosticsController;
 use App\Http\Controllers\Api\HeartbeatController;
 use App\Http\Controllers\Api\LeaderboardsController;
 use App\Http\Controllers\Api\OpinionsController;
@@ -49,6 +50,12 @@ Route::middleware(['throttle:cabinet', 'cabinet:scores:write'])->group(function 
     Route::post('scores', [ScoresController::class, 'store']);
     // Votes and play counts of the cabinet's games (docs/DECISIONS.md D75).
     Route::put('opinions', OpinionsController::class);
+});
+
+// The files of a game, sent from the cabinet's back office when a score is
+// missing (docs/DECISIONS.md D92). A few an hour: each one is up to 1 MB.
+Route::middleware(['throttle:diagnostics', 'cabinet:diagnostics:write'])->group(function () {
+    Route::post('diagnostics', [DiagnosticsController::class, 'store']);
 });
 
 // Shared leaderboards, with an ETag (docs/DECISIONS.md D52).

@@ -35,6 +35,18 @@ For why things are done this way, see `docs/DECISIONS.md`.
 - Releases by semantic-release on every push to `main` (D44): 0.1.0
   published on 2026-09-25.
 
+## Diagnostics sent by the cabinets (D92)
+
+- `POST /diagnostics` (ability `diagnostics:write`, granted to the
+  existing cabinet tokens by a migration): the `.hi` and nvram files of a
+  game, filtered logs, session reports and the cabinet's report, 16 files
+  and 1 MB at most, 6 per hour.
+- Back office: Diagnostics list, details, zip download laid out for mhiex
+  (audit log `diagnostic.downloaded`), deletion.
+- `diagnostics:purge` every night: 90 days kept. Deleted with the client.
+- Next: MAUI's button on the page of a game in its back office (Lot A of
+  `SCORES-DIAGNOSTIC-PLAN.md`).
+
 ## Base images pinned by digest (D90)
 
 - `dunglas/frankenphp:1-php8.4` (PHP 8.4.27, FrankenPHP 1.13.2),
@@ -508,7 +520,7 @@ Tracked in `docs/PLAN.md`, section "Open questions".
 | Check | Expected |
 |-------|----------|
 | `just up` then `/up` | 200 |
-| `just ci` | Pint pass, PHPStan no errors, Pest 730 passed |
+| `just ci` | Pint pass, PHPStan no errors, Pest 795 passed |
 | `curl -sD - -o /dev/null http://localhost:8080/invite/<48 chars>` | `Referrer-Policy: no-referrer`, `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff` |
 | `docker run --rm -v "$PWD/docs:/spec" redocly/cli lint /spec/openapi.yaml` | valid, 7 known warnings (no license, localhost server, unused `MauiConfiguration`, no 2xx on the 303-only `/invite/{t}/name`) |
 | `docker run --rm -v "$PWD":/repo -w /repo rhysd/actionlint:latest .github/workflows/ci.yml` | no output |
