@@ -12,6 +12,7 @@ use App\Http\Controllers\Api\PlayersController;
 use App\Http\Controllers\Api\RepositoryAuthorizeController;
 use App\Http\Controllers\Api\RepositoryController;
 use App\Http\Controllers\Api\ScoreEventsController;
+use App\Http\Controllers\Api\ScoreRecoveriesController;
 use App\Http\Controllers\Api\ScoresController;
 use App\Http\Controllers\Api\StartupController;
 use App\Http\Controllers\Front\AuthController;
@@ -48,6 +49,9 @@ Route::middleware(['throttle:cabinet', 'cabinet:players'])->group(function () {
 // Scores of the cabinet's players: personal bests only (docs/DECISIONS.md D50).
 Route::middleware(['throttle:cabinet', 'cabinet:scores:write'])->group(function () {
     Route::post('scores', [ScoresController::class, 'store']);
+    // Requests to recover a score the cabinet's file holds (docs/DECISIONS.md D93).
+    Route::get('score-recoveries', [ScoreRecoveriesController::class, 'index']);
+    Route::post('score-recoveries/{recovery}/result', [ScoreRecoveriesController::class, 'result']);
     // Votes and play counts of the cabinet's games (docs/DECISIONS.md D75).
     Route::put('opinions', OpinionsController::class);
 });

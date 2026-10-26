@@ -2,6 +2,7 @@
 
 namespace App\Services\Scores;
 
+use App\Enums\ScoreAttribution;
 use App\Models\Game;
 use App\Models\Player;
 use App\Models\Score;
@@ -79,7 +80,9 @@ final class ScoreEventRecorder
             'facts' => $facts->toArray(),
             'message' => $this->messages->compose($uuid, $movement, $flavors, $facts, $score->player, $score->game, $score->table),
             'importance' => $this->situation->importance($facts, $movement, $flavors),
-            'announceable' => $score->achieved_at->diffInHours(now()) < (int) config('hiscores.events.stale_after_hours'),
+            // A recovered score (D93) is old news: recorded, never announced.
+            'announceable' => $score->attribution !== ScoreAttribution::Recovered
+                && $score->achieved_at->diffInHours(now()) < (int) config('hiscores.events.stale_after_hours'),
             'occurred_at' => $score->achieved_at,
             'recorded_at' => now(),
         ])->save();

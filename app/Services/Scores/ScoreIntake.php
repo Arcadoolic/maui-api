@@ -2,10 +2,13 @@
 
 namespace App\Services\Scores;
 
+use App\Enums\ScoreAttribution;
+use App\Enums\ScoreRecoveryStatus;
 use App\Models\Client;
 use App\Models\Game;
 use App\Models\Player;
 use App\Models\Score;
+use App\Models\ScoreRecovery;
 use Illuminate\Support\Facades\DB;
 use Throwable;
 
@@ -25,7 +28,10 @@ use Throwable;
  */
 final class ScoreIntake
 {
-    public function __construct(private readonly ScoreEventRecorder $events) {}
+    public function __construct(
+        private readonly ScoreEventRecorder $events,
+        private readonly ScoreRecoveries $recoveries,
+    ) {}
 
     /**
      * @param  list<ScoreData>  $scores
@@ -118,13 +124,25 @@ final class ScoreIntake
                     ? ['id' => $data->id, 'status' => 'accepted', 'best' => $this->best($player, $existing->game_id, $existing->table)]
                     : ['id' => $data->id, 'status' => 'rejected', 'code' => 'id_conflict'];
             }
+            // A recovered score (D93) is only the one an open request of this cabinet asks for.
+            $recovery = null;
+            if ($data->recoveryId !== null || $data->attribution === ScoreAttribution::Recovered) {
+                $recovery = $this->recovery($client, $player, $data);
+                if ($recovery === null) {
+                    return ['id' => $data->id, 'status' => 'rejected', 'code' => 'recovery_mismatch'];
+                }
+            }
             if (! $player->isActive()) {
+                $this->recoveries->close($recovery, ScoreRecoveryStatus::Rejected, ['code' => 'player_disabled']);
+
                 return ['id' => $data->id, 'status' => 'rejected', 'code' => 'player_disabled'];
             }
 
             $game = $this->game($data->romname);
             $best = $this->best($player, $game->id, $data->table);
             if ($best !== null && $data->score <= $best) {
+                $this->recoveries->close($recovery, ScoreRecoveryStatus::NotImproved, ['best' => $best]);
+
                 return ['id' => $data->id, 'status' => 'not_improved', 'best' => $best];
             }
 
@@ -139,17 +157,37 @@ final class ScoreIntake
                 'table' => $data->table,
                 'score' => $data->score,
                 'rank_on_cabinet' => $data->rankOnCabinet,
-                'attribution' => $data->attribution,
-                'achieved_at' => $data->achievedAt,
+                'attribution' => $recovery === null ? $data->attribution : ScoreAttribution::Recovered,
+                // A recovered score is dated by the request: when the game was played.
+                'achieved_at' => $recovery === null ? $data->achievedAt : $recovery->achieved_at,
                 'received_at' => now(),
                 'integrity' => $data->integrity,
                 'integrity_verdict' => $judged['verdict'] ?? null,
                 'integrity_reasons' => $judged['reasons'] ?? null,
             ])->save();
             $stored = $score;
+            $this->recoveries->close($recovery, ScoreRecoveryStatus::Accepted, score: $score);
 
             return ['id' => $data->id, 'status' => 'accepted', 'best' => $data->score];
         });
+    }
+
+    /** The open request of this cabinet asking for exactly this score, locked. */
+    private function recovery(Client $client, Player $player, ScoreData $data): ?ScoreRecovery
+    {
+        if ($data->recoveryId === null) {
+            return null;
+        }
+
+        return ScoreRecovery::query()->open()
+            ->where('uuid', $data->recoveryId)
+            ->where('client_id', $client->id)
+            ->where('player_id', $player->id)
+            ->where('romname', $data->romname)
+            ->where('table', $data->table)
+            ->where('score', $data->score)
+            ->lockForUpdate()
+            ->first();
     }
 
     private function best(Player $player, int $gameId, string $table): ?int

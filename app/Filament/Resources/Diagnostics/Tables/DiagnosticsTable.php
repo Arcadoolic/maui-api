@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Diagnostics\Tables;
 
+use App\Filament\Resources\ScoreRecoveries\Schemas\ScoreRecoveryForm;
 use App\Models\Diagnostic;
 use App\Services\Diagnostics\DiagnosticArchive;
 use Filament\Actions\Action;
@@ -45,6 +46,14 @@ class DiagnosticsTable
                     ->modalSubmitAction(false)
                     ->modalCancelActionLabel(__('Close'))
                     ->modalContent(fn (Diagnostic $record): HtmlString => self::details($record)),
+                // The score is in the files: the cabinet sends it, on request (D93).
+                Action::make('recover')
+                    ->label(__('Recover a score'))
+                    ->icon(Heroicon::OutlinedArrowUturnLeft)
+                    ->color('gray')
+                    ->modalDescription(__('The cabinet looks for this score in its own file, with its current extractor, and sends it if it is there.'))
+                    ->schema(fn (Diagnostic $record): array => ScoreRecoveryForm::fields($record))
+                    ->action(fn (Diagnostic $record, array $data) => ScoreRecoveryForm::open($data, $record)),
                 Action::make('download')
                     ->label(__('Download'))
                     ->icon(Heroicon::OutlinedArrowDownTray)

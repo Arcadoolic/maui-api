@@ -27,3 +27,7 @@ it('completes the game pages every night, when ScreenScraper is configured', fun
 it('purges the diagnostics older than 90 days every night', function () {
     expect(scheduled('diagnostics:purge')->expression)->toBe('45 4 * * *');
 });
+
+it('expires the score recovery requests every night', function () {
+    expect(scheduled('score-recoveries:expire')->expression)->toBe('50 4 * * *');
+});
