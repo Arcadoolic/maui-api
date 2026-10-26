@@ -1,3 +1,9 @@
+## [0.22.0](https://github.com/Arcadoolic/maui-api/compare/0.21.0...0.22.0) (2026-10-26)
+
+### Features
+
+* **diagnostics:** receive the files of a game from a cabinet (D92) ([f9115f7](https://github.com/Arcadoolic/maui-api/commit/f9115f708c70ef8681cdbc5cd7122b13fd5b0c97))
+
 ## [0.21.0](https://github.com/Arcadoolic/maui-api/compare/0.20.1...0.21.0) (2026-10-22)
 
 ### Features
