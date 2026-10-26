@@ -106,6 +106,12 @@ class Client extends Model
         return $this->hasMany(Score::class);
     }
 
+    /** @return HasMany<Diagnostic, $this> */
+    public function diagnostics(): HasMany
+    {
+        return $this->hasMany(Diagnostic::class);
+    }
+
     /**
      * Players linked to this cabinet (docs/DECISIONS.md D48).
      *

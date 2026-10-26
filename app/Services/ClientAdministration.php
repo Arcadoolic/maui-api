@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Enums\InvitationPurpose;
 use App\Models\Client;
+use App\Models\Diagnostic;
 use App\Models\User;
 use App\Services\Invitations\InvitationIssuer;
 use App\Services\Invitations\IssuedInvitation;
@@ -71,8 +72,9 @@ final class ClientAdministration
 
     /**
      * Deletes the client and everything attached to it: scores (their events
-     * cascade), tokens, invitations, startups, player links (D63). Players are
-     * kept, only unlinked. The audit trail is kept and the deletion recorded.
+     * cascade), diagnostics and their files (D92), tokens, invitations, startups,
+     * player links (D63). Players are kept, only unlinked. The audit trail is
+     * kept and the deletion recorded.
      */
     public function delete(Client $client): void
     {
@@ -86,6 +88,8 @@ final class ClientAdministration
 
             // scores.client_id restricts the delete: scores go first.
             $client->scores()->delete();
+            // One by one, so that each takes its files with it (D92).
+            $client->diagnostics()->each(fn (Diagnostic $diagnostic) => $diagnostic->delete());
             $client->tokens()->delete();
             // The explicit event below replaces the automatic "deleted" entry.
             $client->disableLogging()->delete();

@@ -71,6 +71,14 @@ class AppServiceProvider extends ServiceProvider
             return Limit::perMinute(10)->by(is_string($key) ? 'key:'.$key : 'ip:'.$request->ip());
         });
 
+        // Diagnostics: up to 1 MB each, sent by hand from a cabinet's back
+        // office (docs/DECISIONS.md D92).
+        RateLimiter::for('diagnostics', function (Request $request): Limit {
+            $key = $request->header(AuthenticateCabinet::KEY_HEADER);
+
+            return Limit::perHour(6)->by(is_string($key) ? 'key:'.$key : 'ip:'.$request->ip());
+        });
+
         // Service accounts (catalog push): batches of up to 500 games, a full
         // catalog is a few dozen requests (docs/DECISIONS.md D47).
         RateLimiter::for('service', function (Request $request): Limit {

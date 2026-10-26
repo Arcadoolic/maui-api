@@ -23,3 +23,7 @@ it('completes the game pages every night, when ScreenScraper is configured', fun
     config(['screenscraper.dev_id' => null]);
     expect($event->filtersPass(app()))->toBeFalse();
 });
+
+it('purges the diagnostics older than 90 days every night', function () {
+    expect(scheduled('diagnostics:purge')->expression)->toBe('45 4 * * *');
+});
