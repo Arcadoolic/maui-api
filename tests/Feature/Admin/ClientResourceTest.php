@@ -15,6 +15,7 @@ use App\Filament\Resources\ServiceAccounts\ServiceAccountResource;
 use App\Models\Client;
 use App\Models\Score;
 use App\Models\User;
+use Filament\Tables\Filters\SelectFilter;
 
 use function Pest\Livewire\livewire;
 
@@ -140,6 +141,76 @@ it('validates the client form', function (string $field, mixed $value, string $r
     'missing owner name' => ['owner_name', null, 'required'],
     'too long owner name' => ['owner_name', str_repeat('a', 256), 'max'],
 ]);
+
+it('filters the cabinets online or not, like the Online column', function () {
+    $online = Client::factory()->create(['last_heartbeat_at' => now()->subMinute()]);
+    $offline = Client::factory()->create(['last_heartbeat_at' => now()->subMinutes(10)]);
+    $never = Client::factory()->create(['last_heartbeat_at' => null]);
+
+    livewire(ListClients::class)
+        ->filterTable('online', true)
+        ->assertCanSeeTableRecords([$online])
+        ->assertCanNotSeeTableRecords([$offline, $never]);
+
+    livewire(ListClients::class)
+        ->filterTable('online', false)
+        ->assertCanSeeTableRecords([$offline, $never])
+        ->assertCanNotSeeTableRecords([$online]);
+});
+
+it('filters the cabinets by when they were last seen', function (string $value, array $seen) {
+    $cabinets = [
+        'hour' => Client::factory()->create(['last_heartbeat_at' => now()->subHour()]),
+        'days' => Client::factory()->create(['last_heartbeat_at' => now()->subDays(3)]),
+        'weeks' => Client::factory()->create(['last_heartbeat_at' => now()->subDays(45)]),
+        'never' => Client::factory()->create(['last_heartbeat_at' => null]),
+    ];
+
+    livewire(ListClients::class)
+        ->filterTable('last_seen', $value)
+        ->assertCanSeeTableRecords(array_values(array_intersect_key($cabinets, array_flip($seen))))
+        ->assertCanNotSeeTableRecords(array_values(array_diff_key($cabinets, array_flip($seen))));
+})->with([
+    'last 24 hours' => ['day', ['hour']],
+    'last 7 days' => ['week', ['hour', 'days']],
+    'not for 30 days' => ['month_ago', ['weeks']],
+    'never' => ['never', ['never']],
+]);
+
+it('filters the cabinets by the MAUI, MAME and OS of their latest startup', function (string $filter, string $value) {
+    $startup = fn (Client $client, string $maui, string $mame, string $os) => $client->recordStartup([
+        'mame_version' => $mame, 'maui_version' => $maui, 'os' => $os,
+        'os_version' => '1', 'os_name' => null, 'client_datetime' => now(),
+    ]);
+    $updated = Client::factory()->create();
+    $startup($updated, '2.17.0', '0.288', 'win32');
+    $startup($updated, '2.18.0+dev.bc6e4a2', '0.289', 'linux');
+    $behind = Client::factory()->create();
+    $startup($behind, '2.17.0', '0.288', 'win32');
+    $never = Client::factory()->create();
+
+    livewire(ListClients::class)
+        ->assertTableFilterExists($filter)
+        ->filterTable($filter, $value)
+        ->assertCanSeeTableRecords([$updated])
+        ->assertCanNotSeeTableRecords([$behind, $never]);
+})->with([
+    'MAUI' => ['maui_version', '2.18.0+dev.bc6e4a2'],
+    'MAME' => ['mame_version', '0.289'],
+    'OS' => ['os', 'linux'],
+]);
+
+it('offers the versions the cabinets announced last, newest first', function () {
+    foreach (['2.9.0', '2.18.0', '2.16.1'] as $version) {
+        Client::factory()->create()->recordStartup([
+            'mame_version' => '0.289', 'maui_version' => $version, 'os' => 'linux',
+            'os_version' => '1', 'os_name' => null, 'client_datetime' => now(),
+        ]);
+    }
+
+    livewire(ListClients::class)
+        ->assertTableFilterExists('maui_version', fn (SelectFilter $filter): bool => array_keys($filter->getOptions()) === ['2.18.0', '2.16.1', '2.9.0']);
+});
 
 it('finds the cabinets of an owner by name or email', function () {
     // Fixed names: the table also searches the cabinet name, and a random
