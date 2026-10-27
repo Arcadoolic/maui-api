@@ -1,3 +1,10 @@
+## [0.24.0](https://github.com/Arcadoolic/maui-api/compare/0.23.0...0.24.0) (2026-10-27)
+
+### Features
+
+* **admin:** filter the cabinets by online, last seen, MAUI, MAME and OS ([ef629a2](https://github.com/Arcadoolic/maui-api/commit/ef629a27157ff1d381a4bfc7b2c6c083ca8e4a19))
+* **admin:** open the cabinets list on the cabinets online and active ([197620f](https://github.com/Arcadoolic/maui-api/commit/197620f0438e28a3a6958868b163deb200d73601))
+
 ## [0.23.0](https://github.com/Arcadoolic/maui-api/compare/0.22.0...0.23.0) (2026-10-26)
 
 ### Features
