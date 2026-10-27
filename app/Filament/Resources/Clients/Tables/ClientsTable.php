@@ -37,10 +37,12 @@ class ClientsTable
                 TextColumn::make('email')->searchable()->toggleable(),
             ])
             ->filters([
-                SelectFilter::make('status')->options(ClientStatus::class),
+                // The list opens on the cabinets online and active.
+                SelectFilter::make('status')->options(ClientStatus::class)->default(ClientStatus::Active->value),
                 // Same threshold as the Online column (Client::isOnline()).
                 TernaryFilter::make('online')
                     ->label(__('Online'))
+                    ->default(true)
                     ->queries(
                         true: fn (Builder $query) => $query->where('last_heartbeat_at', '>', self::onlineSince()),
                         false: fn (Builder $query) => $query->where(fn (Builder $query) => $query

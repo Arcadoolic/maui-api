@@ -28,7 +28,7 @@ it('lists the cabinets, without the service accounts', function () {
     $cabinets = Client::factory()->count(3)->create();
     $accounts = [Client::factory()->service()->create(), Client::factory()->bot()->create()];
 
-    livewire(ListClients::class)->assertCanSeeTableRecords($cabinets)->assertCanNotSeeTableRecords($accounts);
+    livewire(ListClients::class)->removeTableFilters()->assertCanSeeTableRecords($cabinets)->assertCanNotSeeTableRecords($accounts);
 });
 
 it('lists the service accounts and the bots, without the cabinets', function () {
@@ -142,6 +142,17 @@ it('validates the client form', function (string $field, mixed $value, string $r
     'too long owner name' => ['owner_name', str_repeat('a', 256), 'max'],
 ]);
 
+it('opens on the cabinets online and active', function () {
+    $shown = Client::factory()->create(['last_heartbeat_at' => now()->subMinute()]);
+    $disabled = Client::factory()->disabled()->create(['last_heartbeat_at' => now()->subMinute()]);
+    $offline = Client::factory()->create(['last_heartbeat_at' => now()->subMinutes(10)]);
+    $never = Client::factory()->create(['last_heartbeat_at' => null]);
+
+    livewire(ListClients::class)
+        ->assertCanSeeTableRecords([$shown])
+        ->assertCanNotSeeTableRecords([$disabled, $offline, $never]);
+});
+
 it('filters the cabinets online or not, like the Online column', function () {
     $online = Client::factory()->create(['last_heartbeat_at' => now()->subMinute()]);
     $offline = Client::factory()->create(['last_heartbeat_at' => now()->subMinutes(10)]);
@@ -167,6 +178,7 @@ it('filters the cabinets by when they were last seen', function (string $value, 
     ];
 
     livewire(ListClients::class)
+        ->removeTableFilters()
         ->filterTable('last_seen', $value)
         ->assertCanSeeTableRecords(array_values(array_intersect_key($cabinets, array_flip($seen))))
         ->assertCanNotSeeTableRecords(array_values(array_diff_key($cabinets, array_flip($seen))));
@@ -222,11 +234,13 @@ it('finds the cabinets of an owner by name or email', function () {
     $other = Client::factory()->create(['name' => 'retro_ken', 'owner_name' => 'John Smith', 'email' => 'john@example.test']);
 
     livewire(ListClients::class)
+        ->removeTableFilters()
         ->searchTable('Jane')
         ->assertCanSeeTableRecords($janes)
         ->assertCanNotSeeTableRecords([$other]);
 
     livewire(ListClients::class)
+        ->removeTableFilters()
         ->searchTable('jane@example.test')
         ->assertCanSeeTableRecords($janes)
         ->assertCanNotSeeTableRecords([$other]);
