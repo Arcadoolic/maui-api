@@ -35,6 +35,14 @@ For why things are done this way, see `docs/DECISIONS.md`.
 - Releases by semantic-release on every push to `main` (D44): 0.1.0
   published on 2026-09-25.
 
+## Back office: cabinet filters
+
+- Cabinets list: filters online or not (the Online column's 3 minutes),
+  last seen (24 hours, 7 days, not for 30 days, never), and MAUI version,
+  MAME version and OS of the latest startup (the values the cabinets
+  announced last, versions newest first), next to the status. The list
+  opens on the cabinets online and active.
+
 ## Scores recovered on request (D93)
 
 - Back office: Score recoveries (request a score for a cabinet's player,
@@ -532,7 +540,7 @@ Tracked in `docs/PLAN.md`, section "Open questions".
 | Check | Expected |
 |-------|----------|
 | `just up` then `/up` | 200 |
-| `just ci` | Pint pass, PHPStan no errors, Pest 816 passed |
+| `just ci` | Pint pass, PHPStan no errors, Pest 826 passed |
 | `curl -sD - -o /dev/null http://localhost:8080/invite/<48 chars>` | `Referrer-Policy: no-referrer`, `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff` |
 | `docker run --rm -v "$PWD/docs:/spec" redocly/cli lint /spec/openapi.yaml` | valid, 7 known warnings (no license, localhost server, unused `MauiConfiguration`, no 2xx on the 303-only `/invite/{t}/name`) |
 | `docker run --rm -v "$PWD":/repo -w /repo rhysd/actionlint:latest .github/workflows/ci.yml` | no output |
