@@ -6,7 +6,6 @@ namespace App\Services\Leaderboards;
 final readonly class HeldCrown
 {
     public function __construct(
-        public int $rank,
         public int $gameId,
         public int $playerId,
         public int $score,

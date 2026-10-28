@@ -2323,20 +2323,21 @@ paths:
     get:
       tags: [Front]
       operationId: frontCrowns
-      summary: Champions and unbeaten first places
+      summary: Champions, first places and their games
       description: |
-        Next to the global podium (D96), only the first places of the
-        default tables where another player is ranked. `champions`: the
-        players by the players their first places beat (ranked players - 1
-        on each), then by first places, then the first to get there.
-        `unbeaten`: the first places by the players they beat times the
-        days they hold (one at least), held from the holder's first score
-        above the second best one. Three of each.
+        Next to the global podium (D96): first places of the default
+        tables where another player is ranked, each with its game's
+        pictures, so that a player who dominates a game shows even off the
+        podium. Drawn for the day: a first place weighs the players it
+        beats times the days it holds (one at least), a quarter of that
+        for a player on the global podium; one first place of each player
+        first. Held from the holder's first score above the second best
+        one. Six at most.
       security:
         - frontSession: []
       responses:
         '200':
-          description: The two lists.
+          description: The champions of the day.
           content:
             application/json:
               schema:
@@ -3993,34 +3994,27 @@ components:
 
     FrontCrownsResponse:
       type: object
-      required: [champions, unbeaten]
+      required: [champions]
       properties:
         champions:
           type: array
           items:
             type: object
-            required: [rank, player, beaten, crowns]
+            required: [player, game, score, players, since, days]
             properties:
-              rank: {type: integer}
-              player:
-                $ref: '#/components/schemas/FrontPlayerRef'
-              beaten: {type: integer, description: 'Players ranked under them, all their first places together.'}
-              crowns: {type: integer, description: First places where another player is ranked.}
-        unbeaten:
-          type: array
-          items:
-            type: object
-            required: [rank, player, game, score, players, since, days]
-            properties:
-              rank: {type: integer}
               player:
                 $ref: '#/components/schemas/FrontPlayerRef'
               game:
                 type: object
-                required: [romname, description]
+                required: [romname, description, marquee, flyer, logo, screenshot]
+                description: 'The pictures as SHA-256, null without one: `GET /front/games/{romname}/media/{type}`.'
                 properties:
                   romname: {type: string}
                   description: {type: string}
+                  marquee: {type: [string, 'null']}
+                  flyer: {type: [string, 'null']}
+                  logo: {type: [string, 'null']}
+                  screenshot: {type: [string, 'null']}
               score: {type: integer}
               players: {type: integer, description: 'Ranked players on the leaderboard, the holder included.'}
               since: {type: string, format: date-time, description: "The holder's first score above the second best one."}

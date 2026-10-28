@@ -35,12 +35,12 @@ For why things are done this way, see `docs/DECISIONS.md`.
 - Releases by semantic-release on every push to `main` (D44): 0.1.0
   published on 2026-09-25.
 
-## Champions and unbeaten first places (D96)
+## Champions (D96)
 
-- `GET /front/crowns`: `champions`, the players by the players their
-  contested first places beat; `unbeaten`, the first places by players
-  beaten x days held (`Crowns`). Three of each, for the home page's podium
-  carousel.
+- `GET /front/crowns`: six first places where others are ranked, with the
+  player, the game and its pictures, drawn for the day (players beaten x
+  days held, a quarter for the global podium's players, one per player
+  first; `Crowns`, `DailyDraw` shared with D95).
 
 ## Waiting for challengers (D95)
 
