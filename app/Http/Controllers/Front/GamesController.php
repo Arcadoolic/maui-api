@@ -12,6 +12,8 @@ use App\Models\GameMedia;
 use App\Models\Player;
 use App\Models\Score;
 use App\Models\ScoreEvent;
+use App\Services\Leaderboards\Challenge;
+use App\Services\Leaderboards\Challenges;
 use App\Services\Leaderboards\Leaderboards;
 use App\Services\Leaderboards\Rankings;
 use App\Services\Popularity\GamePopularity;
@@ -43,10 +45,11 @@ final class GamesController
 
     private const ROMNAME = '/^[a-z0-9_]{1,32}$/';
 
-    /** The labels of a game its cabinets liked (D76). */
-    private const LIKED = [PopularityLabel::Hit, PopularityLabel::HiddenGem];
-
-    public function __construct(private readonly Rankings $rankings, private readonly Popularity $popularity) {}
+    public function __construct(
+        private readonly Rankings $rankings,
+        private readonly Popularity $popularity,
+        private readonly Challenges $challenges,
+    ) {}
 
     public function index(Request $request): JsonResponse
     {
@@ -108,7 +111,8 @@ final class GamesController
 
     /**
      * Games to put forward (D77): `discover`, the liked games the member's player has no score
-     * on, the most popular first; `trending`, the games most played and scored on lately.
+     * on, the hidden gems first (D94); `trending`, the games most played and scored on lately;
+     * `challengers`, the games a single player waits on, drawn for the day (D95).
      */
     public function highlights(Request $request): JsonResponse
     {
@@ -117,7 +121,15 @@ final class GamesController
         ])['limit'] ?? self::DEFAULT_HIGHLIGHTS);
         $popularity = $this->popularity->all();
 
-        $liked = $popularity->filter(fn (GamePopularity $game): bool => in_array($game->label, self::LIKED, true))->keys()->all();
+        // The hidden gems first, then the liked games without a label, then the hits (D94); each
+        // group the most popular first, as $popularity is.
+        $liked = $popularity->filter(fn (GamePopularity $game): bool => $game->liked)
+            ->sortBy(fn (GamePopularity $game): int => match ($game->label) {
+                PopularityLabel::HiddenGem => 0,
+                PopularityLabel::Hit => 2,
+                default => 1,
+            })
+            ->keys()->all();
         $mine = $this->rankings->rows()->whereIn('ranked.player_id', self::myPlayerIds($request))->select('ranked.game_id');
         $discover = self::orderByIds($this->listed()->whereIn('games.id', $liked)->whereNotIn('games.id', $mine), $liked);
 
@@ -135,6 +147,7 @@ final class GamesController
         return new JsonResponse([
             'discover' => self::cards($discover, $limit, $popularity),
             'trending' => self::cards($trending, $limit, $popularity),
+            'challengers' => $this->challengerCards($popularity, self::myPlayerIds($request), $limit),
         ]);
     }
 
@@ -493,6 +506,32 @@ final class GamesController
                 default => null,
             };
         }
+    }
+
+    /**
+     * The cards of the day's "waiting for challengers" (D95), each with the score to beat.
+     *
+     * @param  Collection<int, GamePopularity>  $popularity
+     * @param  array<int>  $myPlayerIds
+     * @return list<array<string, mixed>>
+     */
+    private function challengerCards(Collection $popularity, array $myPlayerIds, int $limit): array
+    {
+        $challenges = $this->challenges->draw($popularity, $myPlayerIds, now(), $limit)->keyBy(fn (Challenge $challenge): int => $challenge->gameId);
+        $ids = $challenges->keys()->all();
+        $players = Player::query()->whereIn('id', $challenges->map(fn (Challenge $challenge): int => $challenge->playerId))->get()->keyBy('id');
+        $romnames = Game::query()->whereIn('id', $ids)->pluck('id', 'romname');
+
+        return array_map(function (array $card) use ($challenges, $players, $romnames): array {
+            /** @var Challenge $challenge */
+            $challenge = $challenges->get($romnames[$card['romname']]);
+
+            return [...$card, 'challenge' => [
+                'player' => self::player($players->get($challenge->playerId)),
+                'score' => $challenge->score,
+                'since' => self::iso($challenge->since),
+            ]];
+        }, self::cards(self::orderByIds($this->listed()->whereIn('games.id', $ids), $ids), $limit, $popularity));
     }
 
     /**

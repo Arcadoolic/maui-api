@@ -101,7 +101,7 @@ describe('game page', function () {
 });
 
 describe('highlights', function () {
-    it('puts forward the liked games my player has no score on, the most popular first', function () {
+    it('puts forward the liked games my player has no score on', function () {
         $mine = publicPlayer('ACE');
         $this->member->players()->attach($mine, ['linked_at' => now()]);
         $played = fleetReported(frontGame('played', 'A'), array_fill(0, 8, [1, 40, 1]));
@@ -112,11 +112,22 @@ describe('highlights', function () {
         fleetReported(frontGame('missed', 'D'), array_fill(0, 4, [-1, 1, 200]));
         fleetReported(Game::factory()->withoutHiscores()->create(), array_fill(0, 8, [1, 30, 2]));
 
+        // Among the liked games, kept is the least played: the hidden gem, put first (D94).
         $this->getJson('/api/v1/front/games/highlights')->assertOk()
-            ->assertJsonPath('discover.*.romname', ['hit', 'kept'])
-            ->assertJsonPath('discover.0.popularity.label', 'hit')
-            ->assertJsonPath('discover.0.ranked_players', 1);
-        $this->getJson('/api/v1/front/games/highlights?limit=1')->assertJsonPath('discover.*.romname', ['hit']);
+            ->assertJsonPath('discover.*.romname', ['kept', 'hit'])
+            ->assertJsonPath('discover.*.popularity.label', ['hidden_gem', 'hit'])
+            ->assertJsonPath('discover.1.ranked_players', 1);
+        $this->getJson('/api/v1/front/games/highlights?limit=1')->assertJsonPath('discover.*.romname', ['kept']);
+    });
+
+    it('puts forward the hidden gems first, then the liked games without a label, then the hits', function () {
+        fleetReported(frontGame('hit', 'A'), array_fill(0, 8, [1, 30, 2]));
+        fleetReported(frontGame('liked', 'B'), array_fill(0, 5, [1, 10, 2]));
+        fleetReported(frontGame('gem', 'C'), array_fill(0, 3, [1, 2, 200]));
+
+        $this->getJson('/api/v1/front/games/highlights')
+            ->assertJsonPath('discover.*.romname', ['gem', 'liked', 'hit'])
+            ->assertJsonPath('discover.*.popularity.label', ['hidden_gem', null, 'hit']);
     });
 
     it('puts forward every liked game to a member without a player', function () {

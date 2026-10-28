@@ -66,5 +66,9 @@ it('shows the games by popularity', function () {
         ->expectsOutputToContain('0 hit')
         ->doesntExpectOutputToContain('tried')
         ->assertSuccessful();
+    $this->artisan('hiscores:popularity', ['--hit-share' => 0, '--hidden-gem-share' => 1])
+        ->expectsOutputToContain('hits 0%, hidden gems 100% of the liked games')
+        ->expectsOutputToContain('0 hit, 1 hidden_gem')
+        ->assertSuccessful();
     $this->artisan('hiscores:popularity', ['--label' => 'best'])->assertFailed();
 });

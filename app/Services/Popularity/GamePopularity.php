@@ -27,6 +27,8 @@ final readonly class GamePopularity
         public float $activity,
         /** 0 to 100: what the games are sorted by. */
         public float $index,
+        /** Enough votes, enough of them thumbs up (D94): whatever its label, a game to try. */
+        public bool $liked,
         public ?PopularityLabel $label,
     ) {}
 
