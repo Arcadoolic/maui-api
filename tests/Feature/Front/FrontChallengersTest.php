@@ -8,6 +8,8 @@ use App\Models\Player;
 // "Waiting for challengers": the games a single player is ranked on (docs/DECISIONS.md D95).
 
 beforeEach(function () {
+    // The dates the tests compare are to the second.
+    $this->freezeSecond();
     $this->member = Member::factory()->create();
     $this->actingAs($this->member, 'member');
 });

@@ -107,4 +107,14 @@ return [
         'per_player' => 2,
     ],
 
+    /*
+    | Front, champions (docs/DECISIONS.md D96): first places and their games,
+    | drawn for the day (App\Services\Leaderboards\Crowns).
+    */
+    'crowns' => [
+        // Weight of a first place held by a player on the global podium,
+        // which already shows them: the others come up more often.
+        'podium_weight' => 0.25,
+    ],
+
 ];

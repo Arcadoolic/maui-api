@@ -2319,6 +2319,38 @@ paths:
         '500':
           $ref: '#/components/responses/ServerError'
 
+  /front/crowns:
+    get:
+      tags: [Front]
+      operationId: frontCrowns
+      summary: Champions, first places and their games
+      description: |
+        Next to the global podium (D96): first places of the default
+        tables where another player is ranked, each with its game's
+        pictures, so that a player who dominates a game shows even off the
+        podium. Drawn for the day: a first place weighs the players it
+        beats times the days it holds (one at least), a quarter of that
+        for a player on the global podium; one first place of each player
+        first. Held from the holder's first score above the second best
+        one. Six at most.
+      security:
+        - frontSession: []
+      responses:
+        '200':
+          description: The champions of the day.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FrontCrownsResponse'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/FrontForbidden'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
   /front/events:
     get:
       tags: [Front]
@@ -3959,6 +3991,34 @@ components:
         properties:
           score: {type: integer}
           achieved_at: {type: string, format: date-time}
+
+    FrontCrownsResponse:
+      type: object
+      required: [champions]
+      properties:
+        champions:
+          type: array
+          items:
+            type: object
+            required: [player, game, score, players, since, days]
+            properties:
+              player:
+                $ref: '#/components/schemas/FrontPlayerRef'
+              game:
+                type: object
+                required: [romname, description, marquee, flyer, logo, screenshot]
+                description: 'The pictures as SHA-256, null without one: `GET /front/games/{romname}/media/{type}`.'
+                properties:
+                  romname: {type: string}
+                  description: {type: string}
+                  marquee: {type: [string, 'null']}
+                  flyer: {type: [string, 'null']}
+                  logo: {type: [string, 'null']}
+                  screenshot: {type: [string, 'null']}
+              score: {type: integer}
+              players: {type: integer, description: 'Ranked players on the leaderboard, the holder included.'}
+              since: {type: string, format: date-time, description: "The holder's first score above the second best one."}
+              days: {type: integer, description: Whole days since then.}
 
     FrontRankingResponse:
       type: object
