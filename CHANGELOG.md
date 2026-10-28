@@ -1,3 +1,12 @@
+## [0.25.0](https://github.com/Arcadoolic/maui-api/compare/0.24.0...0.25.0) (2026-10-28)
+
+### Features
+
+* **front:** champions and unbeaten first places next to the podium ([97bea6d](https://github.com/Arcadoolic/maui-api/commit/97bea6dc8361dbafbcd71888ce8f689bbc7e5e4b))
+* **front:** champions as first places and their games, drawn for the day ([27e6a33](https://github.com/Arcadoolic/maui-api/commit/27e6a33ee4ac026ed438c03c0e3614de4cac5178))
+* **front:** put forward the games a single player waits on ([7da0ff7](https://github.com/Arcadoolic/maui-api/commit/7da0ff7fc690584bb27acd7d7aabc23f70c4f6e4))
+* **popularity:** label the games by rank among the liked ones ([785c402](https://github.com/Arcadoolic/maui-api/commit/785c40210fe5f8212d56f59a013ec61e2894a464))
+
 ## [0.24.0](https://github.com/Arcadoolic/maui-api/compare/0.23.0...0.24.0) (2026-10-27)
 
 ### Features
