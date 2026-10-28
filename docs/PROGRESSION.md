@@ -35,6 +35,13 @@ For why things are done this way, see `docs/DECISIONS.md`.
 - Releases by semantic-release on every push to `main` (D44): 0.1.0
   published on 2026-09-25.
 
+## Champions and unbeaten first places (D96)
+
+- `GET /front/crowns`: `champions`, the players by the players their
+  contested first places beat; `unbeaten`, the first places by players
+  beaten x days held (`Crowns`). Three of each, for the home page's podium
+  carousel.
+
 ## Waiting for challengers (D95)
 
 - `GET /front/games/highlights`: `challengers`, the games a single player

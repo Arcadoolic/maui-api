@@ -2319,6 +2319,37 @@ paths:
         '500':
           $ref: '#/components/responses/ServerError'
 
+  /front/crowns:
+    get:
+      tags: [Front]
+      operationId: frontCrowns
+      summary: Champions and unbeaten first places
+      description: |
+        Next to the global podium (D96), only the first places of the
+        default tables where another player is ranked. `champions`: the
+        players by the players their first places beat (ranked players - 1
+        on each), then by first places, then the first to get there.
+        `unbeaten`: the first places by the players they beat times the
+        days they hold (one at least), held from the holder's first score
+        above the second best one. Three of each.
+      security:
+        - frontSession: []
+      responses:
+        '200':
+          description: The two lists.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FrontCrownsResponse'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/FrontForbidden'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
   /front/events:
     get:
       tags: [Front]
@@ -3959,6 +3990,41 @@ components:
         properties:
           score: {type: integer}
           achieved_at: {type: string, format: date-time}
+
+    FrontCrownsResponse:
+      type: object
+      required: [champions, unbeaten]
+      properties:
+        champions:
+          type: array
+          items:
+            type: object
+            required: [rank, player, beaten, crowns]
+            properties:
+              rank: {type: integer}
+              player:
+                $ref: '#/components/schemas/FrontPlayerRef'
+              beaten: {type: integer, description: 'Players ranked under them, all their first places together.'}
+              crowns: {type: integer, description: First places where another player is ranked.}
+        unbeaten:
+          type: array
+          items:
+            type: object
+            required: [rank, player, game, score, players, since, days]
+            properties:
+              rank: {type: integer}
+              player:
+                $ref: '#/components/schemas/FrontPlayerRef'
+              game:
+                type: object
+                required: [romname, description]
+                properties:
+                  romname: {type: string}
+                  description: {type: string}
+              score: {type: integer}
+              players: {type: integer, description: 'Ranked players on the leaderboard, the holder included.'}
+              since: {type: string, format: date-time, description: "The holder's first score above the second best one."}
+              days: {type: integer, description: Whole days since then.}
 
     FrontRankingResponse:
       type: object

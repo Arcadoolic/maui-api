@@ -1419,3 +1419,22 @@ The home page shows, top down, waiting for challengers, trending, then the
 games to try (D77, D94), a game once, in the first of them; trending has no
 filter left (the project owner's choice).
 
+**D96: Champions and unbeaten first places, next to the global podium.** (2026-10-28, completes D70)
+Requested by the project owner: the global podium (D70) rewards playing
+many games; a player with less time who dominates a few games should show
+too. Two more lists, `GET /front/crowns`, three entries each, that the
+home page shows with the global podium as a carousel.
+
+Only the first places of the default tables where another player is
+ranked: a lone first place beats nobody, it waits for challengers (D95).
+`champions` ranks the players by the players their first places beat
+(ranked players - 1 on each), so that a first place among five weighs
+four times one among two; then by first places, then the first to get
+there. `unbeaten` ranks the first places by the players they beat times
+the whole days they hold, one at least. A first place holds from the
+holder's first visible score above the second best one: a player
+improving their own record does not start the count again. No history of
+the leaderboards is kept, so a second best made after that score is not
+known to have come later; the count can be longer than the true reign.
+Computed at each request from the rankings (D67), like the podium.
+
