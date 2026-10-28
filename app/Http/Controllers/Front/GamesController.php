@@ -43,9 +43,6 @@ final class GamesController
 
     private const ROMNAME = '/^[a-z0-9_]{1,32}$/';
 
-    /** The labels of a game its cabinets liked (D76). */
-    private const LIKED = [PopularityLabel::Hit, PopularityLabel::HiddenGem];
-
     public function __construct(private readonly Rankings $rankings, private readonly Popularity $popularity) {}
 
     public function index(Request $request): JsonResponse
@@ -108,7 +105,7 @@ final class GamesController
 
     /**
      * Games to put forward (D77): `discover`, the liked games the member's player has no score
-     * on, the most popular first; `trending`, the games most played and scored on lately.
+     * on, the hidden gems first (D94); `trending`, the games most played and scored on lately.
      */
     public function highlights(Request $request): JsonResponse
     {
@@ -117,7 +114,15 @@ final class GamesController
         ])['limit'] ?? self::DEFAULT_HIGHLIGHTS);
         $popularity = $this->popularity->all();
 
-        $liked = $popularity->filter(fn (GamePopularity $game): bool => in_array($game->label, self::LIKED, true))->keys()->all();
+        // The hidden gems first, then the liked games without a label, then the hits (D94); each
+        // group the most popular first, as $popularity is.
+        $liked = $popularity->filter(fn (GamePopularity $game): bool => $game->liked)
+            ->sortBy(fn (GamePopularity $game): int => match ($game->label) {
+                PopularityLabel::HiddenGem => 0,
+                PopularityLabel::Hit => 2,
+                default => 1,
+            })
+            ->keys()->all();
         $mine = $this->rankings->rows()->whereIn('ranked.player_id', self::myPlayerIds($request))->select('ranked.game_id');
         $discover = self::orderByIds($this->listed()->whereIn('games.id', $liked)->whereNotIn('games.id', $mine), $liked);
 

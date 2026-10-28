@@ -1351,3 +1351,39 @@ with its filter: the score rests on a check made after the fact. It counts
 like any other score at its date (D52, D70, D91), has no integrity report
 (verdict unknown, D87), and its event is recorded but never announced
 (D60): the player sees it back on the cabinet.
+
+**D94: Popularity labels by rank: hits and hidden gems share the liked games.** (2026-10-28, adjusts D76 and D77, replaces D80 for the labels)
+On production on 2026-10-28 (11 cabinets, 141 games, 204 votes), 30 of the
+40 labelled games were hidden gems, the most played ones among them: Pang,
+Bomb Jack, Street Fighter II. A liked game was a hit from an activity of
+`active_from` (0.5), which the most played game barely reached (0.52); the
+activity is measured against the fleet, so the threshold would need moving
+with each new cabinet, as D80 already did once. And 84% of the votes are
+thumbs up, so `liked_share` (75%) holds for nearly every game voted on, and
+the 2 votes production asked for (`HISCORES_POPULARITY_MIN_VOTES`) made two
+thumbs up a hidden gem.
+
+A game is liked from `min_votes` votes (back to 3, no override in
+production) with `liked_share` of thumbs up, as before; `GamePopularity`
+says it (`liked`). The liked games are ranked by activity among themselves,
+a game's rank being the share of the other liked games played less (games
+played as much share a rank, a game alone ranks 1): the top `hit_share`
+(a third) are hits, the bottom `hidden_gem_share` (a third) hidden gems,
+the ones between have no label. A hidden gem is therefore liked and played
+less than the other liked games, whatever the size of the fleet. A game
+that is not liked is addictive in the top `addictive_share` (a tenth) of
+the games played, ranked the same way, and never while fewer than ten
+games are played. `missed_date` and `divisive` do not change, and come
+first. `active_from` is gone; `activity_half` (D80) only makes the index.
+
+Ranking the activity against every game played instead was tried on the
+same data: every liked game is among the most played quarter, 18 hits and
+no hidden gem. Comparing a game's opinion with the fleet's share of thumbs
+up gave the same liked games as `liked_share`, no liked game having a
+thumbs down yet.
+
+The home page's `discover` (D77) puts the hidden gems first, then the liked
+games without a label, then the hits: "try these" is for what the member
+would not find alone. `trending` does not change; the front leaves out of
+it the games it already shows under `discover`, which the API cannot do,
+the front showing fewer games than it asks for.

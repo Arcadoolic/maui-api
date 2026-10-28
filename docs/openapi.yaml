@@ -1922,9 +1922,11 @@ paths:
       summary: Games to put forward
       description: |
         Two short lists among the games the front lists (D77). `discover`:
-        the games the cabinets liked (labels `hit` and `hidden_gem`) on
-        which the member's player has no visible score, the most popular
-        first; every liked game for a member without a player. `trending`:
+        the liked games (enough votes, enough of them thumbs up, D94) on
+        which the member's player has no visible score: the `hidden_gem`
+        ones first, then the ones without a label, then the `hit` ones,
+        each group the most popular first; every liked game for a member
+        without a player. `trending`:
         the games with the most cabinets that played them and visible
         scores made within the last 7 days, the most first.
       security:
@@ -3533,11 +3535,13 @@ components:
       type: string
       enum: [hit, hidden_gem, addictive, divisive, missed_date]
       description: |
-        What the cabinets' votes and plays say of a game (D76): `hit` liked
-        and played, `hidden_gem` liked and less played, `addictive` played
-        without the votes to call it liked, `divisive` about as many thumbs
-        up as thumbs down, `missed_date` thumbs down from every cabinet
-        that voted.
+        What the cabinets' votes and plays say of a game (D76, D94): `hit`
+        among the most played third of the liked games, `hidden_gem` among
+        the least played third of them, `addictive` among the most played
+        tenth of the games without the votes to call it liked, `divisive`
+        about as many thumbs up as thumbs down, `missed_date` thumbs down
+        from every cabinet that voted. A liked game in the middle third has
+        no label.
 
     FrontPopularity:
       description: Null when no cabinet reported the game and it has no visible score.

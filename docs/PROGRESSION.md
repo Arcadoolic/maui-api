@@ -35,6 +35,19 @@ For why things are done this way, see `docs/DECISIONS.md`.
 - Releases by semantic-release on every push to `main` (D44): 0.1.0
   published on 2026-09-25.
 
+## Popularity labels by rank (D94)
+
+- `Popularity`: a game is `liked` from 3 votes and 75% of thumbs up; the
+  liked games ranked by activity, the top third `hit`, the bottom third
+  `hidden_gem`, the middle no label; `addictive` the top tenth of the games
+  played that are not liked, from ten games played. `active_from` replaced
+  by `hit_share`, `hidden_gem_share`, `addictive_share`, also options of
+  `hiscores:popularity`.
+- `GET /front/games/highlights`: `discover` hidden gems first, then the
+  liked games without a label, then the hits.
+- To deploy: remove `HISCORES_POPULARITY_MIN_VOTES=2` from production's
+  `.env`.
+
 ## Back office: cabinet filters
 
 - Cabinets list: filters online or not (the Online column's 3 minutes),
