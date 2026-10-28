@@ -20,7 +20,10 @@ final class ShowPopularityCommand extends Command
         {--min-votes= : Votes from which a game gets a label about its votes}
         {--opinion-weight= : Weight of the opinion, 0 to 1; the activity gets the rest}
         {--prior-votes= : Imaginary votes at the average added to each game}
-        {--activity-half= : Activity worth half the scale}';
+        {--activity-half= : Activity worth half the scale}
+        {--hit-share= : Share of the liked games, the most played, that are hits}
+        {--hidden-gem-share= : Share of the liked games, the least played, that are hidden gems}
+        {--addictive-share= : Share of the games played, the most played, that can be addictive}';
 
     protected $description = 'Show the games by popularity, with the settings in force or the ones given';
 
@@ -40,6 +43,12 @@ final class ShowPopularityCommand extends Command
         if ($this->option('activity-half') !== null) {
             $rules['activity_half'] = max(0.01, (float) $this->option('activity-half'));
         }
+        foreach (['hit_share', 'hidden_gem_share', 'addictive_share'] as $share) {
+            $option = $this->option(str_replace('_', '-', $share));
+            if ($option !== null) {
+                $rules[$share] = min(1.0, max(0.0, (float) $option));
+            }
+        }
 
         $label = $this->option('label');
         if (is_string($label) && $label !== 'none' && PopularityLabel::tryFrom($label) === null) {
@@ -56,12 +65,15 @@ final class ShowPopularityCommand extends Command
         $romnames = Game::query()->whereIn('id', $shown->keys())->pluck('romname', 'id');
 
         $this->line(sprintf(
-            'Opinion %.0f%%, activity %.0f%%; %s imaginary votes; labels from %d votes; activity half at %s.',
+            'Opinion %.0f%%, activity %.0f%%; %s imaginary votes; labels from %d votes; activity half at %s; hits %.0f%%, hidden gems %.0f%% of the liked games, addictive %.0f%% of the games played.',
             100 * $rules['opinion_weight'] / max($rules['opinion_weight'] + $rules['activity_weight'], PHP_FLOAT_EPSILON),
             100 * $rules['activity_weight'] / max($rules['opinion_weight'] + $rules['activity_weight'], PHP_FLOAT_EPSILON),
             rtrim(rtrim(number_format($rules['prior_votes'], 2, '.', ''), '0'), '.'),
             $rules['min_votes'],
             rtrim(rtrim(number_format($rules['activity_half'], 2, '.', ''), '0'), '.'),
+            100 * $rules['hit_share'],
+            100 * $rules['hidden_gem_share'],
+            100 * $rules['addictive_share'],
         ));
         $this->line($games->count().' games: '.collect([...array_column(PopularityLabel::cases(), 'value'), 'none'])
             ->map(fn (string $name): string => ($counts[$name] ?? 0).' '.$name)->implode(', ').'.');

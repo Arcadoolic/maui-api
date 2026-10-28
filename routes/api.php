@@ -16,6 +16,7 @@ use App\Http\Controllers\Api\ScoreRecoveriesController;
 use App\Http\Controllers\Api\ScoresController;
 use App\Http\Controllers\Api\StartupController;
 use App\Http\Controllers\Front\AuthController;
+use App\Http\Controllers\Front\CrownsController;
 use App\Http\Controllers\Front\EventsController;
 use App\Http\Controllers\Front\GamesController;
 use App\Http\Controllers\Front\MeController;
@@ -141,7 +142,8 @@ Route::prefix('front')->middleware('front')->group(function () {
         Route::get('players/{player}/avatar', [FrontPlayersController::class, 'avatar']);
         Route::get('players/{player}/games/{romname}', [FrontPlayersController::class, 'history']);
         Route::get('events', [EventsController::class, 'index']);
-        // The global podium (docs/DECISIONS.md D70).
+        // The global podium (docs/DECISIONS.md D70), and the first places next to it (D96).
         Route::get('ranking', RankingController::class);
+        Route::get('crowns', CrownsController::class);
     });
 });

@@ -69,12 +69,17 @@ return [
         // Votes from which a game gets a label about its votes. Low while
         // the cabinets are few: to raise as they come.
         'min_votes' => (int) env('HISCORES_POPULARITY_MIN_VOTES', 3),
-        // `hit`, `hidden_gem`: thumbs up among the votes, at least.
+        // Liked (`hit`, `hidden_gem`, or no label): thumbs up among the votes, at least.
         'liked_share' => 0.75,
         // `divisive`: both votes present, their gap within this share of the votes.
         'divisive_margin' => 0.25,
-        // `hit`, `addictive`: activity (0 to 1) from which a game is "played".
-        'active_from' => 0.5,
+        // Shares of the liked games, ranked by activity, that are `hit` (the
+        // most played) and `hidden_gem` (the least played); the ones between
+        // have no label (D94). `addictive`: share of the games played, the
+        // most played, among the games that are not liked.
+        'hit_share' => 1 / 3,
+        'hidden_gem_share' => 1 / 3,
+        'addictive_share' => 0.1,
         // Activity: (sum per cabinet of ln(1 + plays), times `plays_weight`,
         // plus the cabinets that played within `recent_days`, times
         // `recent_weight`) / cabinets of the fleet, plus `players_weight` x
@@ -84,10 +89,32 @@ return [
         'players_weight' => 0.5,
         'recent_days' => 30,
         // 2.5 since the first real cabinets: on a young fleet every game was
-        // played lately, and 1.5 called a game played 3 times a hit (D80).
+        // played lately (D80). Only the index uses it since the labels go by
+        // rank (D94).
         'activity_half' => (float) env('HISCORES_POPULARITY_ACTIVITY_HALF', 2.5),
         // Front, "trending" (D77): days of plays and scores counted.
         'trending_days' => 7,
+    ],
+
+    /*
+    | Front, "waiting for challengers" (docs/DECISIONS.md D95): the games a
+    | single player is ranked on, drawn for the day (App\Services\Leaderboards\Challenges).
+    */
+    'challengers' => [
+        // Days in which the weight of a score to beat halves.
+        'half_life_days' => 14,
+        // Games of the same lone player first; the rest of the draw then fills the row.
+        'per_player' => 2,
+    ],
+
+    /*
+    | Front, champions (docs/DECISIONS.md D96): first places and their games,
+    | drawn for the day (App\Services\Leaderboards\Crowns).
+    */
+    'crowns' => [
+        // Weight of a first place held by a player on the global podium,
+        // which already shows them: the others come up more often.
+        'podium_weight' => 0.25,
     ],
 
 ];

@@ -1351,3 +1351,95 @@ with its filter: the score rests on a check made after the fact. It counts
 like any other score at its date (D52, D70, D91), has no integrity report
 (verdict unknown, D87), and its event is recorded but never announced
 (D60): the player sees it back on the cabinet.
+
+**D94: Popularity labels by rank: hits and hidden gems share the liked games.** (2026-10-28, adjusts D76 and D77, replaces D80 for the labels)
+On production on 2026-10-28 (11 cabinets, 141 games, 204 votes), 30 of the
+40 labelled games were hidden gems, the most played ones among them: Pang,
+Bomb Jack, Street Fighter II. A liked game was a hit from an activity of
+`active_from` (0.5), which the most played game barely reached (0.52); the
+activity is measured against the fleet, so the threshold would need moving
+with each new cabinet, as D80 already did once. And 84% of the votes are
+thumbs up, so `liked_share` (75%) holds for nearly every game voted on, and
+the 2 votes production asked for (`HISCORES_POPULARITY_MIN_VOTES`) made two
+thumbs up a hidden gem.
+
+A game is liked from `min_votes` votes (back to 3, no override in
+production) with `liked_share` of thumbs up, as before; `GamePopularity`
+says it (`liked`). The liked games are ranked by activity among themselves,
+a game's rank being the share of the other liked games played less (games
+played as much share a rank, a game alone ranks 1): the top `hit_share`
+(a third) are hits, the bottom `hidden_gem_share` (a third) hidden gems,
+the ones between have no label. A hidden gem is therefore liked and played
+less than the other liked games, whatever the size of the fleet. A game
+that is not liked is addictive in the top `addictive_share` (a tenth) of
+the games played, ranked the same way, and never while fewer than ten
+games are played. `missed_date` and `divisive` do not change, and come
+first. `active_from` is gone; `activity_half` (D80) only makes the index.
+
+Ranking the activity against every game played instead was tried on the
+same data: every liked game is among the most played quarter, 18 hits and
+no hidden gem. Comparing a game's opinion with the fleet's share of thumbs
+up gave the same liked games as `liked_share`, no liked game having a
+thumbs down yet.
+
+The home page's `discover` (D77) puts the hidden gems first, then the liked
+games without a label, then the hits: "try these" is for what the member
+would not find alone. `trending` does not change; the front leaves out of
+it the games it already shows under `discover`, which the API cannot do,
+the front showing fewer games than it asks for.
+
+**D95: "Waiting for challengers": the games a single player is ranked on, drawn for the day.** (2026-10-28, widens D77)
+Requested by the project owner: a home page block of the games one player
+waits on alone, to give the others a score to beat. On production on
+2026-10-28, 16 games have a single ranked player: 8 of one player, 5 of
+another, 3 of a third.
+
+`GET /front/games/highlights` gives a third list, `challengers`: the games
+a single player is ranked on, but the member's own players (nobody
+challenges themselves), each with that player's best score on the default
+table and when it was made. Ordered by a weighted draw without
+replacement, seeded by the day and the game (`u^(1/weight)`, the greatest
+first): a game weighs the cabinets that have it (at least 1), a challenge
+is only worth it where one can play, times the freshness of the score to
+beat, halved every `half_life_days` (14). The block changes every day, is
+the same all day and for every member (but their own games), and a game
+waiting for long still comes back now and then. At most `per_player` (2)
+games of the same lone player come first, so that one player does not fill
+the row while others wait too; the rest of the draw then fills it (with two
+lone players, a row of six would otherwise stop at four).
+A game leaves the list as soon as a second player is ranked on it.
+
+Ordering by the last play or score was turned down (the same games of the
+moment, the others never shown), by the plays (the same two games at the
+top for good), by the longest wait (moves only when a challenge is taken).
+Settings in `config/hiscores.php` (`challengers`), the draw in
+`App\Services\Leaderboards\Challenges`.
+
+The home page shows, top down, waiting for challengers, trending, then the
+games to try (D77, D94), a game once, in the first of them; trending has no
+filter left (the project owner's choice).
+
+**D96: Champions: a first place and its game, next to the global podium.** (2026-10-28, completes D70)
+Requested by the project owner: the global podium (D70) rewards playing
+many games; a player with less time who dominates a game should show too,
+and not only the players the podium already shows. `GET /front/crowns`
+gives cards, each a first place with its player, its game and the game's
+pictures (marquee, flyer, logo, screenshot), that the home page turns
+through next to the podium, in the cabinet's own look (MAUI's game list:
+the marquee, the champion astride its end).
+
+Only the first places of the default tables where another player is
+ranked: a lone first place beats nobody, it waits for challengers (D95).
+A first place holds from the holder's first visible score above the
+second best one: a player improving their own record does not start the
+count again. No history of the leaderboards is kept, so a second best made
+after that score is not known to have come later; the count can be longer
+than the true reign.
+
+Drawn for the day, as D95 (`DailyDraw`, now shared): a first place weighs
+the players it beats times the whole days it holds (one at least), and
+`podium_weight` (a quarter) of that when its player is on the global
+podium. One first place of each player first, the others after; six
+cards. A first attempt ranked three champions and three unbeaten first
+places as podiums: with few players they were the global podium's three
+again, and the game was not shown (the project owner turned it down).

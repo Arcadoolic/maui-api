@@ -1922,18 +1922,24 @@ paths:
       summary: Games to put forward
       description: |
         Two short lists among the games the front lists (D77). `discover`:
-        the games the cabinets liked (labels `hit` and `hidden_gem`) on
-        which the member's player has no visible score, the most popular
-        first; every liked game for a member without a player. `trending`:
+        the liked games (enough votes, enough of them thumbs up, D94) on
+        which the member's player has no visible score: the `hidden_gem`
+        ones first, then the ones without a label, then the `hit` ones,
+        each group the most popular first; every liked game for a member
+        without a player. `trending`:
         the games with the most cabinets that played them and visible
-        scores made within the last 7 days, the most first.
+        scores made within the last 7 days, the most first. `challengers`:
+        the games a single player is ranked on, but the member's players,
+        each with the score to beat; drawn for the day (D95), weighted by
+        the cabinets that have the game and the freshness of the score,
+        two games of the same player first, the rest of the draw then.
       security:
         - frontSession: []
       parameters:
         - {name: limit, in: query, schema: {type: integer, minimum: 1, maximum: 24, default: 6}, description: Games of each list.}
       responses:
         '200':
-          description: The two lists.
+          description: The three lists.
           content:
             application/json:
               schema:
@@ -2304,6 +2310,38 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/FrontRankingResponse'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/FrontForbidden'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /front/crowns:
+    get:
+      tags: [Front]
+      operationId: frontCrowns
+      summary: Champions, first places and their games
+      description: |
+        Next to the global podium (D96): first places of the default
+        tables where another player is ranked, each with its game's
+        pictures, so that a player who dominates a game shows even off the
+        podium. Drawn for the day: a first place weighs the players it
+        beats times the days it holds (one at least), a quarter of that
+        for a player on the global podium; one first place of each player
+        first. Held from the holder's first score above the second best
+        one. Six at most.
+      security:
+        - frontSession: []
+      responses:
+        '200':
+          description: The champions of the day.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FrontCrownsResponse'
         '401':
           $ref: '#/components/responses/Unauthenticated'
         '403':
@@ -3533,11 +3571,13 @@ components:
       type: string
       enum: [hit, hidden_gem, addictive, divisive, missed_date]
       description: |
-        What the cabinets' votes and plays say of a game (D76): `hit` liked
-        and played, `hidden_gem` liked and less played, `addictive` played
-        without the votes to call it liked, `divisive` about as many thumbs
-        up as thumbs down, `missed_date` thumbs down from every cabinet
-        that voted.
+        What the cabinets' votes and plays say of a game (D76, D94): `hit`
+        among the most played third of the liked games, `hidden_gem` among
+        the least played third of them, `addictive` among the most played
+        tenth of the games without the votes to call it liked, `divisive`
+        about as many thumbs up as thumbs down, `missed_date` thumbs down
+        from every cabinet that voted. A liked game in the middle third has
+        no label.
 
     FrontPopularity:
       description: Null when no cabinet reported the game and it has no visible score.
@@ -3565,7 +3605,7 @@ components:
 
     FrontGameHighlightsResponse:
       type: object
-      required: [discover, trending]
+      required: [discover, trending, challengers]
       properties:
         discover:
           type: array
@@ -3575,6 +3615,26 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/FrontGameCard'
+        challengers:
+          type: array
+          items:
+            $ref: '#/components/schemas/FrontChallengeCard'
+
+    FrontChallengeCard:
+      allOf:
+        - $ref: '#/components/schemas/FrontGameCard'
+        - type: object
+          required: [challenge]
+          properties:
+            challenge:
+              type: object
+              description: The lone player's best score on the default table (D95).
+              required: [player, score, since]
+              properties:
+                player:
+                  $ref: '#/components/schemas/FrontPlayerRef'
+                score: {type: integer}
+                since: {type: string, format: date-time, description: When the score to beat was made.}
 
     FrontMissedDate:
       allOf:
@@ -3931,6 +3991,34 @@ components:
         properties:
           score: {type: integer}
           achieved_at: {type: string, format: date-time}
+
+    FrontCrownsResponse:
+      type: object
+      required: [champions]
+      properties:
+        champions:
+          type: array
+          items:
+            type: object
+            required: [player, game, score, players, since, days]
+            properties:
+              player:
+                $ref: '#/components/schemas/FrontPlayerRef'
+              game:
+                type: object
+                required: [romname, description, marquee, flyer, logo, screenshot]
+                description: 'The pictures as SHA-256, null without one: `GET /front/games/{romname}/media/{type}`.'
+                properties:
+                  romname: {type: string}
+                  description: {type: string}
+                  marquee: {type: [string, 'null']}
+                  flyer: {type: [string, 'null']}
+                  logo: {type: [string, 'null']}
+                  screenshot: {type: [string, 'null']}
+              score: {type: integer}
+              players: {type: integer, description: 'Ranked players on the leaderboard, the holder included.'}
+              since: {type: string, format: date-time, description: "The holder's first score above the second best one."}
+              days: {type: integer, description: Whole days since then.}
 
     FrontRankingResponse:
       type: object

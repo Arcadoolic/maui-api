@@ -78,7 +78,6 @@ it('gives a game nobody voted on the average opinion, sorted by its activity', f
 
     expect(popularityOf($played)->opinion)->toBe(0.5)
         ->and(popularityOf($tried)->opinion)->toBe(0.5)
-        ->and(popularityOf($played)->label)->toBe(PopularityLabel::Addictive)
         ->and(popularityOf($tried)->label)->toBeNull();
     expect(app(Popularity::class)->all()->keys()->search($played->id))
         ->toBeLessThan(app(Popularity::class)->all()->keys()->search($tried->id));
@@ -127,8 +126,59 @@ it('gives no label about the votes under the minimum of votes', function () {
 
     config(['hiscores.popularity.min_votes' => 2]);
 
-    expect(popularityOf($twoUp)->label)->toBe(PopularityLabel::HiddenGem)
+    // The only liked game: the most played of the liked ones (D94).
+    expect(popularityOf($twoUp)->label)->toBe(PopularityLabel::Hit)
         ->and(popularityOf($twoDown)->label)->toBe(PopularityLabel::MissedDate);
+});
+
+it('splits the liked games in thirds by activity: hit, no label, hidden gem', function () {
+    fleetOfTen();
+    $hit = reported(Game::factory()->create(), array_fill(0, 8, [1, 30, 2]));
+    $liked = reported(Game::factory()->create(), array_fill(0, 5, [1, 10, 2]));
+    $gem = reported(Game::factory()->create(), array_fill(0, 3, [1, 2, 200]));
+    $notLiked = reported(Game::factory()->create(), [[1, 1, 200], [-1, 1, 200], [-1, 1, 200], [-1, 1, 200]]);
+
+    expect(popularityOf($hit)->label)->toBe(PopularityLabel::Hit)
+        ->and(popularityOf($liked)->label)->toBeNull()
+        ->and(popularityOf($gem)->label)->toBe(PopularityLabel::HiddenGem)
+        ->and(popularityOf($hit)->liked)->toBeTrue()
+        ->and(popularityOf($liked)->liked)->toBeTrue()
+        ->and(popularityOf($gem)->liked)->toBeTrue()
+        ->and(popularityOf($notLiked)->liked)->toBeFalse();
+});
+
+it('calls a liked game a hit whatever the size of the fleet', function () {
+    // Measured against a hundred cabinets, no game is much played: the most played liked one
+    // is still a hit, and the least played one a hidden gem.
+    reported(Game::factory()->create(), array_fill(0, 100, [0, 0, null]));
+    $most = reported(Game::factory()->create(), array_fill(0, 4, [1, 5, 2]));
+    $least = reported(Game::factory()->create(), array_fill(0, 3, [1, 1, 200]));
+
+    expect(popularityOf($most)->activity)->toBeLessThan(0.1)
+        ->and(popularityOf($most)->label)->toBe(PopularityLabel::Hit)
+        ->and(popularityOf($least)->label)->toBe(PopularityLabel::HiddenGem);
+});
+
+it('gives the liked games played as much the same label', function () {
+    fleetOfTen();
+    $hit = reported(Game::factory()->create(), array_fill(0, 8, [1, 30, 2]));
+    $twin = reported(Game::factory()->create(), array_fill(0, 4, [1, 3, 200]));
+    $other = reported(Game::factory()->create(), array_fill(0, 4, [1, 3, 200]));
+
+    expect(popularityOf($hit)->label)->toBe(PopularityLabel::Hit)
+        ->and(popularityOf($twin)->label)->toBe(PopularityLabel::HiddenGem)
+        ->and(popularityOf($other)->label)->toBe(PopularityLabel::HiddenGem);
+});
+
+it('calls addictive the most played tenth of the games, when they are not liked', function () {
+    fleetOfTen();
+    $games = collect(range(1, 9))->map(fn (int $plays): Game => reported(Game::factory()->create(), [[0, $plays, 200]]));
+    $addictive = reported(Game::factory()->create(), array_fill(0, 6, [0, 40, 1]));
+    $liked = reported(Game::factory()->create(), array_fill(0, 8, [1, 50, 1]));
+
+    expect(popularityOf($addictive)->label)->toBe(PopularityLabel::Addictive)
+        ->and(popularityOf($liked)->label)->toBe(PopularityLabel::Hit)
+        ->and($games->filter(fn (Game $game): bool => popularityOf($game)->label !== null))->toBeEmpty();
 });
 
 it('measures the activity against the size of the fleet', function () {
@@ -183,6 +233,8 @@ it('counts a player\'s vote as a cabinet\'s one', function () {
     $missed = playersVoted(reported(Game::factory()->create(), [[-1, 1, 200]]), [-1]);
     $divisive = playersVoted(reported(Game::factory()->create(), [[-1, 1, 200], [-1, 1, 200]]), [1, 1]);
     $byPlayers = playersVoted(Game::factory()->create(), [1, 1, 1]);
+    // A liked game played more: the one liked by players only is the hidden gem.
+    reported(Game::factory()->create(), array_fill(0, 3, [1, 30, 1]));
 
     expect(popularityOf($missed)->label)->toBe(PopularityLabel::MissedDate)
         ->and(popularityOf($missed)->thumbsDown)->toBe(2)
