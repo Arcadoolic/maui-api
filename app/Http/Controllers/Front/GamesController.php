@@ -12,6 +12,8 @@ use App\Models\GameMedia;
 use App\Models\Player;
 use App\Models\Score;
 use App\Models\ScoreEvent;
+use App\Services\Leaderboards\Challenge;
+use App\Services\Leaderboards\Challenges;
 use App\Services\Leaderboards\Leaderboards;
 use App\Services\Leaderboards\Rankings;
 use App\Services\Popularity\GamePopularity;
@@ -43,7 +45,11 @@ final class GamesController
 
     private const ROMNAME = '/^[a-z0-9_]{1,32}$/';
 
-    public function __construct(private readonly Rankings $rankings, private readonly Popularity $popularity) {}
+    public function __construct(
+        private readonly Rankings $rankings,
+        private readonly Popularity $popularity,
+        private readonly Challenges $challenges,
+    ) {}
 
     public function index(Request $request): JsonResponse
     {
@@ -105,7 +111,8 @@ final class GamesController
 
     /**
      * Games to put forward (D77): `discover`, the liked games the member's player has no score
-     * on, the hidden gems first (D94); `trending`, the games most played and scored on lately.
+     * on, the hidden gems first (D94); `trending`, the games most played and scored on lately;
+     * `challengers`, the games a single player waits on, drawn for the day (D95).
      */
     public function highlights(Request $request): JsonResponse
     {
@@ -140,6 +147,7 @@ final class GamesController
         return new JsonResponse([
             'discover' => self::cards($discover, $limit, $popularity),
             'trending' => self::cards($trending, $limit, $popularity),
+            'challengers' => $this->challengerCards($popularity, self::myPlayerIds($request), $limit),
         ]);
     }
 
@@ -498,6 +506,32 @@ final class GamesController
                 default => null,
             };
         }
+    }
+
+    /**
+     * The cards of the day's "waiting for challengers" (D95), each with the score to beat.
+     *
+     * @param  Collection<int, GamePopularity>  $popularity
+     * @param  array<int>  $myPlayerIds
+     * @return list<array<string, mixed>>
+     */
+    private function challengerCards(Collection $popularity, array $myPlayerIds, int $limit): array
+    {
+        $challenges = $this->challenges->draw($popularity, $myPlayerIds, now(), $limit)->keyBy(fn (Challenge $challenge): int => $challenge->gameId);
+        $ids = $challenges->keys()->all();
+        $players = Player::query()->whereIn('id', $challenges->map(fn (Challenge $challenge): int => $challenge->playerId))->get()->keyBy('id');
+        $romnames = Game::query()->whereIn('id', $ids)->pluck('id', 'romname');
+
+        return array_map(function (array $card) use ($challenges, $players, $romnames): array {
+            /** @var Challenge $challenge */
+            $challenge = $challenges->get($romnames[$card['romname']]);
+
+            return [...$card, 'challenge' => [
+                'player' => self::player($players->get($challenge->playerId)),
+                'score' => $challenge->score,
+                'since' => self::iso($challenge->since),
+            ]];
+        }, self::cards(self::orderByIds($this->listed()->whereIn('games.id', $ids), $ids), $limit, $popularity));
     }
 
     /**

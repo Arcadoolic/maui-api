@@ -1387,3 +1387,35 @@ games without a label, then the hits: "try these" is for what the member
 would not find alone. `trending` does not change; the front leaves out of
 it the games it already shows under `discover`, which the API cannot do,
 the front showing fewer games than it asks for.
+
+**D95: "Waiting for challengers": the games a single player is ranked on, drawn for the day.** (2026-10-28, widens D77)
+Requested by the project owner: a home page block of the games one player
+waits on alone, to give the others a score to beat. On production on
+2026-10-28, 16 games have a single ranked player: 8 of one player, 5 of
+another, 3 of a third.
+
+`GET /front/games/highlights` gives a third list, `challengers`: the games
+a single player is ranked on, but the member's own players (nobody
+challenges themselves), each with that player's best score on the default
+table and when it was made. Ordered by a weighted draw without
+replacement, seeded by the day and the game (`u^(1/weight)`, the greatest
+first): a game weighs the cabinets that have it (at least 1), a challenge
+is only worth it where one can play, times the freshness of the score to
+beat, halved every `half_life_days` (14). The block changes every day, is
+the same all day and for every member (but their own games), and a game
+waiting for long still comes back now and then. At most `per_player` (2)
+games of the same lone player come first, so that one player does not fill
+the row while others wait too; the rest of the draw then fills it (with two
+lone players, a row of six would otherwise stop at four).
+A game leaves the list as soon as a second player is ranked on it.
+
+Ordering by the last play or score was turned down (the same games of the
+moment, the others never shown), by the plays (the same two games at the
+top for good), by the longest wait (moves only when a challenge is taken).
+Settings in `config/hiscores.php` (`challengers`), the draw in
+`App\Services\Leaderboards\Challenges`.
+
+The home page shows, top down, waiting for challengers, trending, then the
+games to try (D77, D94), a game once, in the first of them; trending has no
+filter left (the project owner's choice).
+

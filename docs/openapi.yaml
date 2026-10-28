@@ -1928,14 +1928,18 @@ paths:
         each group the most popular first; every liked game for a member
         without a player. `trending`:
         the games with the most cabinets that played them and visible
-        scores made within the last 7 days, the most first.
+        scores made within the last 7 days, the most first. `challengers`:
+        the games a single player is ranked on, but the member's players,
+        each with the score to beat; drawn for the day (D95), weighted by
+        the cabinets that have the game and the freshness of the score,
+        two games of the same player first, the rest of the draw then.
       security:
         - frontSession: []
       parameters:
         - {name: limit, in: query, schema: {type: integer, minimum: 1, maximum: 24, default: 6}, description: Games of each list.}
       responses:
         '200':
-          description: The two lists.
+          description: The three lists.
           content:
             application/json:
               schema:
@@ -3569,7 +3573,7 @@ components:
 
     FrontGameHighlightsResponse:
       type: object
-      required: [discover, trending]
+      required: [discover, trending, challengers]
       properties:
         discover:
           type: array
@@ -3579,6 +3583,26 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/FrontGameCard'
+        challengers:
+          type: array
+          items:
+            $ref: '#/components/schemas/FrontChallengeCard'
+
+    FrontChallengeCard:
+      allOf:
+        - $ref: '#/components/schemas/FrontGameCard'
+        - type: object
+          required: [challenge]
+          properties:
+            challenge:
+              type: object
+              description: The lone player's best score on the default table (D95).
+              required: [player, score, since]
+              properties:
+                player:
+                  $ref: '#/components/schemas/FrontPlayerRef'
+                score: {type: integer}
+                since: {type: string, format: date-time, description: When the score to beat was made.}
 
     FrontMissedDate:
       allOf:

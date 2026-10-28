@@ -96,4 +96,15 @@ return [
         'trending_days' => 7,
     ],
 
+    /*
+    | Front, "waiting for challengers" (docs/DECISIONS.md D95): the games a
+    | single player is ranked on, drawn for the day (App\Services\Leaderboards\Challenges).
+    */
+    'challengers' => [
+        // Days in which the weight of a score to beat halves.
+        'half_life_days' => 14,
+        // Games of the same lone player first; the rest of the draw then fills the row.
+        'per_player' => 2,
+    ],
+
 ];

@@ -35,6 +35,14 @@ For why things are done this way, see `docs/DECISIONS.md`.
 - Releases by semantic-release on every push to `main` (D44): 0.1.0
   published on 2026-09-25.
 
+## Waiting for challengers (D95)
+
+- `GET /front/games/highlights`: `challengers`, the games a single player
+  is ranked on (not the member's), with the score to beat; a weighted
+  draw seeded by the day (cabinets that have the game x freshness of the
+  score, halved every 14 days), two games per player first
+  (`Challenges`, `config/hiscores.php` `challengers`).
+
 ## Popularity labels by rank (D94)
 
 - `Popularity`: a game is `liked` from 3 votes and 75% of thumbs up; the
