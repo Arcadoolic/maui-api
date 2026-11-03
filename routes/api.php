@@ -22,6 +22,7 @@ use App\Http\Controllers\Front\GamesController;
 use App\Http\Controllers\Front\MeController;
 use App\Http\Controllers\Front\PlayersController as FrontPlayersController;
 use App\Http\Controllers\Front\RankingController;
+use App\Http\Controllers\Front\RankingHistoryController;
 use App\Http\Controllers\Front\VotesController;
 use App\Services\Members\MemberInvitationIssuer;
 use Illuminate\Support\Facades\Route;
@@ -144,6 +145,8 @@ Route::prefix('front')->middleware('front')->group(function () {
         Route::get('events', [EventsController::class, 'index']);
         // The global podium (docs/DECISIONS.md D70), and the first places next to it (D96).
         Route::get('ranking', RankingController::class);
+        // Its first players' places, day by day (D97).
+        Route::get('ranking/history', RankingHistoryController::class);
         Route::get('crowns', CrownsController::class);
     });
 });

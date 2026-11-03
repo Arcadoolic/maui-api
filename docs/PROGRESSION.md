@@ -35,6 +35,14 @@ For why things are done this way, see `docs/DECISIONS.md`.
 - Releases by semantic-release on every push to `main` (D44): 0.1.0
   published on 2026-09-25.
 
+## Ranking history (D97)
+
+- `GET /front/ranking/history`: the global podium's first ten players of
+  today, each with its place on each day it changed (`Europe/Paris` days,
+  `config/hiscores.php` `ranking.history_timezone`), played again from the
+  scores with today's rules and moderation (`RankingHistory`;
+  `Rankings::rows()` and `GlobalRanking::standings()` take a `before`).
+
 ## Champions (D96)
 
 - `GET /front/crowns`: six first places where others are ranked, with the
@@ -568,7 +576,7 @@ Tracked in `docs/PLAN.md`, section "Open questions".
 | Check | Expected |
 |-------|----------|
 | `just up` then `/up` | 200 |
-| `just ci` | Pint pass, PHPStan no errors, Pest 826 passed |
+| `just ci` | Pint pass, PHPStan no errors, Pest 848 passed |
 | `curl -sD - -o /dev/null http://localhost:8080/invite/<48 chars>` | `Referrer-Policy: no-referrer`, `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff` |
 | `docker run --rm -v "$PWD/docs:/spec" redocly/cli lint /spec/openapi.yaml` | valid, 7 known warnings (no license, localhost server, unused `MauiConfiguration`, no 2xx on the 303-only `/invite/{t}/name`) |
 | `docker run --rm -v "$PWD":/repo -w /repo rhysd/actionlint:latest .github/workflows/ci.yml` | no output |
