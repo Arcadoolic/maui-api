@@ -35,6 +35,30 @@ For why things are done this way, see `docs/DECISIONS.md`.
 - Releases by semantic-release on every push to `main` (D44): 0.1.0
   published on 2026-09-25.
 
+## Pictures chosen once for every place (D99)
+
+- Media donor and priority region of a game (`game_details.media_donor_id`,
+  `media_region`, `game_media.donor`), set from the game's page in the back
+  office (actions "Media donor" and "Priority region", which ask
+  ScreenScraper again; a "Pictures" section shows the first marquee, flyer
+  and logo and where each comes from). `GameScraper` takes the types the
+  game's sheet lacks from the donor (`ScreenScraperClient::gameById()`).
+- Read by the cabinets and the pack manager, ability `media:read` (granted
+  to existing tokens by a migration): `GET /media`, `GET /catalog/media`,
+  `GET /games/{romname}/media/{type}`, `GET /catalog/games/{romname}/media/{type}`
+  (`GameMediaFiles`, shared with the front's `GET /front/games/.../media/...`),
+  and `POST /catalog/games/{romname}/scrape` for a pack being made.
+- Left: the pack manager (maui-repository) and the cabinets (MAUI) reading
+  them, Lot IX.2 and IX.3 of the project owner's plan.
+
+## Ranking history (D97)
+
+- `GET /front/ranking/history`: the global podium's first ten players of
+  today, each with its place on each day it changed (`Europe/Paris` days,
+  `config/hiscores.php` `ranking.history_timezone`), played again from the
+  scores with today's rules and moderation (`RankingHistory`;
+  `Rankings::rows()` and `GlobalRanking::standings()` take a `before`).
+
 ## Champions (D96)
 
 - `GET /front/crowns`: six first places where others are ranked, with the
@@ -568,7 +592,7 @@ Tracked in `docs/PLAN.md`, section "Open questions".
 | Check | Expected |
 |-------|----------|
 | `just up` then `/up` | 200 |
-| `just ci` | Pint pass, PHPStan no errors, Pest 826 passed |
+| `just ci` | Pint pass, PHPStan no errors, Pest 862 passed |
 | `curl -sD - -o /dev/null http://localhost:8080/invite/<48 chars>` | `Referrer-Policy: no-referrer`, `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff` |
 | `docker run --rm -v "$PWD/docs:/spec" redocly/cli lint /spec/openapi.yaml` | valid, 7 known warnings (no license, localhost server, unused `MauiConfiguration`, no 2xx on the 303-only `/invite/{t}/name`) |
 | `docker run --rm -v "$PWD":/repo -w /repo rhysd/actionlint:latest .github/workflows/ci.yml` | no output |

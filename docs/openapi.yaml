@@ -129,6 +129,13 @@ tags:
   - name: Catalog
     description: |
       Game catalog fed by service accounts (maui-repository's `push-catalog`).
+  - name: Media
+    description: |
+      The pictures of the games, chosen once by this server for every place
+      they are shown: the hiscores front, the packs and the cabinets (D99).
+      Ability `media:read`: cabinets under `/media` and `/games/...`, with
+      their machine header; service accounts (the pack manager) under
+      `/catalog/...`, without one. Bots are refused.
   - name: Front
     description: |
       The hiscores front (maui-hifront), D64 to D66. Its members log in
@@ -1236,6 +1243,224 @@ paths:
         '500':
           $ref: '#/components/responses/ServerError'
 
+  /catalog/games/{romname}/scrape:
+    parameters:
+      - name: romname
+        in: path
+        required: true
+        schema: {type: string, pattern: '^[a-z0-9_]{1,32}$'}
+    post:
+      tags: [Media]
+      operationId: scrapeCatalogGame
+      summary: Ask ScreenScraper for one game now
+      description: |
+        For a pack being made: asks ScreenScraper for the game at once, as
+        `catalog:scrape` does (D68, D99), and answers what it stored. A game
+        this server does not know yet is created, as a score does. One or
+        two ScreenScraper calls (two when the game has a media donor and
+        misses a type). Ability `catalog:write`, no machine header.
+      security:
+        - mauiKey: []
+          bearerToken: []
+      responses:
+        '200':
+          description: Asked; `not_found` when ScreenScraper does not know the game.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ScrapeGameResponse'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          description: '`game_not_found`: not a MAME short name.'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/ServerError'
+        '503':
+          description: '`screenscraper_unavailable`: not configured, out of quota or failing.'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+
+  /catalog/media:
+    get:
+      tags: [Media]
+      operationId: getCatalogMedia
+      summary: The pictures of every game, by hash (pack manager)
+      description: |
+        For each game that has any, the SHA-256 of its first marquee, flyer
+        and logo: what a cabinet shows (D99). They are chosen by the rule of
+        D88 and D99: Europe, the world, the US, Japan, then the rest, the
+        game's priority region first when it has one, and for a type the
+        game's own sheet has none of, its media donor's. A reader downloads
+        the pictures whose hash differs from its own copy. Carries an ETag.
+        Service accounts, no machine header.
+      security:
+        - mauiKey: []
+          bearerToken: []
+      parameters:
+        - $ref: '#/components/parameters/IfNoneMatch'
+      responses:
+        '200':
+          description: Hashes by game and type.
+          headers:
+            ETag:
+              $ref: '#/components/headers/ETag'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GameMediaHashesResponse'
+        '304':
+          description: Unchanged since the ETag sent in `If-None-Match`.
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /catalog/games/{romname}/media/{type}:
+    parameters:
+      - name: romname
+        in: path
+        required: true
+        schema: {type: string, pattern: '^[a-z0-9_]{1,32}$'}
+      - name: type
+        in: path
+        required: true
+        schema: {type: string, enum: [screenshot, title, logo, marquee, flyer]}
+    get:
+      tags: [Media]
+      operationId: getCatalogGameMedia
+      summary: The first picture of a type of a game (pack manager)
+      description: Its SHA-256 as ETag. Service accounts, no machine header.
+      security:
+        - mauiKey: []
+          bearerToken: []
+      parameters:
+        - $ref: '#/components/parameters/IfNoneMatch'
+      responses:
+        '200':
+          description: The picture, as stored (PNG, JPEG, WebP or GIF).
+          headers:
+            ETag:
+              $ref: '#/components/headers/ETag'
+          content:
+            image/png: {schema: {type: string, format: binary}}
+            image/jpeg: {schema: {type: string, format: binary}}
+        '304':
+          description: Unchanged since the ETag sent in `If-None-Match`.
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          description: '`media_not_found`: no such picture for this game.'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /media:
+    get:
+      tags: [Media]
+      operationId: getMedia
+      summary: The pictures of every game, by hash (cabinets)
+      description: |
+        For each game that has any, the SHA-256 of its first marquee, flyer
+        and logo: what a cabinet shows (D99). They are chosen by the rule of
+        D88 and D99: Europe, the world, the US, Japan, then the rest, the
+        game's priority region first when it has one, and for a type the
+        game's own sheet has none of, its media donor's. A reader downloads
+        the pictures whose hash differs from its own copy. Carries an ETag.
+      parameters:
+        - $ref: '#/components/parameters/IfNoneMatch'
+      responses:
+        '200':
+          description: Hashes by game and type.
+          headers:
+            ETag:
+              $ref: '#/components/headers/ETag'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GameMediaHashesResponse'
+        '304':
+          description: Unchanged since the ETag sent in `If-None-Match`.
+        '400':
+          $ref: '#/components/responses/MachineFingerprintMissing'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/MachineMismatch'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /games/{romname}/media/{type}:
+    parameters:
+      - name: romname
+        in: path
+        required: true
+        schema: {type: string, pattern: '^[a-z0-9_]{1,32}$'}
+      - name: type
+        in: path
+        required: true
+        schema: {type: string, enum: [screenshot, title, logo, marquee, flyer]}
+    get:
+      tags: [Media]
+      operationId: getGameMedia
+      summary: The first picture of a type of a game (cabinets)
+      description: Its SHA-256 as ETag, as in `GET /media`.
+      parameters:
+        - $ref: '#/components/parameters/IfNoneMatch'
+      responses:
+        '200':
+          description: The picture, as stored (PNG, JPEG, WebP or GIF).
+          headers:
+            ETag:
+              $ref: '#/components/headers/ETag'
+          content:
+            image/png: {schema: {type: string, format: binary}}
+            image/jpeg: {schema: {type: string, format: binary}}
+        '304':
+          description: Unchanged since the ETag sent in `If-None-Match`.
+        '400':
+          $ref: '#/components/responses/MachineFingerprintMissing'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          description: '`media_not_found`: no such picture for this game.'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '409':
+          $ref: '#/components/responses/MachineMismatch'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
   /bot/leaderboards:
     get:
       tags: [Bots]
@@ -2319,6 +2544,37 @@ paths:
         '500':
           $ref: '#/components/responses/ServerError'
 
+  /front/ranking/history:
+    get:
+      tags: [Front]
+      operationId: frontRankingHistory
+      summary: The global podium's first players, day by day
+      description: |
+        The first ten players of the global podium today (D70), first to
+        last, each with its place at the end of each day it changed, from
+        the day it entered the ranking (D97). Days are those of
+        `timezone`. No history is kept: the ranking is played again from
+        the visible scores, with today's rules and moderation, so a hidden
+        score or a new rule changes the past too. Places past the tenth
+        are given as they were.
+      security:
+        - frontSession: []
+      responses:
+        '200':
+          description: The places, day by day.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FrontRankingHistoryResponse'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/FrontForbidden'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
   /front/crowns:
     get:
       tags: [Front]
@@ -3256,6 +3512,35 @@ components:
         updated: 3
         unchanged: 485
 
+    GameMediaHashesResponse:
+      type: object
+      required: [games]
+      properties:
+        games:
+          type: object
+          description: By romname; only the games with a marquee, a flyer or a logo.
+          additionalProperties:
+            type: object
+            properties:
+              flyer: {type: string, pattern: '^[0-9a-f]{64}$'}
+              logo: {type: string, pattern: '^[0-9a-f]{64}$'}
+              marquee: {type: string, pattern: '^[0-9a-f]{64}$'}
+      example:
+        games:
+          pacman:
+            flyer: 3f1c0d9b8e7a6f5e4d3c2b1a09f8e7d6c5b4a3928170f6e5d4c3b2a190807060
+            marquee: 9a8b7c6d5e4f3a2b1c0d9e8f7a6b5c4d3e2f1a0b9c8d7e6f5a4b3c2d1e0f9a8b
+    ScrapeGameResponse:
+      type: object
+      required: [status, publisher, developer, media]
+      properties:
+        status: {type: string, enum: [found, not_found]}
+        publisher: {type: [string, 'null']}
+        developer: {type: [string, 'null']}
+        media:
+          type: object
+          description: The SHA-256 of the first picture of each type the game has.
+          additionalProperties: {type: string, pattern: '^[0-9a-f]{64}$'}
     GameOpinion:
       type: object
       required: [romname, vote, play_count]
@@ -4020,6 +4305,31 @@ components:
               since: {type: string, format: date-time, description: "The holder's first score above the second best one."}
               days: {type: integer, description: Whole days since then.}
 
+    FrontRankingHistoryResponse:
+      type: object
+      required: [timezone, players]
+      properties:
+        timezone: {type: string, example: Europe/Paris, description: The timezone of the days.}
+        players:
+          type: array
+          maxItems: 10
+          description: The first ten of today, first to last.
+          items:
+            type: object
+            required: [player, rank, history]
+            properties:
+              player:
+                $ref: '#/components/schemas/FrontPlayerRef'
+              rank: {type: integer, minimum: 1, description: Place today.}
+              history:
+                type: array
+                description: The place at the end of each day it changed, oldest first; the days in between keep the one before.
+                items:
+                  type: object
+                  required: [date, rank]
+                  properties:
+                    date: {type: string, format: date}
+                    rank: {type: integer, minimum: 1}
     FrontRankingResponse:
       type: object
       required: [rules, ranking]

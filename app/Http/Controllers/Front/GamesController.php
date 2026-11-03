@@ -8,7 +8,6 @@ use App\Http\Problems\ApiProblemException;
 use App\Models\Category;
 use App\Models\Game;
 use App\Models\GameDetail;
-use App\Models\GameMedia;
 use App\Models\Player;
 use App\Models\Score;
 use App\Models\ScoreEvent;
@@ -18,13 +17,13 @@ use App\Services\Leaderboards\Leaderboards;
 use App\Services\Leaderboards\Rankings;
 use App\Services\Popularity\GamePopularity;
 use App\Services\Popularity\Popularity;
+use App\Services\ScreenScraper\GameMediaFiles;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 use Symfony\Component\HttpFoundation\Response;
 
@@ -315,25 +314,9 @@ final class GamesController
     }
 
     /** A picture of the game, with its hash as ETag (D68); `n` picks one of its flyers (D73) or logos (D88). */
-    public function media(Request $request, string $romname, string $type): Response
+    public function media(Request $request, string $romname, string $type, GameMediaFiles $files): Response
     {
-        $position = $request->query('n', '0');
-        $media = preg_match(self::ROMNAME, $romname) === 1 && isset(GameMedia::TYPES[$type]) && is_string($position) && preg_match('/^\d{1,2}$/', $position) === 1
-            ? GameMedia::query()->where('type', $type)->where('position', (int) $position)
-                ->whereHas('game', fn (Builder $game) => $game->where('romname', $romname))->first()
-            : null;
-        if ($media === null || ! Storage::disk(GameMedia::DISK)->exists($media->path)) {
-            throw ApiProblemException::mediaNotFound();
-        }
-
-        $response = Storage::disk(GameMedia::DISK)->response($media->path, null, [
-            'Content-Type' => $media->mime,
-            'Cache-Control' => 'private, no-cache',
-        ]);
-        $response->setEtag($media->hash);
-        $response->isNotModified($request);
-
-        return $response;
+        return $files->response($request, $romname, $type, $request->query('n', '0'));
     }
 
     /**

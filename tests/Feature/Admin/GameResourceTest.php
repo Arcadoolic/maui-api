@@ -6,10 +6,15 @@ use App\Filament\Resources\Games\Pages\ListGames;
 use App\Filament\Resources\Games\Pages\ViewGame;
 use App\Models\Category;
 use App\Models\Game;
+use App\Models\GameDetail;
 use App\Models\Player;
 use App\Models\PlayerOpinion;
 use App\Models\Score;
 use App\Models\User;
+use App\Services\ScreenScraper\ScreenScraperClient;
+use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Sleep;
 
 use function Pest\Livewire\livewire;
 
@@ -155,4 +160,50 @@ it('counts the players\' votes in the games turned down by every voter', functio
         ->filterTable('missed_date')
         ->assertCanSeeTableRecords([$missed])
         ->assertCanNotSeeTableRecords([$saved]);
+});
+
+describe('pictures of a game (D99)', function () {
+    beforeEach(function () {
+        Storage::fake('local');
+        Sleep::fake();
+        config([
+            'screenscraper.dev_id' => 'dev', 'screenscraper.dev_password' => 'dev-secret',
+            'screenscraper.user' => 'user', 'screenscraper.password' => 'user-secret',
+        ]);
+        Http::fake([
+            ScreenScraperClient::GAME_URL.'*' => Http::response(['response' => ['jeu' => ['id' => '189695', 'medias' => []]]]),
+        ]);
+    });
+
+    it('sets the media donor of a game, then asks ScreenScraper again', function () {
+        $game = Game::factory()->create(['romname' => 'tetris']);
+
+        livewire(ViewGame::class, ['record' => $game->getRouteKey()])
+            ->callAction('setMediaDonor', ['media_donor_id' => 189654])
+            ->assertHasNoActionErrors()
+            ->assertNotified();
+
+        $detail = GameDetail::query()->where('game_id', $game->id)->sole();
+        expect($detail->media_donor_id)->toBe(189654)
+            ->and($detail->screenscraper_id)->toBe(189695);
+        Http::assertSent(fn ($request): bool => ($request['gameid'] ?? null) === '189654');
+
+        livewire(ViewGame::class, ['record' => $game->getRouteKey()])
+            ->callAction('setMediaDonor', ['media_donor_id' => null]);
+        expect($detail->refresh()->media_donor_id)->toBeNull();
+    });
+
+    it('sets the priority region of a game\'s pictures', function () {
+        $game = Game::factory()->create(['romname' => 'tetris']);
+
+        livewire(ViewGame::class, ['record' => $game->getRouteKey()])
+            ->callAction('setMediaRegion', ['media_region' => 'jp'])
+            ->assertHasNoActionErrors();
+
+        expect(GameDetail::query()->where('game_id', $game->id)->sole()->media_region)->toBe('jp');
+
+        livewire(ViewGame::class, ['record' => $game->getRouteKey()])
+            ->callAction('setMediaRegion', ['media_region' => 'xx!'])
+            ->assertHasActionErrors(['media_region']);
+    });
 });

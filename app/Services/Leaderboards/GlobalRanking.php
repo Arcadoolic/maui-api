@@ -2,6 +2,7 @@
 
 namespace App\Services\Leaderboards;
 
+use Carbon\CarbonInterface;
 use Illuminate\Support\Collection;
 
 /**
@@ -47,15 +48,16 @@ final class GlobalRanking
     }
 
     /**
-     * Every ranked player, first to last.
+     * Every ranked player, first to last. `$before`: as they stood then (D97),
+     * with today's rules and moderation.
      *
      * @param  array{base: list<int>, step: int, floor: int, full_competition_players: int, best_results: int}|null  $rules
      * @return Collection<int, Standing>
      */
-    public function standings(?array $rules = null): Collection
+    public function standings(?array $rules = null, ?CarbonInterface $before = null): Collection
     {
         $rules ??= self::rules();
-        $rows = $this->rankings->rows()->get(['player_id', 'game_id', 'table', 'rank', 'players', 'achieved_at']);
+        $rows = $this->rankings->rows($before)->get(['player_id', 'game_id', 'table', 'rank', 'players', 'achieved_at']);
 
         $entries = [];
         foreach ($rows->groupBy('player_id') as $playerId => $boards) {

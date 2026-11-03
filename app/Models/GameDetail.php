@@ -13,6 +13,8 @@ use Illuminate\Support\Carbon;
  * @property int $game_id
  * @property bool $found
  * @property int|null $screenscraper_id
+ * @property int|null $media_donor_id Another ScreenScraper sheet, for the types of pictures the game has none of (D99).
+ * @property string|null $media_region The region whose pictures come first (D99).
  * @property string|null $synopsis_fr
  * @property string|null $synopsis_en
  * @property string|null $developer
@@ -35,6 +37,7 @@ class GameDetail extends Model
         return [
             'found' => 'boolean',
             'screenscraper_id' => 'integer',
+            'media_donor_id' => 'integer',
             'rating' => 'integer',
             'rotation' => 'integer',
             'joystick' => 'boolean',
