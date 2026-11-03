@@ -2356,13 +2356,12 @@ paths:
       operationId: frontCrowns
       summary: Champions, first places and their games
       description: |
-        Next to the global podium (D96): first places of the default
-        tables where another player is ranked, each with its game's
-        pictures, so that a player who dominates a game shows even off the
-        podium. Drawn for the day: a first place weighs the players it
-        beats times the days it holds (one at least), a quarter of that
-        for a player on the global podium; one first place of each player
-        first. Held from the holder's first score above the second best
+        At the head of the home page (D96, D98): first places of the
+        default tables where another player is ranked, each with its
+        game's pictures, so that a player who dominates a game shows even
+        off the podium. Drawn for the day: a first place weighs the players
+        it beats times the days it holds (one at least), whoever holds it;
+        one first place of each player first. Held from the holder's first score above the second best
         one. Six at most.
       security:
         - frontSession: []

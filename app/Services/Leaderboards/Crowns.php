@@ -9,30 +9,26 @@ use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
 /**
- * Champions (docs/DECISIONS.md D96): a first place and its game put forward next to the global
- * podium, so that a player with little time who dominates a game shows too. Only the first
+ * Champions (docs/DECISIONS.md D96): a first place and its game put forward at the head of the
+ * home page, so that a player with little time who dominates a game shows too. Only the first
  * places of the default tables where another player is ranked: a lone first place beats nobody,
  * it waits for challengers (D95).
  *
  * Drawn for the day (DailyDraw): a first place weighs the players it beats times the days it
- * holds, and a player on the global podium `podium_weight` of that, since the podium already
- * shows them. One first place of each player first.
+ * holds, a player of the global podium like any other (D98). One first place of each player
+ * first.
  */
 final class Crowns
 {
-    public function __construct(private readonly Rankings $rankings, private readonly GlobalRanking $ranking) {}
+    public function __construct(private readonly Rankings $rankings) {}
 
     /** @return Collection<int, HeldCrown> In the order drawn. */
     public function champions(CarbonInterface $day, int $limit): Collection
     {
-        $podium = $this->ranking->standings()->take(3)->map(fn (Standing $standing): int => $standing->playerId)->all();
-        $podiumWeight = max(0.01, (float) config('hiscores.crowns.podium_weight'));
-
         return DailyDraw::draw(
             $this->held($day),
             $day,
-            fn (HeldCrown $crown): float => ($crown->players - 1) * max(1, $crown->days)
-                * (in_array($crown->playerId, $podium, true) ? $podiumWeight : 1.0),
+            fn (HeldCrown $crown): float => ($crown->players - 1) * max(1, $crown->days),
             fn (HeldCrown $crown): string => (string) $crown->gameId,
             fn (HeldCrown $crown): int => $crown->playerId,
             1,

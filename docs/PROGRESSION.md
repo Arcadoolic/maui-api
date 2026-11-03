@@ -35,6 +35,12 @@ For why things are done this way, see `docs/DECISIONS.md`.
 - Releases by semantic-release on every push to `main` (D44): 0.1.0
   published on 2026-09-25.
 
+## Champions alone at the head of the home page (D98)
+
+- The front's home page shows the champions without the global podium:
+  `Crowns` no longer lowers the global podium's players (`crowns.
+  podium_weight` removed).
+
 ## Ranking history (D97)
 
 - `GET /front/ranking/history`: the global podium's first ten players of
