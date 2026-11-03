@@ -1,3 +1,9 @@
+## [0.27.0](https://github.com/Arcadoolic/maui-api/compare/0.26.0...0.27.0) (2026-11-03)
+
+### Features
+
+* **front:** champions of the global podium weigh like any other in the draw (D98) ([6549eff](https://github.com/Arcadoolic/maui-api/commit/6549effe848e9548b616a750829da43306fc4c4e))
+
 ## [0.26.0](https://github.com/Arcadoolic/maui-api/compare/0.25.0...0.26.0) (2026-11-03)
 
 ### Features
