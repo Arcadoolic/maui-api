@@ -48,8 +48,14 @@ For why things are done this way, see `docs/DECISIONS.md`.
   `GET /games/{romname}/media/{type}`, `GET /catalog/games/{romname}/media/{type}`
   (`GameMediaFiles`, shared with the front's `GET /front/games/.../media/...`),
   and `POST /catalog/games/{romname}/scrape` for a pack being made.
-- Left: the pack manager (maui-repository) and the cabinets (MAUI) reading
-  them, Lot IX.2 and IX.3 of the project owner's plan.
+- Read by the pack manager (maui-repository #37, #38) and the cabinets
+  (MAUI 2.20.0); released in 0.26.0.
+
+## Champions alone at the head of the home page (D98)
+
+- The front's home page shows the champions without the global podium:
+  `Crowns` no longer lowers the global podium's players (`crowns.
+  podium_weight` removed).
 
 ## Ranking history (D97)
 

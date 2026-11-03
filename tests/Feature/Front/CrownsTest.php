@@ -100,23 +100,19 @@ it('draws the same first places all day, and others on other days', function () 
     expect($days->unique()->count())->toBeGreaterThan(1);
 });
 
-it('draws more often the players the global podium leaves out', function () {
-    config(['hiscores.crowns.podium_weight' => 0.02]);
-    // ACE, BOB and CAT hold the global podium, DAN one first place over a single player.
-    foreach (['a', 'b', 'c'] as $romname) {
-        crowned($romname.'1', ['ACE', 'BOB', 'CAT', 'EVE', 'FAY']);
-        crowned($romname.'2', ['BOB', 'CAT', 'ACE', 'EVE', 'FAY']);
-        crowned($romname.'3', ['CAT', 'ACE', 'BOB', 'EVE', 'FAY']);
-    }
-    crowned('dan', ['DAN', 'GUS'], days: 10);
+it('weighs a first place of the global podium like any other (D98)', function () {
+    // ACE leads the global podium and a game over four players for 30 days (weight 120), DAN a
+    // game over one player for 40 days (weight 40): ACE comes first about three days in four.
+    crowned('ace', ['ACE', 'BOB', 'CAT', 'EVE', 'FAY'], days: 30);
+    crowned('dan', ['DAN', 'GUS'], days: 40);
 
-    $firsts = collect(range(1, 20))->map(function () {
+    $firsts = collect(range(1, 40))->map(function () {
         $this->travelTo(now()->addDay());
 
         return champions()[0];
     })->countBy();
 
-    expect($firsts['DAN'] ?? 0)->toBeGreaterThan(10);
+    expect($firsts['ACE'] ?? 0)->toBeGreaterThan(24);
 });
 
 it('needs a member', function () {
