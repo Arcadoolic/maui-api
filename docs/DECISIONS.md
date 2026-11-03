@@ -1463,6 +1463,16 @@ Days are those of the front's readers (`ranking.history_timezone`,
 `Europe/Paris`). One ranking per day with a score: cheap with the scores
 of today; to cache if it grows.
 
+**D98: The champions without the global podium on the home page: its players weigh like any other.** (2026-11-03, adjusts D96)
+Requested by the project owner: the home page no longer shows the global
+podium (it keeps its own page, /ranking), only the champions, to put
+forward the first places of games where others are ranked. A first place
+held by a player of the global podium weighed a quarter in the draw
+(`crowns.podium_weight`), because the podium next to it already showed
+that player; with the podium gone, the reason is gone too, and every
+first place now weighs the players it beats times the days it holds,
+whoever holds it. The setting is removed.
+
 **D99: One choice of pictures for every place they are shown, a media donor and a priority region.** (2026-11-03, widens D68, D73 and D88)
 Requested by the project owner: a game showed one logo or flyer on the
 hiscores front and another on the cabinets. The front's pictures came from
