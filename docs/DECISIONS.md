@@ -1462,3 +1462,42 @@ is set up, and would disagree with the ranking after any moderation.
 Days are those of the front's readers (`ranking.history_timezone`,
 `Europe/Paris`). One ranking per day with a score: cheap with the scores
 of today; to cache if it grows.
+
+**D99: One choice of pictures for every place they are shown, a media donor and a priority region.** (2026-11-03, widens D68, D73 and D88)
+Requested by the project owner: a game showed one logo or flyer on the
+hiscores front and another on the cabinets. The front's pictures came from
+this server (D68, Europe first since D88), the packs' and the cabinets'
+from their own ScreenScraper clients (maui-repository's pack manager, the
+MAUI back office), with the world then Japan first, and a picture already
+on disk was never replaced. This server now chooses for all of them: the
+pack manager and the cabinets read its pictures instead of asking
+ScreenScraper.
+
+Two choices per game, made by hand in the back office (the game's page):
+- a **media donor**, another ScreenScraper sheet (`game_details.media_donor_id`,
+  asked with `jeuInfos`'s `gameid`): the types of pictures the game's own
+  sheet has none of are taken from it, the others never (SEGA's `tetris`,
+  sheet 189695, has no flyer; sheet 189654, another Tetris of SEGA, has
+  one). Its texts are never taken, even for a game unknown to ScreenScraper.
+  Each stored picture says whether it came from the donor (`game_media.donor`):
+  the donor's pictures of a type go once the donor is taken away or the
+  game's sheet has its own. A second call only when a type is missing;
+  a donor unknown to ScreenScraper keeps what was there and says so;
+- a **priority region** (`game_details.media_region`): its pictures come
+  first, then the usual order of D88 (`jp` gives jp, eu, wor, us, ss). For
+  every type of the game; one region per type was not needed yet. The
+  donor's pictures follow it too.
+
+Changing either asks ScreenScraper again at once: only the chosen pictures
+are kept, not every one ScreenScraper offers.
+
+The pictures are read with a new ability, `media:read`, given to the cabinet
+and service tokens (existing ones included, by a migration; bots don't get
+it): `GET /media` (cabinets) and `GET /catalog/media` (service accounts) give
+the hash of each game's first marquee, flyer and logo, what a cabinet shows,
+with an ETag; `GET /games/{romname}/media/{type}` and
+`GET /catalog/games/{romname}/media/{type}` give the file. A reader downloads
+what differs from its copy. `POST /catalog/games/{romname}/scrape`
+(`catalog:write`) asks ScreenScraper for a game at once, created when unknown
+as a score does, for a pack being made. The files are served as stored:
+flyers are mostly JPEG, which the packs already ship under a `.png` name.

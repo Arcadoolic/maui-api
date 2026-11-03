@@ -12,6 +12,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property int $game_id
  * @property string $type One of TYPES.
  * @property int $position 0 for the picture of its type; 1 and up for the other flyers (D73) and logos (D88).
+ * @property bool $donor Taken from the game's media donor (D99).
  * @property string $path On the `local` disk.
  * @property string $mime
  * @property string $hash SHA-256 of the file.
@@ -38,6 +39,11 @@ class GameMedia extends Model
     protected $table = 'game_media';
 
     protected $guarded = [];
+
+    protected function casts(): array
+    {
+        return ['donor' => 'boolean'];
+    }
 
     /** @return BelongsTo<Game, $this> */
     public function game(): BelongsTo

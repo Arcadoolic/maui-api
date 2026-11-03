@@ -4,6 +4,7 @@ use App\Http\Controllers\Api\BotRankingController;
 use App\Http\Controllers\Api\CabinetEventsController;
 use App\Http\Controllers\Api\CatalogGamesController;
 use App\Http\Controllers\Api\DiagnosticsController;
+use App\Http\Controllers\Api\GameMediaController;
 use App\Http\Controllers\Api\HeartbeatController;
 use App\Http\Controllers\Api\LeaderboardsController;
 use App\Http\Controllers\Api\OpinionsController;
@@ -105,6 +106,20 @@ Route::middleware('repository')->group(function () {
 // Service accounts: game catalog pushed by maui-repository (docs/DECISIONS.md D47).
 Route::middleware(['throttle:service', 'service:catalog:write'])->group(function () {
     Route::put('catalog/games', CatalogGamesController::class);
+    // A game's pictures asked for now, for a pack being made (docs/DECISIONS.md D99).
+    Route::post('catalog/games/{romname}/scrape', [GameMediaController::class, 'scrape']);
+});
+
+// The pictures of the games, chosen by the API for every place they are shown (docs/DECISIONS.md D99):
+// the cabinets...
+Route::middleware(['throttle:cabinet', 'cabinet:media:read'])->group(function () {
+    Route::get('media', [GameMediaController::class, 'index'])->middleware('etag');
+    Route::get('games/{romname}/media/{type}', [GameMediaController::class, 'show']);
+});
+// ... and the pack manager.
+Route::middleware(['throttle:service', 'service:media:read'])->group(function () {
+    Route::get('catalog/media', [GameMediaController::class, 'index'])->middleware('etag');
+    Route::get('catalog/games/{romname}/media/{type}', [GameMediaController::class, 'show']);
 });
 
 // Hiscores front (maui-hifront): members logged in with Discord, a session
