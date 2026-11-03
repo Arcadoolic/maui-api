@@ -24,7 +24,17 @@ final class ScreenScraperClient
      * Japan: MAUI takes Japan second, but a logo in Japanese says little on a
      * page read in French or English.
      */
-    private const REGIONS = ['eu', 'wor', 'us', 'jp', 'ss'];
+    public const REGIONS = ['eu', 'wor', 'us', 'jp', 'ss'];
+
+    /**
+     * Regions that may be put first for one game (D99), as ScreenScraper names them: the usual
+     * ones, and a few countries whose pictures differ (a French flyer, an Asian logo...).
+     */
+    public const PRIORITY_REGIONS = [
+        'eu' => 'Europe', 'wor' => 'World', 'us' => 'USA', 'jp' => 'Japan', 'ss' => 'ScreenScraper',
+        'fr' => 'France', 'de' => 'Germany', 'uk' => 'United Kingdom', 'sp' => 'Spain', 'it' => 'Italy',
+        'asi' => 'Asia', 'kr' => 'Korea', 'cn' => 'China', 'tw' => 'Taiwan', 'br' => 'Brazil', 'au' => 'Australia',
+    ];
 
     private const TIMEOUT_SECONDS = 30;
 
@@ -40,7 +50,22 @@ final class ScreenScraperClient
             && filled(config('screenscraper.password'));
     }
 
-    public function game(string $romname): ScrapeResult
+    /** The sheet of a rom set; `$region` is put before the usual order (D99). */
+    public function game(string $romname, ?string $region = null): ScrapeResult
+    {
+        return $this->ask(['romnom' => $romname.'.zip'], $region);
+    }
+
+    /** One sheet by its ScreenScraper id: the media donor of a game (D99). */
+    public function gameById(int $id, ?string $region = null): ScrapeResult
+    {
+        return $this->ask(['gameid' => (string) $id], $region);
+    }
+
+    /**
+     * @param  array<string, string>  $which  `romnom` or `gameid`.
+     */
+    private function ask(array $which, ?string $region): ScrapeResult
     {
         $this->throttle();
 
@@ -53,14 +78,14 @@ final class ScreenScraperClient
                 'sspassword' => config('screenscraper.password'),
                 'output' => 'json',
                 'systemeid' => self::ARCADE_SYSTEM_ID,
-                'romnom' => $romname.'.zip',
+                ...$which,
             ]);
         } catch (ConnectionException $exception) {
             return new ScrapeResult(ScrapeResult::ERROR, message: $exception->getMessage());
         }
 
         $body = $response->body();
-        // An unknown rom is answered 404, in plain text.
+        // An unknown rom (or game id) is answered 404, in plain text.
         if ($response->status() === 404) {
             return new ScrapeResult(ScrapeResult::NOT_FOUND);
         }
@@ -74,7 +99,7 @@ final class ScreenScraperClient
                     : new ScrapeResult(ScrapeResult::ERROR, message: 'HTTP '.$response->status().': '.mb_substr($body, 0, 200)));
         }
 
-        return new ScrapeResult(ScrapeResult::FOUND, self::read($game));
+        return new ScrapeResult(ScrapeResult::FOUND, self::read($game, self::regionOrder($region)));
     }
 
     /** A media file, null when it cannot be had or is too big. */
@@ -95,14 +120,25 @@ final class ScreenScraperClient
     }
 
     /**
-     * @param  array<string, mixed>  $game
+     * The order the pictures are taken in: `$first`, then the usual regions (D88, D99).
+     *
+     * @return list<string>
      */
-    private static function read(array $game): ScrapedGame
+    public static function regionOrder(?string $first = null): array
+    {
+        return $first === null || $first === '' ? self::REGIONS : [$first, ...array_values(array_diff(self::REGIONS, [$first]))];
+    }
+
+    /**
+     * @param  array<string, mixed>  $game
+     * @param  list<string>  $regions
+     */
+    private static function read(array $game, array $regions): ScrapedGame
     {
         $medias = is_array($game['medias'] ?? null) ? $game['medias'] : [];
         $urls = [];
         foreach (GameMedia::TYPES as $type => $theirs) {
-            $url = self::mediaUrl($medias, $theirs);
+            $url = self::mediaUrls($medias, $theirs, $regions)[0] ?? null;
             if ($url !== null) {
                 $urls[$type] = $url;
             }
@@ -125,7 +161,7 @@ final class ScreenScraperClient
             buttons: $controls === [] ? null : count(array_filter($controls, fn (string $control): bool => str_starts_with($control, 'BUTTON'))),
             genres: self::genres($game['genres'] ?? null),
             mediaUrls: $urls,
-            severalUrls: array_combine(GameMedia::SEVERAL, array_map(fn (string $type): array => self::mediaUrls($medias, GameMedia::TYPES[$type]), GameMedia::SEVERAL)),
+            severalUrls: array_combine(GameMedia::SEVERAL, array_map(fn (string $type): array => self::mediaUrls($medias, GameMedia::TYPES[$type], $regions), GameMedia::SEVERAL)),
         );
     }
 
@@ -190,28 +226,21 @@ final class ScreenScraperClient
     }
 
     /**
-     * @param  array<int|string, mixed>  $medias
-     */
-    private static function mediaUrl(array $medias, string $type): ?string
-    {
-        return self::mediaUrls($medias, $type)[0] ?? null;
-    }
-
-    /**
      * Every media of a type, the preferred regions first, in ScreenScraper's order within one
      * (a flyer's front before its back).
      *
      * @param  array<int|string, mixed>  $medias
+     * @param  list<string>  $regions
      * @return list<string>
      */
-    private static function mediaUrls(array $medias, string $type): array
+    private static function mediaUrls(array $medias, string $type, array $regions): array
     {
         $candidates = array_values(array_filter($medias, fn (mixed $media): bool => is_array($media)
             && ($media['type'] ?? null) === $type
             && is_string($media['url'] ?? null)
             && str_starts_with($media['url'], 'https://')));
-        $rank = fn (array $media): int => ($index = array_search($media['region'] ?? null, self::REGIONS, true)) === false
-            ? count(self::REGIONS)
+        $rank = fn (array $media): int => ($index = array_search($media['region'] ?? null, $regions, true)) === false
+            ? count($regions)
             : $index;
         // A stable sort: PHP keeps the order of equal elements.
         usort($candidates, fn (array $a, array $b): int => $rank($a) <=> $rank($b));

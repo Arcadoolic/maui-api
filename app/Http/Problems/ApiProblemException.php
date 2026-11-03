@@ -76,6 +76,12 @@ final class ApiProblemException extends RuntimeException
         return new self(Response::HTTP_NOT_FOUND, 'media_not_found', 'This game has no such picture.');
     }
 
+    /** Not configured, out of quota or failing: the pictures cannot be asked for now (D99). */
+    public static function screenScraperUnavailable(): self
+    {
+        return new self(Response::HTTP_SERVICE_UNAVAILABLE, 'screenscraper_unavailable', 'ScreenScraper cannot be asked now; try again later.');
+    }
+
     public static function avatarNotFound(): self
     {
         return new self(Response::HTTP_NOT_FOUND, 'avatar_not_found', 'This player has no avatar.');

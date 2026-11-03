@@ -1,3 +1,15 @@
+## [0.26.0](https://github.com/Arcadoolic/maui-api/compare/0.25.0...0.26.0) (2026-11-03)
+
+### Features
+
+* **front:** ranking history, the first ten players' places day by day (D97) ([18f44a6](https://github.com/Arcadoolic/maui-api/commit/18f44a62453662b4ae776c807f5ebbb24fa8a400))
+* **media:** one choice of pictures for every place, with a media donor and a priority region (D99) ([eb63109](https://github.com/Arcadoolic/maui-api/commit/eb63109407ee6ad8b21aeb1f32c7b7fef8ffdfbe))
+
+### Bug Fixes
+
+* **admin:** keep a game's pictures within their column ([65409d5](https://github.com/Arcadoolic/maui-api/commit/65409d511c117a8fde4d412301611eec450f0f23))
+* **deps:** symfony/mime 8.1.10 for CVE-2026-45070 ([c3b2a42](https://github.com/Arcadoolic/maui-api/commit/c3b2a42f88eae0c0a088b798a924e73b213dae85))
+
 ## [0.25.0](https://github.com/Arcadoolic/maui-api/compare/0.24.0...0.25.0) (2026-10-28)
 
 ### Features

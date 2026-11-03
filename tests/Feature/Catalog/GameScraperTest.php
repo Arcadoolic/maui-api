@@ -227,6 +227,173 @@ describe('scraping a game', function () {
     });
 });
 
+describe('priority region of a game (D99)', function () {
+    it('puts the region chosen for the game first, the others in their usual order', function () {
+        Http::fake([
+            ScreenScraperClient::GAME_URL.'*' => Http::response(jeuInfos()),
+            'https://media.test/*' => fn (HttpRequest $request) => Http::response(tinyPng().$request->url()),
+        ]);
+        $game = Game::factory()->create(['romname' => 'pacman']);
+        GameDetail::query()->create(['game_id' => $game->id, 'found' => true, 'media_region' => 'jp', 'scraped_at' => now()->subDays(40)]);
+
+        app(GameScraper::class)->scrape($game);
+
+        $hashOf = fn (string $type, int $position = 0) => GameMedia::query()->where('game_id', $game->id)->where('type', $type)->where('position', $position)->value('hash');
+        // Japan's logo first, then Europe's; no Japanese screenshot: Europe's, as usual.
+        expect($hashOf('logo'))->toBe(hash('sha256', tinyPng().'https://media.test/wheel-jp'))
+            ->and($hashOf('logo', 1))->toBe(hash('sha256', tinyPng().'https://media.test/wheel-eu'))
+            ->and($hashOf('screenshot'))->toBe(hash('sha256', tinyPng().'https://media.test/ss-eu'))
+            ->and(GameDetail::query()->where('game_id', $game->id)->sole()->media_region)->toBe('jp');
+    });
+});
+
+describe('media donor of a game (D99)', function () {
+    /** The donor's sheet: another game, with its own pictures. */
+    function donorInfos(): array
+    {
+        return jeuInfos([
+            'id' => '189654',
+            'synopsis' => [['langue' => 'fr', 'text' => 'Le frère.']],
+            'medias' => [
+                ['type' => 'flyer', 'region' => 'jp', 'url' => 'https://donor.test/flyer-jp'],
+                ['type' => 'flyer', 'region' => 'eu', 'url' => 'https://donor.test/flyer-eu'],
+                ['type' => 'marquee', 'region' => 'wor', 'url' => 'https://donor.test/marquee'],
+                ['type' => 'sstitle', 'region' => 'wor', 'url' => 'https://donor.test/title'],
+            ],
+        ]);
+    }
+
+    /** A game sheet without flyer nor title: what the donor is for. */
+    function gameWithoutFlyer(): array
+    {
+        return jeuInfos(['id' => '189695', 'medias' => [
+            ['type' => 'ss', 'region' => 'wor', 'url' => 'https://media.test/ss'],
+            ['type' => 'marquee', 'region' => 'wor', 'url' => 'https://media.test/marquee'],
+            ['type' => 'wheel', 'region' => 'wor', 'url' => 'https://media.test/wheel'],
+        ]]);
+    }
+
+    /** The answers of ScreenScraper, which a test may change: the first fake of a test is the one used. */
+    function fakeSheets(?array $game, ?array $donor): void
+    {
+        $GLOBALS['screenscraperSheets'] = ['game' => $game, 'donor' => $donor];
+        Http::fake([
+            ScreenScraperClient::GAME_URL.'*' => function (HttpRequest $request) {
+                $sheet = $GLOBALS['screenscraperSheets'][isset($request['gameid']) ? 'donor' : 'game'];
+
+                return $sheet === null ? Http::response('Erreur : Jeu non trouvée !', 404) : Http::response($sheet);
+            },
+            'https://*' => fn (HttpRequest $request) => Http::response(tinyPng().$request->url()),
+        ]);
+    }
+
+    function tetrisWithDonor(?int $donor = 189654): Game
+    {
+        $game = Game::factory()->create(['romname' => 'tetris']);
+        GameDetail::query()->create(['game_id' => $game->id, 'found' => true, 'media_donor_id' => $donor, 'scraped_at' => now()->subDays(40)]);
+
+        return $game;
+    }
+
+    it('fills only the types the game has no picture of, from the donor', function () {
+        fakeSheets(gameWithoutFlyer(), donorInfos());
+        $game = tetrisWithDonor();
+
+        expect(app(GameScraper::class)->scrape($game)->status)->toBe(ScrapeResult::FOUND);
+
+        $media = GameMedia::query()->where('game_id', $game->id)->orderBy('type')->orderBy('position')->get();
+        $from = fn (string $url): string => hash('sha256', tinyPng().$url);
+        expect($media->map(fn (GameMedia $media): array => [$media->type, $media->position, $media->hash, $media->donor])->all())->toBe([
+            // Europe's flyer first, as for the game's own (D88).
+            ['flyer', 0, $from('https://donor.test/flyer-eu'), true],
+            ['flyer', 1, $from('https://donor.test/flyer-jp'), true],
+            ['logo', 0, $from('https://media.test/wheel'), false],
+            // The game has its own marquee: the donor's is not taken.
+            ['marquee', 0, $from('https://media.test/marquee'), false],
+            ['screenshot', 0, $from('https://media.test/ss'), false],
+            ['title', 0, $from('https://donor.test/title'), true],
+        ]);
+        // The texts stay the game's.
+        $detail = GameDetail::query()->where('game_id', $game->id)->sole();
+        expect($detail->screenscraper_id)->toBe(189695)
+            ->and($detail->synopsis_fr)->toBe('Mange les pastilles.')
+            ->and($detail->media_donor_id)->toBe(189654);
+        Http::assertSent(fn (HttpRequest $request): bool => str_starts_with($request->url(), ScreenScraperClient::GAME_URL)
+            && ($request->data()['gameid'] ?? null) === '189654' && $request['systemeid'] === '75' && ! isset($request['romnom']));
+        Http::assertNotSent(fn (HttpRequest $request): bool => $request->url() === 'https://donor.test/marquee');
+    });
+
+    it('does not ask the donor when the game misses nothing', function () {
+        $complete = jeuInfos(['medias' => array_map(fn (string $type): array => ['type' => $type, 'region' => 'wor', 'url' => 'https://media.test/'.$type], array_values(GameMedia::TYPES))]);
+        fakeSheets($complete, donorInfos());
+        $game = tetrisWithDonor();
+
+        app(GameScraper::class)->scrape($game);
+
+        Http::assertNotSent(fn (HttpRequest $request): bool => isset($request['gameid']));
+        expect(GameMedia::query()->where('donor', true)->count())->toBe(0);
+    });
+
+    it('takes every picture from the donor of a game unknown to ScreenScraper, and no text', function () {
+        fakeSheets(null, donorInfos());
+        $game = tetrisWithDonor();
+
+        expect(app(GameScraper::class)->scrape($game)->status)->toBe(ScrapeResult::NOT_FOUND);
+
+        expect(GameMedia::query()->where('game_id', $game->id)->orderBy('type')->pluck('type')->unique()->values()->all())->toBe(['flyer', 'marquee', 'title'])
+            ->and(GameMedia::query()->where('donor', false)->count())->toBe(0)
+            ->and(GameDetail::query()->where('game_id', $game->id)->sole()->found)->toBeFalse()
+            ->and(GameDetail::query()->where('game_id', $game->id)->sole()->synopsis_fr)->toBeNull();
+    });
+
+    it('drops the donor\'s pictures once the donor is taken away, or the game has its own', function () {
+        fakeSheets(gameWithoutFlyer(), donorInfos());
+        $game = tetrisWithDonor();
+        app(GameScraper::class)->scrape($game);
+        expect(GameMedia::query()->where('game_id', $game->id)->where('donor', true)->count())->toBe(3);
+
+        GameDetail::query()->where('game_id', $game->id)->update(['media_donor_id' => null]);
+        app(GameScraper::class)->scrape($game);
+
+        expect(GameMedia::query()->where('game_id', $game->id)->where('donor', true)->count())->toBe(0)
+            ->and(GameMedia::query()->where('game_id', $game->id)->pluck('type')->sort()->values()->all())->toBe(['logo', 'marquee', 'screenshot']);
+        Storage::disk('local')->assertMissing('game-media/tetris/flyer-1.png');
+
+        // The game's own flyer, later: it takes the place of the donor's.
+        GameDetail::query()->where('game_id', $game->id)->update(['media_donor_id' => 189654]);
+        app(GameScraper::class)->scrape($game);
+        fakeSheets(jeuInfos(['medias' => [['type' => 'flyer', 'region' => 'wor', 'url' => 'https://media.test/own-flyer']]]), donorInfos());
+        app(GameScraper::class)->scrape($game);
+
+        expect(GameMedia::query()->where('game_id', $game->id)->where('type', 'flyer')->get()->map(fn (GameMedia $media): array => [$media->position, $media->donor])->all())
+            ->toBe([[0, false]]);
+    });
+
+    it('keeps what it had when the donor is unknown, and says so', function () {
+        fakeSheets(gameWithoutFlyer(), null);
+        $game = tetrisWithDonor(1);
+
+        $result = app(GameScraper::class)->scrape($game);
+
+        expect($result->status)->toBe(ScrapeResult::FOUND)
+            ->and($result->message)->toBe('media donor 1 unknown to ScreenScraper')
+            ->and(GameMedia::query()->where('game_id', $game->id)->count())->toBe(3);
+    });
+
+    it('stops on the donor\'s quota, the game\'s answer kept', function () {
+        Http::fake([
+            ScreenScraperClient::GAME_URL.'*' => fn (HttpRequest $request) => isset($request['gameid'])
+                ? Http::response('Votre quota de scrape est dépassé pour aujourd\'hui !')
+                : Http::response(gameWithoutFlyer()),
+            'https://*' => Http::response(tinyPng()),
+        ]);
+        $game = tetrisWithDonor();
+
+        expect(app(GameScraper::class)->scrape($game)->status)->toBe(ScrapeResult::QUOTA)
+            ->and(GameDetail::query()->where('game_id', $game->id)->sole()->screenscraper_id)->toBe(189695);
+    });
+});
+
 describe('catalog:scrape', function () {
     it('asks for the games with scores first, then those never asked, a few at a time', function () {
         Http::fake([ScreenScraperClient::GAME_URL.'*' => Http::response('nope', 404)]);

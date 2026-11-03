@@ -83,7 +83,7 @@ it('issues a service account token once, without logging it', function () {
     $token = $this->administration->issueServiceToken($client);
 
     expect($client->tokens()->count())->toBe(1)
-        ->and($client->tokens()->first()->abilities)->toBe(['catalog:write', 'repository:read']);
+        ->and($client->tokens()->first()->abilities)->toBe(['catalog:write', 'repository:read', 'media:read']);
 
     $entry = auditEntry($client, 'client.service_token_issued');
     expect($entry)->not->toBeNull()
