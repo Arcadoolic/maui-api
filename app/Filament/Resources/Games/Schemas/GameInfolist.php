@@ -52,7 +52,10 @@ class GameInfolist
                         TextEntry::make('detail.screenscraper_id')->label(__('ScreenScraper sheet'))->fontFamily(FontFamily::Mono)->placeholder('-'),
                         TextEntry::make('detail.media_donor_id')->label(__('Media donor'))->fontFamily(FontFamily::Mono)->placeholder(__('None')),
                         TextEntry::make('detail.media_region')->label(__('Priority region'))->fontFamily(FontFamily::Mono)->placeholder(__('None: eu, wor, us, jp, ss')),
-                        ...array_map(fn (string $type): ImageEntry => self::picture($type), ['marquee', 'flyer', 'logo']),
+                        // The marquee, wide, on a row of its own; the flyer (tall) and the logo below it.
+                        self::picture('marquee')->columnSpanFull(),
+                        self::picture('flyer'),
+                        self::picture('logo')->columnSpan(2),
                     ]),
                 // Same top 9 as GET /leaderboards/{romname} (docs/DECISIONS.md D52).
                 Section::make(__('Leaderboard'))
@@ -151,7 +154,9 @@ class GameInfolist
             ->state(fn (Game $record): ?string => ($picture = $media($record)) !== null && Storage::disk(GameMedia::DISK)->exists($picture->path)
                 ? 'data:'.$picture->mime.';base64,'.base64_encode((string) Storage::disk(GameMedia::DISK)->get($picture->path))
                 : null)
-            ->imageHeight(160)
+            // Within its column whatever its shape: never wider than the column, never taller than 12rem.
+            ->imageHeight('auto')
+            ->extraImgAttributes(['style' => 'max-width: 100%; max-height: 12rem; object-fit: contain;'])
             ->helperText(function (Game $record) use ($media): ?string {
                 $donor = $media($record)?->donor;
                 if ($donor === null) {
