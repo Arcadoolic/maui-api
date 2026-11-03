@@ -1443,3 +1443,22 @@ podium. One first place of each player first, the others after; six
 cards. A first attempt ranked three champions and three unbeaten first
 places as podiums: with few players they were the global podium's three
 again, and the game was not shown (the project owner turned it down).
+
+**D97: The global podium's first players, place by place, day by day.** (2026-11-03, completes D70)
+Requested by the project owner: on /ranking, to see day by day the places
+of one and the other over time. `GET /front/ranking/history` gives the
+first ten players of today, first to last (ten lines at most, as D91),
+each with its place at the end of each day it changed, from the day it
+entered the ranking; a place past the tenth is given as it was. Places,
+not points: the chart is about who passed whom.
+
+No history of the ranking is kept (the daily snapshot left from III.5 was
+never made): it is played again from the visible scores, as it stood at
+the end of each day a score was made, with today's rules and moderation.
+A hidden score, a private player or a new `full_competition_players`
+change the past too, so the chart always ends on the ranking shown. A
+snapshot of each day was turned down: it would only start on the day it
+is set up, and would disagree with the ranking after any moderation.
+Days are those of the front's readers (`ranking.history_timezone`,
+`Europe/Paris`). One ranking per day with a score: cheap with the scores
+of today; to cache if it grows.

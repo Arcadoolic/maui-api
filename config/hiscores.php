@@ -51,6 +51,8 @@ return [
         'full_competition_players' => (int) env('HISCORES_FULL_COMPETITION_PLAYERS', 5),
         // Results counted per player: one per game, the best ones.
         'best_results' => 15,
+        // The days of the ranking's history (D97): those of the front's readers.
+        'history_timezone' => 'Europe/Paris',
     ],
 
     /*

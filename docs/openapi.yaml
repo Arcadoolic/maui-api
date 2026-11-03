@@ -2319,6 +2319,37 @@ paths:
         '500':
           $ref: '#/components/responses/ServerError'
 
+  /front/ranking/history:
+    get:
+      tags: [Front]
+      operationId: frontRankingHistory
+      summary: The global podium's first players, day by day
+      description: |
+        The first ten players of the global podium today (D70), first to
+        last, each with its place at the end of each day it changed, from
+        the day it entered the ranking (D97). Days are those of
+        `timezone`. No history is kept: the ranking is played again from
+        the visible scores, with today's rules and moderation, so a hidden
+        score or a new rule changes the past too. Places past the tenth
+        are given as they were.
+      security:
+        - frontSession: []
+      responses:
+        '200':
+          description: The places, day by day.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FrontRankingHistoryResponse'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/FrontForbidden'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
   /front/crowns:
     get:
       tags: [Front]
@@ -4020,6 +4051,31 @@ components:
               since: {type: string, format: date-time, description: "The holder's first score above the second best one."}
               days: {type: integer, description: Whole days since then.}
 
+    FrontRankingHistoryResponse:
+      type: object
+      required: [timezone, players]
+      properties:
+        timezone: {type: string, example: Europe/Paris, description: The timezone of the days.}
+        players:
+          type: array
+          maxItems: 10
+          description: The first ten of today, first to last.
+          items:
+            type: object
+            required: [player, rank, history]
+            properties:
+              player:
+                $ref: '#/components/schemas/FrontPlayerRef'
+              rank: {type: integer, minimum: 1, description: Place today.}
+              history:
+                type: array
+                description: The place at the end of each day it changed, oldest first; the days in between keep the one before.
+                items:
+                  type: object
+                  required: [date, rank]
+                  properties:
+                    date: {type: string, format: date}
+                    rank: {type: integer, minimum: 1}
     FrontRankingResponse:
       type: object
       required: [rules, ranking]

@@ -2,6 +2,7 @@
 
 namespace App\Services\Leaderboards;
 
+use Carbon\CarbonInterface;
 use Illuminate\Database\Query\Builder;
 use Illuminate\Support\Facades\DB;
 
@@ -17,11 +18,13 @@ final class Rankings
      * Columns of `scores`, plus `rank`, `players`, and the neighbours on the
      * leaderboard: `above_player_id`, `above_score` (null for the leader),
      * `below_player_id`, `below_score` (null for the last). To be narrowed
-     * with `where()`: by game, by player...
+     * with `where()`: by game, by player... `$before`: as they stood then,
+     * from the scores made before it only (D97).
      */
-    public function rows(): Builder
+    public function rows(?CarbonInterface $before = null): Builder
     {
         $bests = Leaderboards::visibleScores()
+            ->when($before !== null, fn ($query) => $query->where('scores.achieved_at', '<', $before?->copy()->utc()))
             ->select('scores.*')
             ->distinct(['scores.game_id', 'scores.table', 'scores.player_id'])
             ->orderBy('scores.game_id')
