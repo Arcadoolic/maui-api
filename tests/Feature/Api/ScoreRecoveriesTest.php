@@ -106,6 +106,15 @@ describe('POST /scores with a recovery', function () {
         expect(ScoreEvent::query()->sole()->announceable)->toBeFalse();
     });
 
+    it('announces the event when the request asks for it, even days later', function () {
+        [$client, $token] = cabinetWithToken();
+        $recovery = recoveryFor($client, linkedPlayer($client, ['is_public' => true]), ['announce' => true]);
+
+        sendScores($client, $token, [recoveredScore($recovery)])->assertOk();
+
+        expect(ScoreEvent::query()->sole()->announceable)->toBeTrue();
+    });
+
     it('answers a resend as accepted, without a second score', function () {
         [$client, $token] = cabinetWithToken();
         $recovery = recoveryFor($client, linkedPlayer($client));

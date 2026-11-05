@@ -25,6 +25,7 @@ use Illuminate\Support\Carbon;
  * @property int $score
  * @property Carbon $achieved_at
  * @property string $reason
+ * @property bool $announce Announced like a new score once recovered.
  * @property int|null $diagnostic_id
  * @property ScoreRecoveryStatus $status
  * @property array<string, mixed>|null $result
@@ -65,6 +66,7 @@ class ScoreRecovery extends Model
         return [
             'score' => 'integer',
             'achieved_at' => 'datetime',
+            'announce' => 'boolean',
             'status' => ScoreRecoveryStatus::class,
             'result' => 'array',
             'expires_at' => 'datetime',

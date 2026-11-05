@@ -29,6 +29,7 @@ final class ScoreRecoveries
         Carbon $achievedAt,
         string $reason,
         ?Diagnostic $diagnostic = null,
+        bool $announce = false,
     ): ScoreRecovery {
         $recovery = new ScoreRecovery;
         $recovery->forceFill([
@@ -39,6 +40,7 @@ final class ScoreRecoveries
             'score' => $score,
             'achieved_at' => $achievedAt,
             'reason' => $reason,
+            'announce' => $announce,
             'diagnostic_id' => $diagnostic?->id,
             'expires_at' => now()->addDays(ScoreRecovery::KEEP_OPEN_DAYS),
         ])->save();

@@ -12,6 +12,7 @@ use Filament\Forms\Components\DateTimePicker;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
+use Filament\Forms\Components\Toggle;
 use Filament\Schemas\Components\Utilities\Get;
 use Illuminate\Support\Carbon;
 
@@ -72,6 +73,10 @@ class ScoreRecoveryForm
                 ->required()
                 ->maxLength(1000)
                 ->helperText(__('What was checked, e.g. "screenshot and .hi agree, extractor fixed in mhiex 2.2.7".')),
+            Toggle::make('announce')
+                ->label(__('Announce'))
+                ->default(false)
+                ->helperText(__('On Discord, like a new score, whatever its date. Either way it shows on the hiscores front.')),
         ]));
     }
 
@@ -91,6 +96,7 @@ class ScoreRecoveryForm
             Carbon::parse((string) $data['achieved_at']),
             (string) $data['reason'],
             $diagnostic,
+            (bool) ($data['announce'] ?? false),
         );
     }
 }
