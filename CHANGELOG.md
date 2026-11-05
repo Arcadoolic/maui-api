@@ -1,3 +1,9 @@
+## [0.28.0](https://github.com/Arcadoolic/maui-api/compare/0.27.0...0.28.0) (2026-11-05)
+
+### Features
+
+* **recoveries:** announce a recovered score on request (D93) ([7f244bc](https://github.com/Arcadoolic/maui-api/commit/7f244bc24e870d8171794d88648f09723b87ecd7))
+
 ## [0.27.0](https://github.com/Arcadoolic/maui-api/compare/0.26.0...0.27.0) (2026-11-03)
 
 ### Features
