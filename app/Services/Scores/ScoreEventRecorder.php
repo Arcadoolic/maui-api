@@ -7,6 +7,7 @@ use App\Models\Game;
 use App\Models\Player;
 use App\Models\Score;
 use App\Models\ScoreEvent;
+use App\Models\ScoreRecovery;
 use App\Services\Leaderboards\Leaderboards;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
@@ -80,9 +81,7 @@ final class ScoreEventRecorder
             'facts' => $facts->toArray(),
             'message' => $this->messages->compose($uuid, $movement, $flavors, $facts, $score->player, $score->game, $score->table),
             'importance' => $this->situation->importance($facts, $movement, $flavors),
-            // A recovered score (D93) is old news: recorded, never announced.
-            'announceable' => $score->attribution !== ScoreAttribution::Recovered
-                && $score->achieved_at->diffInHours(now()) < (int) config('hiscores.events.stale_after_hours'),
+            'announceable' => $this->announceable($score),
             'occurred_at' => $score->achieved_at,
             'recorded_at' => now(),
         ])->save();
@@ -229,5 +228,18 @@ final class ScoreEventRecorder
             'score' => $row->score,
             'cabinet' => $row->client->name,
         ];
+    }
+
+    /**
+     * A fresh score is announced. A recovered one (D93) is old news, unless
+     * the administrator asked for it on the request: then whatever its date.
+     */
+    private function announceable(Score $score): bool
+    {
+        if ($score->attribution === ScoreAttribution::Recovered) {
+            return (bool) ScoreRecovery::query()->where('score_id', $score->id)->value('announce');
+        }
+
+        return $score->achieved_at->diffInHours(now()) < (int) config('hiscores.events.stale_after_hours');
     }
 }
