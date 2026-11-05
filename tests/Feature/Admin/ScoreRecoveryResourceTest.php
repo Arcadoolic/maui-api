@@ -45,10 +45,31 @@ it('opens a request for a player of the cabinet, with the admin in the audit log
         ->and($recovery->player_id)->toBe($player->id)
         ->and($recovery->score)->toBe(250_000)
         ->and($recovery->status)->toBe(ScoreRecoveryStatus::Pending)
+        ->and($recovery->announce)->toBeFalse()
         ->and($recovery->expires_at->isFuture())->toBeTrue();
     $activity = Activity::query()->whereMorphedTo('subject', $recovery)->sole();
     expect($activity->event)->toBe('score_recovery.created')
         ->and($activity->causer_id)->toBe($this->admin->id);
+});
+
+it('opens a request whose score is to be announced', function () {
+    [$client] = cabinetWithToken();
+    $player = linkedPlayer($client);
+
+    livewire(ListScoreRecoveries::class)
+        ->callAction('request', data: [
+            'client_id' => $client->id,
+            'player_id' => $player->id,
+            'romname' => 'raiden',
+            'table' => 'default',
+            'score' => 69630,
+            'achieved_at' => '2026-10-20 21:30:00',
+            'reason' => 'Screenshot and .hi agree, extractor fixed in mhiex 2.2.10.',
+            'announce' => true,
+        ])
+        ->assertHasNoActionErrors();
+
+    expect(ScoreRecovery::query()->sole()->announce)->toBeTrue();
 });
 
 it('refuses a player the cabinet does not have', function () {

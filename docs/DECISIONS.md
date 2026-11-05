@@ -1350,7 +1350,13 @@ tries again. Creation and closing are in the audit log
 with its filter: the score rests on a check made after the fact. It counts
 like any other score at its date (D52, D70, D91), has no integrity report
 (verdict unknown, D87), and its event is recorded but never announced
-(D60): the player sees it back on the cabinet.
+(D60): the player sees it back on the cabinet. Amended 2026-11-05: the
+request has an `announce` option, off by default, that the administrator
+turns on for a score lost by a fault of ours and just played (NOB's 69630 on
+raiden, read as 4094 before mhiex 2.2.10): its event is then announced like
+a new score on Discord, whatever its date (the 24-hour rule,
+`stale_after_hours`, does not apply). The hiscores front and the cabinets'
+recent events, which do not read `announceable`, show it either way.
 
 **D94: Popularity labels by rank: hits and hidden gems share the liked games.** (2026-10-28, adjusts D76 and D77, replaces D80 for the labels)
 On production on 2026-10-28 (11 cabinets, 141 games, 204 votes), 30 of the
