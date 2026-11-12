@@ -35,6 +35,13 @@ For why things are done this way, see `docs/DECISIONS.md`.
 - Releases by semantic-release on every push to `main` (D44): 0.1.0
   published on 2026-09-25.
 
+## The champions on idle cabinets (D101)
+
+- `GET /champions` (`scores:read`, `Api\ChampionsController`): the champions
+  of the day (D96's draw) with the avatar hash and the hashes of the game's
+  marquee, flyer and logo, 10 by default, 30 at most, for MAUI's champions
+  idle screen.
+
 ## The global podium on the cabinets (D100)
 
 - `GET /ranking` (`scores:read`, `Api\RankingController`): the first players
@@ -604,7 +611,7 @@ Tracked in `docs/PLAN.md`, section "Open questions".
 | Check | Expected |
 |-------|----------|
 | `just up` then `/up` | 200 |
-| `just ci` | Pint pass, PHPStan no errors, Pest 868 passed |
+| `just ci` | Pint pass, PHPStan no errors, Pest 871 passed |
 | `curl -sD - -o /dev/null http://localhost:8080/invite/<48 chars>` | `Referrer-Policy: no-referrer`, `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff` |
 | `docker run --rm -v "$PWD/docs:/spec" redocly/cli lint /spec/openapi.yaml` | valid, 7 known warnings (no license, localhost server, unused `MauiConfiguration`, no 2xx on the 303-only `/invite/{t}/name`) |
 | `docker run --rm -v "$PWD":/repo -w /repo rhysd/actionlint:latest .github/workflows/ci.yml` | no output |
