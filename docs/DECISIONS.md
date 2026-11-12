@@ -1528,3 +1528,14 @@ hash, which the cabinet downloads with `GET /players/{player}/avatar` as for
 the leaderboards (D53). 25 players by default, 50 at most: the board shows
 ten, then scrolls through the next ones. Read when the board opens, no
 cache nor ETag: a few requests a day per cabinet.
+
+**D101: The champions of the day on idle cabinets.** (2026-11-12, widens D96)
+Requested by the project owner: an idle cabinet can show the champions, as
+the hiscores front's home page puts them forward, instead of (or in turn
+with) its band of messages; the cabinet's back office picks which. `GET
+/champions`, for cabinets with `scores:read`, gives the champions of the day
+in the order drawn (D96, the same draw as the front), 10 by default, 30 at
+most, with each player's avatar hash (D53) and the hashes of the game's
+marquee, flyer and logo (D99): a champion's game may not be on the cabinet,
+which then downloads its pictures with `GET /games/{romname}/media/{type}`
+(`media:read`). Read each time the cabinet turns idle, no cache nor ETag.

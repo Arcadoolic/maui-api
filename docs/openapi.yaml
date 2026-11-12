@@ -931,6 +931,40 @@ paths:
         '500':
           $ref: '#/components/responses/ServerError'
 
+  /champions:
+    get:
+      tags: [Leaderboards]
+      operationId: getCabinetChampions
+      summary: The champions of the day, the idle cabinet's champions screen
+      description: |
+        The first places of the day put forward as on the hiscores front's
+        home page (D96, drawn for the day), for the champions screen of an
+        idle cabinet (D101). `avatar` is the SHA-256 of the player's avatar
+        (`GET /players/{player}/avatar`, D53); `marquee`, `flyer` and `logo`
+        those of the game's pictures (`GET /games/{romname}/media/{type}`,
+        D99), for a cabinet that does not have the game.
+
+        Cabinets only, ability `scores:read`.
+      parameters:
+        - {name: limit, in: query, schema: {type: integer, minimum: 1, maximum: 30, default: 10}}
+      responses:
+        '200':
+          description: The champions, in the order drawn.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CabinetChampionsResponse'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
   /events:
     get:
       tags: [Leaderboards]
@@ -3628,6 +3662,38 @@ components:
         created: 2
         updated: 5
         unchanged: 113
+
+    CabinetChampionsResponse:
+      type: object
+      required: [champions]
+      additionalProperties: false
+      properties:
+        champions:
+          type: array
+          items:
+            type: object
+            required: [player, game, score, players, since, days]
+            properties:
+              player:
+                type: object
+                required: [id, pseudo_3, avatar]
+                properties:
+                  id: {type: string, format: uuid}
+                  pseudo_3: {type: string}
+                  avatar: {type: [string, 'null'], description: 'SHA-256 of the avatar PNG, null without one.'}
+              game:
+                type: object
+                required: [romname, description, marquee, flyer, logo]
+                properties:
+                  romname: {type: string}
+                  description: {type: string}
+                  marquee: {type: [string, 'null'], description: 'SHA-256 of the picture, null without one.'}
+                  flyer: {type: [string, 'null']}
+                  logo: {type: [string, 'null']}
+              score: {type: integer}
+              players: {type: integer, description: 'Players ranked on the game, the champion included.'}
+              since: {type: string, format: date-time, description: 'Since when the champion is first.'}
+              days: {type: integer, description: 'Whole days since then.'}
 
     CabinetRankingResponse:
       type: object

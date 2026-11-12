@@ -3,6 +3,7 @@
 use App\Http\Controllers\Api\BotRankingController;
 use App\Http\Controllers\Api\CabinetEventsController;
 use App\Http\Controllers\Api\CatalogGamesController;
+use App\Http\Controllers\Api\ChampionsController;
 use App\Http\Controllers\Api\DiagnosticsController;
 use App\Http\Controllers\Api\GameMediaController;
 use App\Http\Controllers\Api\HeartbeatController;
@@ -76,6 +77,8 @@ Route::middleware(['throttle:cabinet', 'cabinet:scores:read', 'etag'])->group(fu
 // The global podium, the cabinet's hiscores board (docs/DECISIONS.md D100).
 Route::middleware(['throttle:cabinet', 'cabinet:scores:read'])->group(function () {
     Route::get('ranking', CabinetRankingController::class);
+    // The champions of the day, the idle cabinet's champions screen (docs/DECISIONS.md D101).
+    Route::get('champions', ChampionsController::class);
 });
 
 // What the scores changed on the leaderboards, shown by an idle cabinet (docs/DECISIONS.md D82).
