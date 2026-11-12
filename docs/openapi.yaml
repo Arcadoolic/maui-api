@@ -898,6 +898,39 @@ paths:
         '500':
           $ref: '#/components/responses/ServerError'
 
+  /ranking:
+    get:
+      tags: [Leaderboards]
+      operationId: getCabinetRanking
+      summary: The global podium, the cabinet's hiscores board
+      description: |
+        The first players of the global podium of the hiscores front, by the
+        same rule as `GET /front/ranking` (D70), first to last, for the
+        hiscores board a cabinet shows (D100). Only public and active players
+        are ranked. `avatar` is the SHA-256 of the player's avatar, downloaded
+        with `GET /players/{player}/avatar` as for the leaderboards (D53).
+
+        Cabinets only, ability `scores:read`.
+      parameters:
+        - {name: limit, in: query, schema: {type: integer, minimum: 1, maximum: 50, default: 25}}
+      responses:
+        '200':
+          description: The first players of the podium.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CabinetRankingResponse'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
   /events:
     get:
       tags: [Leaderboards]
@@ -3595,6 +3628,30 @@ components:
         created: 2
         updated: 5
         unchanged: 113
+
+    CabinetRankingResponse:
+      type: object
+      required: [ranking]
+      additionalProperties: false
+      properties:
+        ranking:
+          type: array
+          items:
+            type: object
+            required: [rank, player, points, games, crowns, podiums]
+            properties:
+              rank: {type: integer}
+              player:
+                type: object
+                required: [id, pseudo_3, avatar]
+                properties:
+                  id: {type: string, format: uuid}
+                  pseudo_3: {type: string}
+                  avatar: {type: [string, 'null'], description: 'SHA-256 of the avatar PNG, null without one.'}
+              points: {type: integer}
+              games: {type: integer, description: Games the player is ranked on.}
+              crowns: {type: integer}
+              podiums: {type: integer}
 
     BotRankingResponse:
       type: object

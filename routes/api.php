@@ -10,6 +10,7 @@ use App\Http\Controllers\Api\LeaderboardsController;
 use App\Http\Controllers\Api\OpinionsController;
 use App\Http\Controllers\Api\PingController;
 use App\Http\Controllers\Api\PlayersController;
+use App\Http\Controllers\Api\RankingController as CabinetRankingController;
 use App\Http\Controllers\Api\RepositoryAuthorizeController;
 use App\Http\Controllers\Api\RepositoryController;
 use App\Http\Controllers\Api\ScoreEventsController;
@@ -70,6 +71,11 @@ Route::middleware(['throttle:cabinet', 'cabinet:scores:read', 'etag'])->group(fu
     Route::get('leaderboards', [LeaderboardsController::class, 'index']);
     Route::get('leaderboards/{romname}', [LeaderboardsController::class, 'show']);
     Route::get('players/{player}/bests', [LeaderboardsController::class, 'bests']);
+});
+
+// The global podium, the cabinet's hiscores board (docs/DECISIONS.md D100).
+Route::middleware(['throttle:cabinet', 'cabinet:scores:read'])->group(function () {
+    Route::get('ranking', CabinetRankingController::class);
 });
 
 // What the scores changed on the leaderboards, shown by an idle cabinet (docs/DECISIONS.md D82).

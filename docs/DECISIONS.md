@@ -1517,3 +1517,14 @@ what differs from its copy. `POST /catalog/games/{romname}/scrape`
 (`catalog:write`) asks ScreenScraper for a game at once, created when unknown
 as a score does, for a pack being made. The files are served as stored:
 flyers are mostly JPEG, which the packs already ship under a `.png` name.
+
+**D100: The global podium on the cabinets, their hiscores board.** (2026-11-12, widens D70 and D89)
+Requested by the project owner: a cabinet button shows the global podium of
+the hiscores front as an animated board, in place of the back office's
+address (MAUI). `GET /ranking`, for cabinets with `scores:read` (the ability
+of the leaderboards, no new one), gives the first players by the rule of
+D70, as `GET /bot/ranking` does for the bots (D89), plus each player's avatar
+hash, which the cabinet downloads with `GET /players/{player}/avatar` as for
+the leaderboards (D53). 25 players by default, 50 at most: the board shows
+ten, then scrolls through the next ones. Read when the board opens, no
+cache nor ETag: a few requests a day per cabinet.
