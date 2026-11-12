@@ -1,3 +1,10 @@
+## [0.29.0](https://github.com/Arcadoolic/maui-api/compare/0.28.0...0.29.0) (2026-11-12)
+
+### Features
+
+* **champions:** the champions of the day for idle cabinets (D101) ([4c6c863](https://github.com/Arcadoolic/maui-api/commit/4c6c863324a40293ce299058bb8ce1dcdc2f7a39))
+* **ranking:** the global podium for the cabinets' board (D100) ([8fa16a1](https://github.com/Arcadoolic/maui-api/commit/8fa16a1fa655e16e8dd12accc6bf1131539c6113))
+
 ## [0.28.0](https://github.com/Arcadoolic/maui-api/compare/0.27.0...0.28.0) (2026-11-05)
 
 ### Features
