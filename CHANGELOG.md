@@ -1,3 +1,9 @@
+## [0.31.0](https://github.com/Arcadoolic/maui-api/compare/0.30.0...0.31.0) (2026-11-18)
+
+### Features
+
+* **tv:** the games a TV app's player is not ranked on (D103) ([88d75d8](https://github.com/Arcadoolic/maui-api/commit/88d75d8f0f73730356429d6bc493bb03ba6120c2))
+
 ## [0.30.0](https://github.com/Arcadoolic/maui-api/compare/0.29.0...0.30.0) (2026-11-18)
 
 ### Features
