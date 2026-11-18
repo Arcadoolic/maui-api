@@ -11,8 +11,10 @@ use App\Filament\Resources\Clients\RelationManagers\StartupsRelationManager;
 use App\Filament\Resources\ServiceAccounts\Pages\CreateServiceAccount;
 use App\Filament\Resources\ServiceAccounts\Pages\ListServiceAccounts;
 use App\Filament\Resources\ServiceAccounts\Pages\ViewServiceAccount;
+use App\Filament\Resources\ServiceAccounts\RelationManagers\TvPlayersRelationManager;
 use App\Filament\Resources\ServiceAccounts\ServiceAccountResource;
 use App\Models\Client;
+use App\Models\Player;
 use App\Models\Score;
 use App\Models\User;
 use Filament\Tables\Filters\SelectFilter;
@@ -402,4 +404,17 @@ it('shows when a service account last used its token (D43)', function () {
     livewire(ViewServiceAccount::class, ['record' => $client->fresh()->getRouteKey()])
         ->assertSee('Token last used')
         ->assertDontSee('Never used');
+});
+
+// The players of a TV app, linked from the TV with their PIN (docs/DECISIONS.md D102).
+it('shows the players of a TV app, and only for a TV app', function () {
+    $tv = Client::factory()->tv()->create();
+    $player = Player::factory()->create();
+    $tv->tvPlayers()->attach($player, ['linked_at' => now()]);
+
+    livewire(TvPlayersRelationManager::class, ['ownerRecord' => $tv, 'pageClass' => ViewServiceAccount::class])
+        ->assertCanSeeTableRecords([$player]);
+    $this->get(ServiceAccountResource::getUrl('view', ['record' => $tv]))->assertOk();
+
+    expect(TvPlayersRelationManager::canViewForRecord(Client::factory()->bot()->create(), ViewServiceAccount::class))->toBeFalse();
 });

@@ -79,6 +79,18 @@ function botWithToken(): array
 }
 
 /**
+ * Creates an active TV account (hiscores app on a TV, D102) with a valid token.
+ *
+ * @return array{0: Client, 1: string}
+ */
+function tvWithToken(): array
+{
+    $client = Client::factory()->tv()->create();
+
+    return [$client, app(ClientTokenIssuer::class)->issue($client)];
+}
+
+/**
  * Service accounts send no machine header.
  *
  * @return array<string, string>

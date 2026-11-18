@@ -18,6 +18,7 @@ use App\Http\Controllers\Api\ScoreEventsController;
 use App\Http\Controllers\Api\ScoreRecoveriesController;
 use App\Http\Controllers\Api\ScoresController;
 use App\Http\Controllers\Api\StartupController;
+use App\Http\Controllers\Api\TvController;
 use App\Http\Controllers\Front\AuthController;
 use App\Http\Controllers\Front\CrownsController;
 use App\Http\Controllers\Front\EventsController;
@@ -102,6 +103,20 @@ Route::middleware(['throttle:service', 'service:leaderboards:read'])->group(func
 // Bots (Discord): what the scores changed on the leaderboards (docs/DECISIONS.md D60).
 Route::middleware(['throttle:service', 'service:events:read'])->group(function () {
     Route::get('bot/events', [ScoreEventsController::class, 'index']);
+});
+
+// The hiscores app of a TV (docs/DECISIONS.md D102): the global podium and the
+// events as the cabinets read them, and the players linked to it with their PIN.
+Route::middleware(['throttle:service', 'service:tv:read'])->group(function () {
+    Route::get('tv/ranking', CabinetRankingController::class);
+    Route::get('tv/events', [ScoreEventsController::class, 'index']);
+    Route::get('tv/players/{player}/avatar', [TvController::class, 'avatar']);
+});
+Route::middleware(['throttle:service', 'service:tv:players'])->group(function () {
+    Route::get('tv/players', [TvController::class, 'players']);
+    Route::post('tv/players/link', [TvController::class, 'link'])->middleware('throttle:player-link');
+    Route::get('tv/players/{player}', [TvController::class, 'show']);
+    Route::delete('tv/players/{player}/link', [TvController::class, 'unlink']);
 });
 
 // Starting-pack repository (docs/DECISIONS.md D46). The URL is looked up once
