@@ -116,6 +116,7 @@ Route::middleware(['throttle:service', 'service:tv:players'])->group(function ()
     Route::get('tv/players', [TvController::class, 'players']);
     Route::post('tv/players/link', [TvController::class, 'link'])->middleware('throttle:player-link');
     Route::get('tv/players/{player}', [TvController::class, 'show']);
+    Route::get('tv/players/{player}/unranked', [TvController::class, 'unranked']);
     Route::delete('tv/players/{player}/link', [TvController::class, 'unlink']);
 });
 

@@ -25,6 +25,10 @@ use Symfony\Component\HttpFoundation\Response;
  */
 final class TvController
 {
+    public const MAX_UNRANKED = 30;
+
+    public const DEFAULT_UNRANKED = 6;
+
     public function __construct(
         private readonly PlayerRegistry $registry,
         private readonly FrontPlayersController $pages,
@@ -67,6 +71,17 @@ final class TvController
     public function show(Request $request, string $player): JsonResponse
     {
         return new JsonResponse($this->pages->page($this->ownPlayer($request, $player), true));
+    }
+
+    /** The games with scores the TV's player is not ranked on, the most popular first (D103). */
+    public function unranked(Request $request, GamesController $games, string $player): JsonResponse
+    {
+        $found = $this->ownPlayer($request, $player);
+        $limit = (int) ($request->validate([
+            'limit' => ['sometimes', 'integer', 'min:1', 'max:'.self::MAX_UNRANKED],
+        ])['limit'] ?? self::DEFAULT_UNRANKED);
+
+        return new JsonResponse($games->unranked([$found->id], $limit));
     }
 
     /** The avatar of a player the podium or the events show (public), or of the TV's own. */
