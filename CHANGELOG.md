@@ -1,3 +1,9 @@
+## [0.30.0](https://github.com/Arcadoolic/maui-api/compare/0.29.0...0.30.0) (2026-11-18)
+
+### Features
+
+* **tv:** a TV app client type with the podium, the events and its players (D102) ([3bf9436](https://github.com/Arcadoolic/maui-api/commit/3bf94368cbfaeb0039489f06f56c690010a2727f))
+
 ## [0.29.0](https://github.com/Arcadoolic/maui-api/compare/0.28.0...0.29.0) (2026-11-12)
 
 ### Features
