@@ -35,6 +35,17 @@ For why things are done this way, see `docs/DECISIONS.md`.
 - Releases by semantic-release on every push to `main` (D44): 0.1.0
   published on 2026-09-25.
 
+## The hiscores app of a TV (D102)
+
+- Client type `tv` (service account, abilities `tv:read`, `tv:players`) and
+  table `tv_players`; `Api\TvController`.
+- `GET /tv/ranking` and `GET /tv/events` (the cabinets' and the bots'
+  answers), `GET /tv/players/{player}/avatar` (public players and the TV's
+  own), `GET /tv/players`, `POST /tv/players/link` (initials and PIN, same
+  lock as a cabinet), `GET /tv/players/{player}` (the front's page),
+  `DELETE /tv/players/{player}/link`.
+- Back office: the players of a TV account, read-only, on its page.
+
 ## The champions on idle cabinets (D101)
 
 - `GET /champions` (`scores:read`, `Api\ChampionsController`): the champions
@@ -611,7 +622,7 @@ Tracked in `docs/PLAN.md`, section "Open questions".
 | Check | Expected |
 |-------|----------|
 | `just up` then `/up` | 200 |
-| `just ci` | Pint pass, PHPStan no errors, Pest 871 passed |
+| `just ci` | Pint pass, PHPStan no errors, Pest 898 passed |
 | `curl -sD - -o /dev/null http://localhost:8080/invite/<48 chars>` | `Referrer-Policy: no-referrer`, `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff` |
 | `docker run --rm -v "$PWD/docs:/spec" redocly/cli lint /spec/openapi.yaml` | valid, 7 known warnings (no license, localhost server, unused `MauiConfiguration`, no 2xx on the 303-only `/invite/{t}/name`) |
 | `docker run --rm -v "$PWD":/repo -w /repo rhysd/actionlint:latest .github/workflows/ci.yml` | no output |

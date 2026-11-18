@@ -54,8 +54,19 @@ final class PlayersController
     {
         $member = AuthenticateMember::member($request);
         $found = $this->shownPlayer($member, $player);
-        $mine = $member->players()->whereKey($found->id)->exists();
 
+        return new JsonResponse($this->page($found, $member->players()->whereKey($found->id)->exists()));
+    }
+
+    /**
+     * A player's page: totals, place on the global podium, bests and activity.
+     * Also the page of a TV app's own player (docs/DECISIONS.md D102).
+     *
+     * @param  bool  $mine  Linked to the member, or to the TV app.
+     * @return array<string, mixed>
+     */
+    public function page(Player $found, bool $mine): array
+    {
         $totals = $this->rankings->playerTotals()->where('ranked.player_id', $found->id)->first();
         $rows = $this->rankings->rows()->where('ranked.player_id', $found->id)->get();
         // A private player is on no leaderboard: its bests are listed without a rank.
@@ -87,7 +98,7 @@ final class PlayersController
             'score' => (int) $row->{$side.'_score'},
         ];
 
-        return new JsonResponse([
+        return [
             'player' => [
                 ...GamesController::player($found),
                 'is_public' => $found->is_public,
@@ -128,7 +139,7 @@ final class PlayersController
                 ->selectRaw("to_char(scores.achieved_at at time zone 'UTC', 'YYYY-MM-DD') as day, count(*) as bests")
                 ->groupBy('day')->orderBy('day')->toBase()->get()
                 ->map(fn (object $row): array => ['date' => (string) $row->day, 'bests' => (int) $row->bests])->all(),
-        ]);
+        ];
     }
 
     /**

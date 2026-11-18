@@ -97,6 +97,26 @@ final class PlayerRegistry
         });
     }
 
+    /**
+     * Links an existing player to a TV app, with the same PIN and the same
+     * lock as on a cabinet (D102). The player's cabinets are unchanged.
+     */
+    public function linkTv(Client $tv, string $pseudo3, string $pin): Player
+    {
+        return $this->linkWithPin($tv, $pseudo3, $pin, 'player.tv_linked', function (Player $player) use ($tv): string {
+            $tv->tvPlayers()->syncWithoutDetaching([$player->id => ['linked_at' => now()]]);
+
+            return 'linked';
+        });
+    }
+
+    /** The player stays as it is on its cabinets. */
+    public function unlinkTv(Client $tv, Player $player): void
+    {
+        $tv->tvPlayers()->detach($player);
+        $this->audit($player, $tv, 'player.tv_unlinked');
+    }
+
     /** The player stays as it is on its cabinets. */
     public function unlinkMember(Member $member, Player $player): void
     {

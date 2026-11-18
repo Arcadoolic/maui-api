@@ -122,6 +122,17 @@ class Client extends Model
         return $this->belongsToMany(Player::class)->withPivot('linked_at');
     }
 
+    /**
+     * Players a TV app shows, linked with their PIN (docs/DECISIONS.md D102).
+     * Not its cabinets: a TV sends no score.
+     *
+     * @return BelongsToMany<Player, $this>
+     */
+    public function tvPlayers(): BelongsToMany
+    {
+        return $this->belongsToMany(Player::class, 'tv_players')->withPivot('linked_at');
+    }
+
     /** @return BelongsTo<ClientStartup, $this> */
     public function latestStartup(): BelongsTo
     {
