@@ -35,6 +35,12 @@ For why things are done this way, see `docs/DECISIONS.md`.
 - Releases by semantic-release on every push to `main` (D44): 0.1.0
   published on 2026-09-25.
 
+## Targets, threats and games not ranked yet on the TV (D103)
+
+- `GET /tv/players/{player}/unranked` (`tv:players`): the games with scores
+  a linked player is not ranked on, the most popular first, with their
+  leader and the total.
+
 ## The hiscores app of a TV (D102)
 
 - Client type `tv` (service account, abilities `tv:read`, `tv:players`) and
