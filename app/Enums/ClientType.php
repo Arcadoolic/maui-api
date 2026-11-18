@@ -15,6 +15,9 @@ enum ClientType: string implements HasLabel
     /** A chat bot reading the shared leaderboards and the score events (docs/DECISIONS.md D57, D60). */
     case Bot = 'bot';
 
+    /** The hiscores app of a TV: the global podium, the events and its own players (docs/DECISIONS.md D102). */
+    case Tv = 'tv';
+
     /**
      * Sanctum abilities granted to this type of client.
      *
@@ -26,6 +29,7 @@ enum ClientType: string implements HasLabel
             self::Maui => ['session', 'scores:write', 'scores:read', 'repository:read', 'players', 'diagnostics:write', 'media:read'],
             self::Service => ['catalog:write', 'repository:read', 'media:read'],
             self::Bot => ['leaderboards:read', 'events:read'],
+            self::Tv => ['tv:read', 'tv:players'],
         };
     }
 
@@ -44,6 +48,7 @@ enum ClientType: string implements HasLabel
             self::Maui => __('Cabinet'),
             self::Service => __('Service account'),
             self::Bot => __('Bot'),
+            self::Tv => __('TV app'),
         };
     }
 }

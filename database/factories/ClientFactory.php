@@ -39,6 +39,15 @@ class ClientFactory extends Factory
         ]);
     }
 
+    /** A TV app showing the hiscores (docs/DECISIONS.md D102). */
+    public function tv(): static
+    {
+        return $this->state(fn () => [
+            'type' => ClientType::Tv,
+            'name' => fake()->unique()->word().'_tv',
+        ]);
+    }
+
     public function disabled(): static
     {
         return $this->state(['status' => ClientStatus::Disabled]);

@@ -3,6 +3,7 @@
 namespace App\Http\Middleware;
 
 use App\Http\Problems\ApiProblemException;
+use App\Models\Client;
 use App\Services\ClientAuthenticator;
 use Closure;
 use Illuminate\Http\Request;
@@ -15,6 +16,8 @@ use Symfony\Component\HttpFoundation\Response;
  */
 final class AuthenticateService
 {
+    private const CLIENT_ATTRIBUTE = 'maui.service';
+
     public function __construct(private readonly ClientAuthenticator $authenticator) {}
 
     /**
@@ -33,7 +36,16 @@ final class AuthenticateService
         }
 
         $client->currentAccessToken()->forceFill(['last_used_at' => now()])->save();
+        $request->attributes->set(self::CLIENT_ATTRIBUTE, $client);
 
         return $next($request);
+    }
+
+    public static function client(Request $request): Client
+    {
+        $client = $request->attributes->get(self::CLIENT_ATTRIBUTE);
+        assert($client instanceof Client, 'Route is not behind the service middleware.');
+
+        return $client;
     }
 }

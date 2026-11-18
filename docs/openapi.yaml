@@ -126,6 +126,13 @@ tags:
       The shared leaderboards for chat bots (Discord), D57. Bot accounts
       only, ability `leaderboards:read`, no machine header. Rate limit: 120
       requests per minute per key.
+  - name: Tv
+    description: |
+      The hiscores app of a TV (D102): the global podium and the score
+      events, and the players linked to it with their initials and PIN.
+      TV accounts only (service accounts of type `tv`), abilities `tv:read`
+      and `tv:players`, no machine header. Rate limit: 120 requests per
+      minute per key, 10 per minute for `POST /tv/players/link`.
   - name: Catalog
     description: |
       Game catalog fed by service accounts (maui-repository's `push-catalog`).
@@ -1682,6 +1689,261 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '422':
           $ref: '#/components/responses/ValidationFailed'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /tv/ranking:
+    get:
+      tags: [Tv]
+      operationId: getTvRanking
+      summary: The global podium, for a TV
+      description: |
+        The same answer as `GET /ranking` for a cabinet (D100): the first
+        players of the global podium of the hiscores front (D70), with the
+        hash of their avatars (`GET /tv/players/{playerId}/avatar`).
+
+        TV accounts only, ability `tv:read`.
+      security:
+        - mauiKey: []
+          bearerToken: []
+      parameters:
+        - {name: limit, in: query, schema: {type: integer, minimum: 1, maximum: 50, default: 25}}
+      responses:
+        '200':
+          description: The first players of the podium.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CabinetRankingResponse'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /tv/events:
+    get:
+      tags: [Tv]
+      operationId: listTvScoreEvents
+      summary: Score events, for a TV
+      description: |
+        The same answer as `GET /bot/events` (D60): with `after`, the events
+        above it, oldest first; without it, the latest ones. `cursor` is the
+        value to send as `after` next time.
+
+        TV accounts only, ability `tv:read`.
+      security:
+        - mauiKey: []
+          bearerToken: []
+      parameters:
+        - {name: after, in: query, schema: {type: integer, minimum: 0}}
+        - {name: limit, in: query, schema: {type: integer, minimum: 1, maximum: 100, default: 50}}
+      responses:
+        '200':
+          description: The events.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ScoreEventListResponse'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /tv/players:
+    get:
+      tags: [Tv]
+      operationId: listTvPlayers
+      summary: The players linked to the TV
+      description: |
+        The active players linked to this TV, first linked first, with their
+        totals and their place on the global podium (as on their page).
+
+        TV accounts only, ability `tv:players`.
+      security:
+        - mauiKey: []
+          bearerToken: []
+      responses:
+        '200':
+          description: The players.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TvPlayerListResponse'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /tv/players/link:
+    post:
+      tags: [Tv]
+      operationId: linkTvPlayer
+      summary: Link a player to the TV with its PIN
+      description: |
+        Same initials, PIN and lock as `POST /players/link` on a cabinet
+        (D48): each wrong PIN is counted, the fifth in a row locks the
+        player (`423`). The player's cabinets are unchanged: a TV is not one
+        of them. Idempotent for a player already linked. Own rate limit: 10
+        requests per minute per key.
+
+        TV accounts only, ability `tv:players`.
+      security:
+        - mauiKey: []
+          bearerToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LinkPlayerRequest'
+      responses:
+        '200':
+          description: Player linked.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [player]
+                additionalProperties: false
+                properties:
+                  player:
+                    $ref: '#/components/schemas/TvPlayer'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/PlayerForbidden'
+        '404':
+          $ref: '#/components/responses/PlayerNotFound'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+        '423':
+          $ref: '#/components/responses/PlayerLocked'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /tv/players/{playerId}:
+    parameters:
+      - $ref: '#/components/parameters/PlayerId'
+    get:
+      tags: [Tv]
+      operationId: showTvPlayer
+      summary: The page of a player of the TV
+      description: |
+        The page the hiscores front shows (`GET /front/players/{playerId}`),
+        for a player linked to this TV, private ones included (`is_mine` is
+        true). Any other player is `404`.
+
+        TV accounts only, ability `tv:players`.
+      security:
+        - mauiKey: []
+          bearerToken: []
+      responses:
+        '200':
+          description: The player.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FrontPlayerPageResponse'
+        '404':
+          $ref: '#/components/responses/PlayerNotFound'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /tv/players/{playerId}/link:
+    parameters:
+      - $ref: '#/components/parameters/PlayerId'
+    delete:
+      tags: [Tv]
+      operationId: unlinkTvPlayer
+      summary: Unlink a player from the TV
+      description: |
+        The player stays as it is, with its cabinets and its member.
+
+        TV accounts only, ability `tv:players`.
+      security:
+        - mauiKey: []
+          bearerToken: []
+      responses:
+        '204':
+          description: Unlinked.
+        '404':
+          $ref: '#/components/responses/PlayerNotFound'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /tv/players/{playerId}/avatar:
+    parameters:
+      - $ref: '#/components/parameters/PlayerId'
+    get:
+      tags: [Tv]
+      operationId: getTvPlayerAvatar
+      summary: A player's avatar, for a TV
+      description: |
+        The PNG of a public and active player (those the podium and the
+        events show), or of a player linked to this TV, with its hash as
+        ETag (D53).
+
+        TV accounts only, ability `tv:read`.
+      security:
+        - mauiKey: []
+          bearerToken: []
+      parameters:
+        - $ref: '#/components/parameters/IfNoneMatch'
+      responses:
+        '200':
+          description: The avatar.
+          headers:
+            ETag:
+              $ref: '#/components/headers/ETag'
+          content:
+            image/png:
+              schema:
+                type: string
+                format: binary
+        '304':
+          description: Not modified.
+        '404':
+          description: Unknown or hidden player (`player_not_found`), or no avatar (`avatar_not_found`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
         '429':
           $ref: '#/components/responses/RateLimited'
         '500':
@@ -4272,6 +4534,42 @@ components:
             allOf:
               - $ref: '#/components/schemas/FrontPlayerRef'
               - $ref: '#/components/schemas/FrontPlayerTotals'
+
+    TvPlayer:
+      type: object
+      required: [id, pseudo_3, avatar, is_public]
+      additionalProperties: false
+      properties:
+        id: {type: string, format: uuid}
+        pseudo_3:
+          $ref: '#/components/schemas/Pseudo3'
+        avatar:
+          type: [string, 'null']
+          description: SHA-256 of the player's avatar (D53), null without one.
+        is_public: {type: boolean}
+
+    TvPlayerListResponse:
+      type: object
+      required: [players]
+      additionalProperties: false
+      properties:
+        players:
+          type: array
+          items:
+            type: object
+            required: [player, stats]
+            additionalProperties: false
+            properties:
+              player:
+                $ref: '#/components/schemas/TvPlayer'
+              stats:
+                allOf:
+                  - $ref: '#/components/schemas/FrontPlayerTotals'
+                  - type: object
+                    required: [points, global_rank]
+                    properties:
+                      points: {type: integer, description: Points on the global podium (D70).}
+                      global_rank: {type: [integer, 'null'], description: 'Rank on the global podium, null for a private player or without a score.'}
 
     FrontPlayerPageResponse:
       type: object

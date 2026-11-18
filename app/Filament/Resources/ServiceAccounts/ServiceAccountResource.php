@@ -9,6 +9,7 @@ use App\Filament\Resources\ServiceAccounts\Pages\CreateServiceAccount;
 use App\Filament\Resources\ServiceAccounts\Pages\EditServiceAccount;
 use App\Filament\Resources\ServiceAccounts\Pages\ListServiceAccounts;
 use App\Filament\Resources\ServiceAccounts\Pages\ViewServiceAccount;
+use App\Filament\Resources\ServiceAccounts\RelationManagers\TvPlayersRelationManager;
 use App\Filament\Resources\ServiceAccounts\Schemas\ServiceAccountForm;
 use App\Filament\Resources\ServiceAccounts\Tables\ServiceAccountsTable;
 use App\Models\Client;
@@ -22,7 +23,7 @@ use Illuminate\Database\Eloquent\Model;
 
 /**
  * The technical accounts: the clients that are not cabinets, service accounts
- * and bots (ClientType::isService()). Apart from the cabinets since D79: they
+ * bots and TV apps (ClientType::isService()). Apart from the cabinets since D79: they
  * have no machine, no heartbeat and no invitation, only a token.
  */
 class ServiceAccountResource extends Resource
@@ -65,6 +66,7 @@ class ServiceAccountResource extends Resource
     public static function getRelations(): array
     {
         return [
+            TvPlayersRelationManager::class,
             AuditRelationManager::class,
         ];
     }

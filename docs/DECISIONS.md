@@ -1539,3 +1539,21 @@ most, with each player's avatar hash (D53) and the hashes of the game's
 marquee, flyer and logo (D99): a champion's game may not be on the cabinet,
 which then downloads its pictures with `GET /games/{romname}/media/{type}`
 (`media:read`). Read each time the cabinet turns idle, no cache nor ETag.
+
+**D102: A TV app type: the global podium, the events and its own players.** (2026-11-18, widens D57, D60 and D100)
+Requested by the project owner: a hiscores app on a Samsung TV
+(`samtv/samtv-hiscores`, Tizen) shows the global podium, the score events
+and the pages of a few players, without the list of games. A TV cannot log
+in with Discord as a member of the front does (D64), so it is a service
+account of a new type, `tv` (D47, least privilege), whose token is built
+into the app. Two abilities: `tv:read` for `GET /tv/ranking` (the cabinets'
+answer, D100) and `GET /tv/events` (the bots', D60), and the avatars of the
+public players; `tv:players` for its players. A player is linked from the
+TV with its initials and PIN, the same check and the same lock as on a
+cabinet (D48), and the same 10 attempts per minute per key. The links are
+kept in `tv_players`, apart from `client_player`: a TV is not a cabinet of
+the player (it sends no score, takes no part in D54's origin, and must not
+show among its cabinets in the back office). A linked player's page is the
+front's (`FrontPlayerPageResponse`, private ones included, as a member's
+own player); any other player is `404`. The back office lists a TV's
+players, read-only: the TV links and unlinks them.
