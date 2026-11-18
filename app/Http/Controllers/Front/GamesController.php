@@ -380,6 +380,33 @@ final class GamesController
         return $cards;
     }
 
+    /**
+     * The games with scores where none of these players is ranked, the most popular first, with
+     * their leader: the list `scores=unranked` gives, for a TV app's player (D103).
+     *
+     * @param  array<int>  $playerIds
+     * @return array{games: array<int, array<string, mixed>>, total: int}
+     */
+    public function unranked(array $playerIds, int $limit): array
+    {
+        $query = $this->listed();
+        $this->filter($query, ['scores' => 'unranked'], $playerIds);
+        $total = (clone $query)->count('games.id');
+        $games = self::orderByIds($query, $this->popularity->all()->keys()->all())
+            ->orderBy('games.description')->orderBy('games.romname')
+            ->limit($limit)->get();
+        $leaders = $this->leaders($games->modelKeys());
+
+        return [
+            'games' => $games->map(fn (Game $game): array => [
+                'romname' => $game->romname,
+                'description' => $game->description,
+                'leader' => $leaders->get($game->id),
+            ])->values()->all(),
+            'total' => $total,
+        ];
+    }
+
     /** @return array<int> */
     private static function myPlayerIds(Request $request): array
     {

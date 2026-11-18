@@ -1875,6 +1875,46 @@ paths:
         '500':
           $ref: '#/components/responses/ServerError'
 
+  /tv/players/{playerId}/unranked:
+    parameters:
+      - $ref: '#/components/parameters/PlayerId'
+    get:
+      tags: [Tv]
+      operationId: listTvPlayerUnranked
+      summary: The games a player of the TV is not ranked on
+      description: |
+        The games with scores where this player is not ranked, the most
+        popular first (D76), each with its leader on the default table: the
+        list `GET /front/games?scores=unranked&sort=popularity` gives a
+        member (D103). `total` counts them all. For a player linked to this
+        TV only, `404` otherwise.
+
+        TV accounts only, ability `tv:players`.
+      security:
+        - mauiKey: []
+          bearerToken: []
+      parameters:
+        - {name: limit, in: query, schema: {type: integer, minimum: 1, maximum: 30, default: 6}}
+      responses:
+        '200':
+          description: The games.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TvUnrankedResponse'
+        '404':
+          $ref: '#/components/responses/PlayerNotFound'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
   /tv/players/{playerId}/link:
     parameters:
       - $ref: '#/components/parameters/PlayerId'
@@ -4547,6 +4587,29 @@ components:
           type: [string, 'null']
           description: SHA-256 of the player's avatar (D53), null without one.
         is_public: {type: boolean}
+
+    TvUnrankedResponse:
+      type: object
+      required: [games, total]
+      additionalProperties: false
+      properties:
+        total: {type: integer, description: All the games the player is not ranked on.}
+        games:
+          type: array
+          items:
+            type: object
+            required: [romname, description, leader]
+            additionalProperties: false
+            properties:
+              romname: {type: string}
+              description: {type: string}
+              leader:
+                type: [object, 'null']
+                required: [player, score]
+                properties:
+                  player:
+                    $ref: '#/components/schemas/FrontPlayerRef'
+                  score: {type: integer}
 
     TvPlayerListResponse:
       type: object

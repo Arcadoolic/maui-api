@@ -208,3 +208,53 @@ describe('avatars', function () {
         $this->getJson("/api/v1/tv/players/{$player->uuid}/avatar", serviceHeaders($tv, $token))->assertNotFound();
     });
 });
+
+describe('games a player is not ranked on', function () {
+    it('lists the games with scores where the player is not ranked, with their leader', function () {
+        [$tv, $token] = tvWithToken();
+        $ace = tvPlayer('ACE');
+        tvLink($tv, $ace);
+        $both = Game::factory()->create(['romname' => 'both', 'description' => 'Both']);
+        $theirs = Game::factory()->create(['romname' => 'theirs', 'description' => 'Theirs (World)']);
+        Game::factory()->create(['romname' => 'empty']);
+        leaderboardScore($both, $ace, 100);
+        leaderboardScore($both, publicPlayer('BOB'), 200);
+        leaderboardScore($theirs, publicPlayer('CAT'), 300);
+        $cat = Player::query()->where('pseudo_3', 'CAT')->firstOrFail();
+
+        $this->getJson("/api/v1/tv/players/{$ace->uuid}/unranked", serviceHeaders($tv, $token))
+            ->assertOk()
+            ->assertExactJson([
+                'games' => [[
+                    'romname' => 'theirs',
+                    'description' => 'Theirs (World)',
+                    'leader' => ['player' => ['id' => $cat->uuid, 'pseudo_3' => 'CAT', 'avatar' => null], 'score' => 300],
+                ]],
+                'total' => 1,
+            ]);
+    });
+
+    it('answers fewer games on demand, with the total', function () {
+        [$tv, $token] = tvWithToken();
+        $ace = tvPlayer('ACE');
+        tvLink($tv, $ace);
+        foreach (['aaa', 'bbb', 'ccc'] as $romname) {
+            leaderboardScore(Game::factory()->create(['romname' => $romname]), publicPlayer(strtoupper($romname)), 100);
+        }
+
+        $this->getJson("/api/v1/tv/players/{$ace->uuid}/unranked?limit=2", serviceHeaders($tv, $token))
+            ->assertOk()
+            ->assertJsonCount(2, 'games')
+            ->assertJsonPath('total', 3);
+        $this->getJson("/api/v1/tv/players/{$ace->uuid}/unranked?limit=31", serviceHeaders($tv, $token))->assertUnprocessable();
+    });
+
+    it('is only for the players of this TV', function () {
+        [$tv, $token] = tvWithToken();
+        $player = tvPlayer('ACE');
+
+        $this->getJson("/api/v1/tv/players/{$player->uuid}/unranked", serviceHeaders($tv, $token))
+            ->assertNotFound()
+            ->assertJsonPath('code', 'player_not_found');
+    });
+});

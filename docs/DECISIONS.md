@@ -1557,3 +1557,15 @@ show among its cabinets in the back office). A linked player's page is the
 front's (`FrontPlayerPageResponse`, private ones included, as a member's
 own player); any other player is `404`. The back office lists a TV's
 players, read-only: the TV links and unlinks them.
+
+**D103: Targets, threats and the games not ranked yet on the TV app.** (2026-11-18, widens D102)
+Requested by the project owner: a tab of the TV app shows, for a player
+linked to it, what the hiscores front's "Me" page shows a member: the ranks
+within reach (targets), those at risk (threats), and the games not ranked
+yet. Targets and threats come from the player's page (`above` and `below`
+of each best, D102), worked out by the app as the front does. The games
+come from `GET /tv/players/{player}/unranked` (`tv:players`): the games
+with scores where the player is not ranked, the most popular first, with
+their leader, by the same rule as the front's `scores=unranked` filter
+(`Front\GamesController::unranked()`); 6 by default, 30 at most, with the
+total. A linked player only, as for its page.
