@@ -1569,3 +1569,15 @@ with scores where the player is not ranked, the most popular first, with
 their leader, by the same rule as the front's `scores=unranked` filter
 (`Front\GamesController::unranked()`); 6 by default, 30 at most, with the
 total. A linked player only, as for its page.
+
+**D104: The global podium's first players, points by points, day by day.** (2026-11-21, widens D97)
+Requested by the project owner: on /ranking, under the places chart (kept
+as it is), a second chart with the points of the same players over time.
+`GET /front/ranking/history` gives with each player its `points` today and
+a `points_history`: its total at the end of each day it changed, from the
+day it entered the ranking. It comes from the same rankings played again
+for D97, at no extra cost, with the same rules: today's points rule and
+moderation, so a past total may differ from the one shown that day. A
+player loses points without playing when someone passes them on a game: a
+line can go down. Places and points stay two lists, the places keep their
+days (a day when only the points move does not add a place).

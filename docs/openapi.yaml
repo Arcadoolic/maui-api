@@ -4799,11 +4799,12 @@ components:
           description: The first ten of today, first to last.
           items:
             type: object
-            required: [player, rank, history]
+            required: [player, rank, points, history, points_history]
             properties:
               player:
                 $ref: '#/components/schemas/FrontPlayerRef'
               rank: {type: integer, minimum: 1, description: Place today.}
+              points: {type: integer, minimum: 0, description: Points today.}
               history:
                 type: array
                 description: The place at the end of each day it changed, oldest first; the days in between keep the one before.
@@ -4813,6 +4814,15 @@ components:
                   properties:
                     date: {type: string, format: date}
                     rank: {type: integer, minimum: 1}
+              points_history:
+                type: array
+                description: The points at the end of each day they changed, oldest first, from the day the player entered the ranking (D104); the days in between keep the ones before.
+                items:
+                  type: object
+                  required: [date, points]
+                  properties:
+                    date: {type: string, format: date}
+                    points: {type: integer, minimum: 0}
     FrontRankingResponse:
       type: object
       required: [rules, ranking]
