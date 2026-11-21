@@ -1,3 +1,9 @@
+## [0.32.0](https://github.com/Arcadoolic/maui-api/compare/0.31.0...0.32.0) (2026-11-21)
+
+### Features
+
+* **front:** ranking history, the first ten players' points day by day (D104) ([e6546fe](https://github.com/Arcadoolic/maui-api/commit/e6546fe46e51fd10780ec67c01c4880db520ab8c))
+
 ## [0.31.0](https://github.com/Arcadoolic/maui-api/compare/0.30.0...0.31.0) (2026-11-18)
 
 ### Features
