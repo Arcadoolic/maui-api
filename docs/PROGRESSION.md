@@ -87,10 +87,11 @@ For why things are done this way, see `docs/DECISIONS.md`.
   `Crowns` no longer lowers the global podium's players (`crowns.
   podium_weight` removed).
 
-## Ranking history (D97)
+## Ranking history (D97, D104)
 
 - `GET /front/ranking/history`: the global podium's first ten players of
-  today, each with its place on each day it changed (`Europe/Paris` days,
+  today, each with its place on each day it changed, and its points on
+  each day they changed (`points_history`, D104) (`Europe/Paris` days,
   `config/hiscores.php` `ranking.history_timezone`), played again from the
   scores with today's rules and moderation (`RankingHistory`;
   `Rankings::rows()` and `GlobalRanking::standings()` take a `before`).

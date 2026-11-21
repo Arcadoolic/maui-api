@@ -5,7 +5,7 @@ use App\Models\Member;
 use App\Models\Player;
 use Illuminate\Support\Carbon;
 
-// The places of the global podium's first players, day by day (docs/DECISIONS.md D97).
+// The places and points of the global podium's first players, day by day (docs/DECISIONS.md D97, D104).
 
 beforeEach(fn () => $this->actingAs(Member::factory()->create(), 'member'));
 
@@ -82,6 +82,33 @@ it('leaves hidden scores out of the past as well', function () {
     Player::query()->where('pseudo_3', 'BBB')->first()->scores()->where('score', 1100)->update(['hidden_at' => now()]);
 
     expect(rankingHistory()['BBB']['history'])->toBe([['date' => '2026-10-01', 'rank' => 2]]);
+});
+
+it('tells the points on each day they changed, even when the place holds', function () {
+    // Full points from two players: 100 for the first, 80 for the second.
+    config(['hiscores.ranking.full_competition_players' => 2]);
+    $first = Game::factory()->create();
+    $second = Game::factory()->create();
+    scoreAt($first, 'AAA', 1000, '2026-10-01 18:00');
+    scoreAt($first, 'BBB', 900, '2026-10-01 19:00');
+    // A day when nothing moves.
+    scoreAt($first, 'AAA', 950, '2026-10-02 18:00');
+    scoreAt($first, 'BBB', 1100, '2026-10-03 18:00');
+    // BBB stays first and gains a game.
+    scoreAt($second, 'BBB', 500, '2026-10-04 18:00');
+    scoreAt($second, 'CCC', 400, '2026-10-04 19:00');
+
+    $players = collect($this->getJson('/api/v1/front/ranking/history')->assertOk()->json('players'))->keyBy('player.pseudo_3');
+
+    expect($players['BBB']['points'])->toBe(200)
+        ->and($players['BBB']['history'])->toBe([['date' => '2026-10-01', 'rank' => 2], ['date' => '2026-10-03', 'rank' => 1]])
+        ->and($players['BBB']['points_history'])->toBe([
+            ['date' => '2026-10-01', 'points' => 80],
+            ['date' => '2026-10-03', 'points' => 100],
+            ['date' => '2026-10-04', 'points' => 200],
+        ])
+        ->and($players['AAA']['points_history'])->toBe([['date' => '2026-10-01', 'points' => 100], ['date' => '2026-10-03', 'points' => 80]])
+        ->and($players['CCC']['points_history'])->toBe([['date' => '2026-10-04', 'points' => 80]]);
 });
 
 it('has an empty history before any score', function () {
