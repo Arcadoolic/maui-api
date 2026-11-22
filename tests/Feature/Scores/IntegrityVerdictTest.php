@@ -28,6 +28,16 @@ it('finds a fair game clean, a short pause and a reset included', function () {
     expect(IntegrityVerdict::judge(cleanReport()))->toBe(['verdict' => ScoreIntegrity::Clean, 'reasons' => []]);
 });
 
+it('finds the move list plugin harmless (D105)', function () {
+    expect(IntegrityVerdict::judge(cleanReport(['plugins' => ['hiscore', 'data', 'layout', 'movelist']])))
+        ->toBe(['verdict' => ScoreIntegrity::Clean, 'reasons' => []]);
+});
+
+it('finds the podium plugin harmless (D106)', function () {
+    expect(IntegrityVerdict::judge(cleanReport(['plugins' => ['hiscore', 'data', 'layout', 'movelist', 'podium']])))
+        ->toBe(['verdict' => ScoreIntegrity::Clean, 'reasons' => []]);
+});
+
 it('finds suspect what makes a game easier', function (array $overrides, string $reason) {
     $judged = IntegrityVerdict::judge(cleanReport($overrides));
 

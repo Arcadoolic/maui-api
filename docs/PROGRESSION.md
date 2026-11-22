@@ -225,6 +225,9 @@ For why things are done this way, see `docs/DECISIONS.md`.
 - Back office: "Integrity" badge with its reasons, filter, the report in
   full.
 - MAUI side: forced fair MAME options, the Lua report joined to each score.
+- `movelist` (maui-movelist's move list plugin) counted among the harmless
+  plugins (D105).
+- `podium` (maui-podium-overlay's podium in a corner) too (D106).
 
 ## Players' votes on the front (D86)
 
