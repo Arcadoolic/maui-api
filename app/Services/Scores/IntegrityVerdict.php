@@ -16,7 +16,7 @@ final class IntegrityVerdict
     private const CHEAT_PLUGINS = ['cheat', 'cheatfind', 'autofire', 'inputmacro', 'console', 'gdbstub'];
 
     /** Plugins that change nothing to a game. Anything else is worth a look. */
-    private const HARMLESS_PLUGINS = ['hiscore', 'data', 'layout', 'discord', 'portname', 'timecode', 'timer', 'dummy', 'vector'];
+    private const HARMLESS_PLUGINS = ['hiscore', 'data', 'layout', 'discord', 'portname', 'timecode', 'timer', 'dummy', 'vector', 'movelist'];
 
     /** Below this average speed (percent of real time), the game ran slow enough to be easier. */
     private const SLOW_PERCENT = 90;
