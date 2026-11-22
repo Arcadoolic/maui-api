@@ -1232,7 +1232,7 @@ cheats, rewind or the Lua console on, a ROM set MAME finds bad, an average
 speed under 90 %. **To check**: DIP switches differ from the game's
 defaults (an operator may legitimately give 5 lives), more than 30 s or 10
 pauses, a state saved, the speed changed, autosave on, a plugin outside
-the known harmless ones (D105 adds `movelist`). **Clean** otherwise; no report, unknown. The
+the known harmless ones (D105 adds `movelist`, D106 `podium`). **Clean** otherwise; no report, unknown. The
 verdict changes nothing for now: the score is stored, counts and is
 visible as before; the back office shows it (column, filter, the report
 in full) for an administrator to hide a score by hand. The report is
@@ -1591,3 +1591,10 @@ only reads the game's memory and draws outside or over the picture: it
 helps the player know the moves, it does not play them, unlike autofire or
 input macro. Like every plugin, it is only known by its name in the
 cabinet's report.
+
+**D106: The podium plugin is harmless.** (2026-11-22, widens D87)
+Requested by the project owner: `podium` (Arcadoolic's maui-podium-overlay,
+a MAME plugin showing the game's best 3 players in a corner, from a file
+MAUI writes before the launch) joins the plugins known to change nothing to
+a game, as `movelist` did (D105). It does not even read the game's memory:
+it only draws the podium the cabinet already shows on the game's marquee.
