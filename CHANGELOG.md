@@ -1,3 +1,10 @@
+## [0.33.0](https://github.com/Arcadoolic/maui-api/compare/0.32.0...0.33.0) (2026-11-22)
+
+### Features
+
+* count the movelist plugin as harmless in the integrity verdict (D105) ([c654678](https://github.com/Arcadoolic/maui-api/commit/c654678ba15d2c56e885b9545fde11a0cf646e3d))
+* count the podium plugin as harmless in the integrity verdict (D106) ([60ca93c](https://github.com/Arcadoolic/maui-api/commit/60ca93cf67af7b9dca14bc9a962ae97fb083aa6f))
+
 ## [0.32.0](https://github.com/Arcadoolic/maui-api/compare/0.31.0...0.32.0) (2026-11-21)
 
 ### Features
